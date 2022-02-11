@@ -13,7 +13,7 @@ module.exports = {
     mode: "development",
     devtool: __DEV__ ? "inline-source-map" : "source-map",
     entry: {
-        fluid: path.join(__dirname, "src/index.ts"),
+        fluidRendering: path.join(__dirname, "src/index.ts"),
     },
     output: {
         //using [name] allows for code splitting. chunkhash in prod for cash busting
