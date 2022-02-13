@@ -1,9 +1,21 @@
 import * as BABYLON from "@babylonjs/core";
 
+import particleDepthVertex from "../assets/particleDepth.vertex.glsl";
+import particleDepthFragment from "../assets/particleDepth.fragment.glsl";
+
+import particleThicknessVertex from "../assets/particleThickness.vertex.glsl";
+import particleThicknessFragment from "../assets/particleThickness.fragment.glsl";
+
+import bilaterialBlurFragment from "../assets/bilateralBlur.fragment.glsl";
+import standardBlurFragment from "../assets/standardBlur.fragment.glsl";
+
+import renderFluidFragment from "../assets/renderFluid.fragment.glsl";
+
 export class FluidRenderer {
     private _scene: BABYLON.Scene;
     private _engine: BABYLON.Engine;
     private _ps: BABYLON.ParticleSystem;
+    private _psRender: () => number;
     private _dirLight: BABYLON.Vector3;
     private _particleAlpha: number;
     private _vertexBuffers: { [key: string]: BABYLON.VertexBuffer };
@@ -19,6 +31,12 @@ export class FluidRenderer {
     private _rtDepthBlur: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
     private _textureBlurredDepth: BABYLON.ThinTexture;
     private _blurDepthPostProcesses: BABYLON.PostProcess[];
+
+    private _rtDiffuse: BABYLON.RenderTargetWrapper;
+    private _textureDiffuse: BABYLON.ThinTexture;
+    private _rtDiffuseBlur: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
+    private _textureBlurredDiffuse: BABYLON.ThinTexture;
+    private _blurDiffusePostProcesses: BABYLON.PostProcess[];
 
     private _thicknessEffectWrapper: BABYLON.EffectWrapper;
     private _rtThickness: BABYLON.RenderTargetWrapper;
@@ -60,21 +78,39 @@ export class FluidRenderer {
         this._thicknessClearColor = new BABYLON.Color4(0, 0, 0, 1);
         this._mapSize = 1024;
         this._depthEffectWrapper = null as any;
+
         this._rtDepth = null as any;
         this._textureDepth = null as any;
         this._rtDepthBlur = null as any;
         this._textureBlurredDepth = null as any;
         this._blurDepthPostProcesses = null as any;
+
+        this._rtDiffuse = null as any;
+        this._textureDiffuse = null as any;
+        this._rtDiffuseBlur = null as any;
+        this._textureBlurredDiffuse = null as any;
+        this._blurDiffusePostProcesses = null as any;
+
         this._thicknessEffectWrapper = null as any;
         this._rtThickness = null as any;
         this._textureThickness = null as any;
         this._rtThicknessBlur = null as any;
         this._textureBlurredThickness = null as any;
         this._blurThicknessPostProcesses = null as any;
+
         this._renderPostProcess = null as any;
         this._passPostProcess = null as any;
 
-        BABYLON.Effect.ShadersStore["renderLiquidFragmentShader"] = BABYLON.Effect.ShadersStore["renderLiquidFragmentShader"].replace("##CAMERAFAR##", this._scene.activeCamera!.maxZ + ".");
+        BABYLON.Effect.ShadersStore["renderFluidFragmentShader"] = BABYLON.Effect.ShadersStore["renderFluidFragmentShader"].replace("##CAMERAFAR##", this._scene.activeCamera!.maxZ + ".");
+
+        this._psRender = ps.render.bind(ps);
+
+        ps.render = () => 0;
+        ps.blendMode = -1;
+
+        ps.onBeforeDrawParticlesObservable.add(() => {
+            this._engine.setAlphaMode(BABYLON.Constants.ALPHA_COMBINE);
+        });
 
         let time = 0;
         const pos: number[] = [];
@@ -124,14 +160,20 @@ export class FluidRenderer {
 
     protected _initialize(): void {
         this._initializeDepthStep();
+        this._initializeDiffuseStep();
         this._initializeThicknessStep();
         if (this.enableBlur) {
-            const [rtDepthBlur, textureBlurredDepth, blurPostProcesses] = this._initializeBlurStep(this._textureDepth, this._textureTypeFloat, this.blurScale, "Depth");
+            const [rtDepthBlur, textureBlurredDepth, blurDepthPostProcesses] = this._initializeBlurStep(this._textureDepth, this._textureTypeFloat, this.blurScale, "Depth");
             this._rtDepthBlur = rtDepthBlur;
             this._textureBlurredDepth = textureBlurredDepth;
-            this._blurDepthPostProcesses = blurPostProcesses;
+            this._blurDepthPostProcesses = blurDepthPostProcesses;
 
-            const [rtThicknessBlur, textureBlurredThickness, blurThicknessPostProcesses] = this._initializeBlurStep(this._textureThickness, this._textureTypeHalfFloat, this.blurScale, "Thickness");
+            const [rtDiffuseBlur, textureBlurredDiffuse, blurDiffusePostProcesses] = this._initializeBlurStep(this._textureDiffuse, this._textureTypeHalfFloat, this.blurScale, "Diffuse", true, true);
+            this._rtDiffuseBlur = rtDiffuseBlur;
+            this._textureBlurredDiffuse = textureBlurredDiffuse;
+            this._blurDiffusePostProcesses = blurDiffusePostProcesses;
+
+            const [rtThicknessBlur, textureBlurredThickness, blurThicknessPostProcesses] = this._initializeBlurStep(this._textureThickness, this._textureTypeHalfFloat, this.blurScale, "Thickness", true);
             this._rtThicknessBlur = rtThicknessBlur;
             this._textureBlurredThickness = textureBlurredThickness;
             this._blurThicknessPostProcesses = blurThicknessPostProcesses;
@@ -144,8 +186,8 @@ export class FluidRenderer {
         this._depthEffectWrapper = new BABYLON.EffectWrapper({
             engine: this._engine,
             useShaderStore: false,
-            vertexShader: particleDepthVertexShader,
-            fragmentShader: particleDepthFragmentShader.replace("##CAMERAFAR##", this._scene.activeCamera!.maxZ + "."),
+            vertexShader: particleDepthVertex,
+            fragmentShader: particleDepthFragment.replace("##CAMERAFAR##", this._scene.activeCamera!.maxZ + "."),
             attributeNames: ["position", "size", "offset"],
             uniformNames: ["view", "projection"],
             samplerNames: [],
@@ -190,8 +232,8 @@ export class FluidRenderer {
         this._thicknessEffectWrapper = new BABYLON.EffectWrapper({
             engine: this._engine,
             useShaderStore: false,
-            vertexShader: particleThicknessVertexShader,
-            fragmentShader: particleThicknessFragmentShader,
+            vertexShader: particleThicknessVertex,
+            fragmentShader: particleThicknessFragment,
             attributeNames: ["position", "size", "offset"],
             uniformNames: ["view", "projection", "particleAlpha"],
             samplerNames: [],
@@ -227,14 +269,44 @@ export class FluidRenderer {
         }
     }
 
-    protected _initializeBlurStep(textureBlurSource: BABYLON.ThinTexture, textureType: number, blurSizeDivisor: number, debugName: string): [BABYLON.RenderTargetWrapper, BABYLON.ThinTexture, BABYLON.PostProcess[]] {
+    protected _initializeDiffuseStep(): void {
+        // Creates the render target wrapper/texture we will generate the depth data into
+        this._rtDiffuse = this._engine.createRenderTargetTexture(this._mapSize, {
+            generateMipMaps: false,
+            type: this._textureTypeHalfFloat,
+            format: BABYLON.Constants.TEXTUREFORMAT_RGBA,
+            samplingMode: BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE,
+            generateDepthBuffer: true,
+            generateStencilBuffer: false,
+            samples: 1,
+        });
+
+        const renderTexture = this._rtDiffuse.texture!;
+
+        this._textureDiffuse = new BABYLON.ThinTexture(renderTexture);
+
+        renderTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+        renderTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+
+        if (this.debug) {
+            const texture = new BABYLON.Texture(null, this._scene);
+            texture.name = "rttDiffuse";
+            texture._texture = renderTexture;
+            texture._texture.incrementReferences();
+            this.onDisposeObservable.add(() => {
+                texture.dispose();
+            });
+        }
+    }
+
+    protected _initializeBlurStep(textureBlurSource: BABYLON.ThinTexture, textureType: number, blurSizeDivisor: number, debugName: string, useStandardBlur = false, useRGBA = false): [BABYLON.RenderTargetWrapper, BABYLON.ThinTexture, BABYLON.PostProcess[]] {
         const engine = this._scene.getEngine();
         const targetSize = Math.floor(this._mapSize / blurSizeDivisor);
 
         const rtBlur = this._engine.createRenderTargetTexture(targetSize, {
             generateMipMaps: false,
             type: textureType,
-            format: BABYLON.Constants.TEXTUREFORMAT_R,
+            format: useRGBA ? BABYLON.Constants.TEXTUREFORMAT_RGBA : BABYLON.Constants.TEXTUREFORMAT_R,
             samplingMode: BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE,
             generateDepthBuffer: false,
             generateStencilBuffer: false,
@@ -256,9 +328,9 @@ export class FluidRenderer {
             });
         }
 
-        const kernelBlurXPostprocess = new BABYLON.PostProcess("BilateralBlurX", "bilateralBlur", ["filterRadius", "blurScale", "blurDir", "blurDepthFalloff"],
+        const kernelBlurXPostprocess = new BABYLON.PostProcess("BilateralBlurX", useStandardBlur ? "standardBlur" : "bilateralBlur", ["filterRadius", "blurScale", "blurDir", "blurDepthFalloff"],
             null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
-            engine, false, null, textureType, undefined, undefined, undefined, BABYLON.Constants.TEXTUREFORMAT_R);
+            engine, false, null, textureType, undefined, undefined, undefined, useRGBA ? BABYLON.Constants.TEXTUREFORMAT_RGBA : BABYLON.Constants.TEXTUREFORMAT_R);
         kernelBlurXPostprocess.width = targetSize;
         kernelBlurXPostprocess.height = targetSize;
         kernelBlurXPostprocess.externalTextureSamplerBinding = true;
@@ -270,9 +342,9 @@ export class FluidRenderer {
             effect.setFloat("blurDepthFalloff", .1);
         });
 
-        const kernelBlurYPostprocess = new BABYLON.PostProcess("BilateralBlurY", "bilateralBlur", ["filterRadius", "blurScale", "blurDir", "blurDepthFalloff"],
+        const kernelBlurYPostprocess = new BABYLON.PostProcess("BilateralBlurY", useStandardBlur ? "standardBlur" : "bilateralBlur", ["filterRadius", "blurScale", "blurDir", "blurDepthFalloff"],
             null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
-            engine, false, null, textureType, undefined, undefined, undefined, BABYLON.Constants.TEXTUREFORMAT_R);
+            engine, false, null, textureType, undefined, undefined, undefined, useRGBA ? BABYLON.Constants.TEXTUREFORMAT_RGBA : BABYLON.Constants.TEXTUREFORMAT_R);
         kernelBlurYPostprocess.onApplyObservable.add((effect) => {
             effect.setFloat("filterRadius", this.blurKernel >> 1);
             effect.setFloat2("blurDir", 0, 1 / this._mapSize);
@@ -290,8 +362,8 @@ export class FluidRenderer {
         const engine = this._scene.getEngine();
         const targetSize = Math.floor(this._mapSize / this.blurScale);
 
-        this._renderPostProcess = new BABYLON.PostProcess("render", "renderLiquid", ["projection", "invProjection", "invView", "texelSize", "dirLight", "camPos"],
-            ["depthSampler", "thicknessSampler", "reflectionSampler"], 1, this._scene.activeCamera, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE, engine, false, null, BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
+        this._renderPostProcess = new BABYLON.PostProcess("render", "renderFluid", ["projection", "invProjection", "invView", "texelSize", "dirLight", "camPos"],
+            ["depthSampler", "diffuseSampler", "thicknessSampler", "reflectionSampler"], 1, this._scene.activeCamera, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE, engine, false, null, BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
         this._renderPostProcess.alphaMode = BABYLON.Constants.ALPHA_COMBINE;
         this._renderPostProcess.onApplyObservable.add((effect) => {
             this._invProjectionMatrix.copyFrom(this._scene.getProjectionMatrix());
@@ -308,6 +380,12 @@ export class FluidRenderer {
                 texelSize = 1 / this._mapSize;
             } else {
                 effect.setTexture("depthSampler", this._textureBlurredDepth);
+            }
+            if (!this._blurDiffusePostProcesses || this._blurDiffusePostProcesses.length === 0) {
+                // case where we disabled blurring the diffuse texture
+                effect.setTexture("diffuseSampler", this._textureDiffuse);
+            } else {
+                effect.setTexture("diffuseSampler", this._textureBlurredDiffuse);
             }
             if (!this._blurThicknessPostProcesses || this._blurThicknessPostProcesses.length === 0) {
                 // case where we disabled blurring the thickness texture
@@ -372,6 +450,15 @@ export class FluidRenderer {
 
         this._engine.unBindFramebuffer(this._rtDepth);
 
+        // Render the particles in the diffuse texture
+        this._engine.bindFramebuffer(this._rtDiffuse);
+
+        this._engine.clear(this._thicknessClearColor, true, true, false);
+
+        this._psRender();
+
+        this._engine.unBindFramebuffer(this._rtDiffuse);
+
         // Render the particles in the thickness texture
         this._engine.bindFramebuffer(this._rtThickness);
 
@@ -405,6 +492,11 @@ export class FluidRenderer {
             this._engine.unBindFramebuffer(this._rtDepthBlur!);
         }
 
+        if (this._blurDiffusePostProcesses && this._blurDiffusePostProcesses.length > 0) {
+            this._scene.postProcessManager.directRender(this._blurDiffusePostProcesses, this._rtDiffuseBlur, true);
+            this._engine.unBindFramebuffer(this._rtDiffuseBlur!);
+        }
+
         if (this._blurThicknessPostProcesses && this._blurThicknessPostProcesses.length > 0) {
             this._scene.postProcessManager.directRender(this._blurThicknessPostProcesses, this._rtThicknessBlur, true);
             this._engine.unBindFramebuffer(this._rtThicknessBlur!);
@@ -429,6 +521,14 @@ export class FluidRenderer {
         }
         this._blurDepthPostProcesses = [];
 
+        this._rtDiffuse.dispose();
+        this._rtDiffuseBlur?.dispose();
+        this._rtDiffuseBlur = null;
+        if (this._blurDiffusePostProcesses) {
+            this._blurDiffusePostProcesses.forEach((pp) => pp.dispose());
+        }
+        this._blurDiffusePostProcesses = [];
+
         this._thicknessEffectWrapper.dispose();
         this._rtThickness.dispose();
         this._rtThicknessBlur?.dispose();
@@ -443,371 +543,8 @@ export class FluidRenderer {
     }
 }
 
-const particleDepthVertexShader = `
-    attribute vec3 position;
-    attribute vec2 size;
-    attribute vec2 offset;
+BABYLON.Effect.ShadersStore["bilateralBlurFragmentShader"] = bilaterialBlurFragment;
 
-    uniform mat4 view;
-    uniform mat4 projection;
+BABYLON.Effect.ShadersStore["standardBlurFragmentShader"] = standardBlurFragment;
 
-    varying vec2 uv;
-    varying vec3 viewPos;
-    varying float sphereRadius;
-
-    void main(void) {
-        vec3 cornerPos;
-        cornerPos.xy = vec2(offset.x - 0.5, offset.y - 0.5) * size;
-        cornerPos.z = 0.0;
-
-        viewPos = (view * vec4(position, 1.0)).xyz + cornerPos;
-
-        gl_Position = projection * vec4(viewPos, 1.0);
-
-        uv = offset;
-        viewPos -= cornerPos;
-        sphereRadius = size.x / 2.0;
-    }
-`;
-
-const particleDepthFragmentShader = `
-    uniform mat4 projection;
-
-    varying vec2 uv;
-    varying vec3 viewPos;
-    varying float sphereRadius;
-
-    void main(void) {
-        vec3 normal;
-
-        normal.xy = uv * 2.0 - 1.0;
-        float r2 = dot(normal.xy, normal.xy);
-        if (r2 > 1.0) discard;
-        normal.z = -sqrt(1.0 - r2);
-
-        vec4 realViewPos = vec4(viewPos + normal * sphereRadius, 1.0);
-        vec4 clipSpacePos = projection * realViewPos;
-
-        float depth = clipSpacePos.z / clipSpacePos.w;
-        depth = clamp(realViewPos.z / ##CAMERAFAR##, 0., 1.);
-
-        gl_FragDepth = depth;
-
-        glFragColor = vec4(vec3(depth), 1.);
-    }
-`;
-
-const particleThicknessVertexShader = `
-    attribute vec3 position;
-    attribute vec2 size;
-    attribute vec2 offset;
-
-    uniform mat4 view;
-    uniform mat4 projection;
-
-    varying vec2 uv;
-
-    void main(void) {
-        vec3 cornerPos;
-        cornerPos.xy = vec2(offset.x - 0.5, offset.y - 0.5) * size;
-        cornerPos.z = 0.0;
-
-        vec3 viewPos = (view * vec4(position, 1.0)).xyz + cornerPos;
-
-        gl_Position = projection * vec4(viewPos, 1.0);
-
-        uv = offset;
-    }
-`;
-
-const particleThicknessFragmentShader = `
-    uniform float particleAlpha;
-
-    varying vec2 uv;
-
-    void main(void) {
-        vec3 normal;
-
-        normal.xy = uv * 2.0 - 1.0;
-        float r2 = dot(normal.xy, normal.xy);
-        if (r2 > 1.0) discard;
-        normal.z = -sqrt(1.0 - r2);
-
-        glFragColor = vec4(1., 1., 1., particleAlpha * (1.0 - r2));
-    }
-`;
-
-BABYLON.Effect.ShadersStore["bilateralBlurFragmentShader"] = `
-    uniform sampler2D textureSampler;
-
-    uniform float filterRadius;
-    uniform vec2 blurDir;
-    uniform float blurScale;
-    uniform float blurDepthFalloff;
-
-    varying vec2 vUV;
-
-    void main(void) {
-        float depth = texture2D(textureSampler, vUV).x;
-        /*if (depth == 0.) {
-            glFragColor = vec4(0., 0., 0., 1.);
-            return;
-        }*/
-
-        float sum = 0.;
-        float wsum = 0.;
-
-        for (float x = -filterRadius; x <= filterRadius; x += 1.0) {
-            float sampl = texture2D(textureSampler, vUV + x * blurDir).x;
-            //float fg = sign(sampl);
-
-            // spatial domain
-            float r = x * blurScale;
-            float w = exp(-r * r);
-
-            // range domain
-            float r2 = (sampl - depth) * blurDepthFalloff;
-            float g = exp(-r2 * r2);
-
-            sum += sampl * w * g;
-            wsum += w * g;
-        }
-
-        if (wsum > 0.0) {
-            sum /= wsum;
-        }
-
-        glFragColor = vec4(vec3(sum), 1.);
-    }
-    `;
-
-BABYLON.Effect.ShadersStore["renderLiquidFragmentShader"] = `
-    #define PI 3.14159265
-    #define FOUR_PI 4.0 * PI
-    #define GAMMA 2.2
-    #define INV_GAMMA (1.0/GAMMA)
-
-    // Index of refraction for water
-    #define IOR 1.333
-
-    // Ratios of air and water IOR for refraction
-    // Air to water
-    #define ETA 1.0/IOR
-    // Water to air
-    #define ETA_REVERSE IOR
-
-    uniform sampler2D depthSampler;
-    uniform sampler2D thicknessSampler;
-    uniform samplerCube reflectionSampler;
-
-    uniform mat4 projection;
-    uniform mat4 invProjection;
-    uniform mat4 invView;
-    uniform float texelSize;
-    uniform vec3 dirLight;
-    uniform vec3 camPos;
-
-    varying vec2 vUV;
-
-    const vec3 sunLightColour = vec3(2.0);
-
-    vec3 waterColour = 0.85 * vec3(0.1, 0.75, 0.9);
-
-    // Amount of the background visible through the water
-    const float CLARITY = 0.75;
-
-    // Modifiers for light attenuation
-    const float DENSITY = 3.5;
-
-    vec3 uvToEye(vec2 texCoord, float depth) {
-        vec4 ndc;
-        
-        depth = depth * ##CAMERAFAR##;
-
-        ndc.xy = texCoord * 2.0 - 1.0;
-        ndc.z = projection[2].z - projection[2].w/depth;
-        //ndc.z = depth * 2.0 - 1.0;
-        ndc.w = 1.0;
-
-        vec4 eyePos = invProjection * ndc;
-        eyePos.xyz /= eyePos.w;
-
-        return eyePos.xyz;
-    }
-
-    vec3 getEyePos(vec2 texCoord) {
-        float depth = texture2D(depthSampler, texCoord).x;
-        return uvToEye(texCoord, depth);
-    }
-
-    // Minimum dot product value
-    const float minDot = 1e-3;
-
-    // Clamped dot product
-    float dot_c(vec3 a, vec3 b) {
-        return max(dot(a, b), minDot);
-    }
-    vec3 gamma(vec3 col) {
-        return pow(col, vec3(INV_GAMMA));
-    }
-    vec3 inv_gamma(vec3 col) {
-        return pow(col, vec3(GAMMA));
-    }
-
-    // Trowbridge-Reitz
-    float distribution(vec3 n, vec3 h, float roughness){
-        float a_2 = roughness*roughness;
-        return a_2/(PI*pow(pow(dot_c(n, h),2.0) * (a_2 - 1.0) + 1.0, 2.0));
-    }
-
-    // GGX and Schlick-Beckmann
-    float geometry(float cosTheta, float k){
-        return (cosTheta)/(cosTheta*(1.0-k)+k);
-    }
-
-    float smiths(vec3 n, vec3 viewDir, vec3 lightDir, float roughness){
-        float k = pow(roughness + 1.0, 2.0)/8.0; 
-        return geometry(dot_c(n, lightDir), k) * geometry(dot_c(n, viewDir), k);
-    }
-
-    // Fresnel-Schlick
-    vec3 fresnel(float cosTheta, vec3 F0){
-        return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-    } 
-
-    // Specular part of Cook-Torrance BRDF
-    vec3 BRDF(vec3 p, vec3 n, vec3 viewDir, vec3 lightDir, vec3 F0, float roughness){
-        vec3 h = normalize(viewDir + lightDir);
-        float cosTheta = dot_c(h, viewDir);
-        float D = distribution(n, h, roughness);
-        vec3 F = fresnel(cosTheta, F0);
-        float G = smiths(n, viewDir, lightDir, roughness);
-        
-        vec3 specular =  D * F * G / max(0.0001, (4.0 * dot_c(lightDir, n) * dot_c(viewDir, n)));
-        
-        return specular;
-    }
-
-    vec3 getSkyColour(vec3 rayDir){
-        //return 0.5*(0.5+0.5*rayDir);
-        return inv_gamma(textureCube(reflectionSampler, rayDir).rgb);
-    }
-
-    vec3 getEnvironment(vec3 rayDir, vec3 geoNormalFar, float thickness, out vec3 transmittance){
-        vec3 refractedDir = normalize(refract(rayDir, geoNormalFar, ETA_REVERSE));
-        vec3 transmitted = getSkyColour(refractedDir);
-        
-        // View depth
-        float d = DENSITY*thickness;
-        
-        // Beer's law depending on the water colour
-        transmittance = exp( -d * (1.0 - waterColour));
-        
-        vec3 result = transmitted * transmittance;
-        return result;
-    }
-
-    float HenyeyGreenstein(float g, float costh){
-	    return (1.0/(FOUR_PI))  * ((1.0 - g * g) / pow(1.0 + g*g - 2.0*g*costh, 1.5));
-    }
-
-    vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness){
-        vec3 I = vec3(0);
-
-        vec3 F0 = vec3(0.02);
-        float roughness = 0.1;
-
-        vec3 lightDir = -dirLight;
-        I +=  BRDF(p, n, -rayDir, lightDir, F0, roughness) 
-            * sunLightColour 
-            * dot_c(n, lightDir);
-
-        vec3 transmittance;
-        
-        vec3 result = vec3(0);
-        
-        result += CLARITY * getEnvironment(refract(rayDir, n, ETA), 
-                                    -n,
-                                    thickness,
-                                    transmittance);
-    
-        float mu = dot(refract(rayDir, n, ETA), lightDir);
-        //float phase = mix(HenyeyGreenstein(-0.3, mu), HenyeyGreenstein(0.85, mu), 0.5);
-        float phase = HenyeyGreenstein(-0.83, mu);
-        
-        result += CLARITY * sunLightColour * transmittance * phase;
-        
-        // Reflection of the environment.
-        vec3 reflectedDir = normalize(reflect(rayDir, n));
-        vec3 reflectedCol = getSkyColour(reflectedDir);
-        
-        float cosTheta = dot_c(n, -rayDir);
-        vec3 F = fresnel(cosTheta, F0);
-        
-        result = mix(result, reflectedCol, F);
-        
-        return result + I;
-    }
-
-    vec3 ACESFilm(vec3 x){
-        float a = 2.51;
-        float b = 0.03;
-        float c = 2.43;
-        float d = 0.59;
-        float e = 0.14;
-        return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);
-    }
-
-    void main(void) {
-        vec2 texCoord = vUV;
-
-        float depth = texture2D(depthSampler, texCoord).x;
-
-        // calculate eye-space position from depth
-        vec3 posEye = uvToEye(texCoord, depth);
-
-        // calculate differences
-        vec3 ddx = getEyePos(texCoord + vec2(texelSize, 0.)) - posEye;
-        vec3 ddx2 = posEye - getEyePos(texCoord + vec2(-texelSize, 0.));
-        if (abs(ddx.z) > abs(ddx2.z)) {
-            ddx = ddx2;
-        }
-
-        vec3 ddy = getEyePos(texCoord + vec2(0., texelSize)) - posEye;
-        vec3 ddy2 = posEye - getEyePos(texCoord + vec2(0., -texelSize));
-        if (abs(ddy2.z) < abs(ddy.z)) {
-            ddy = ddy2;
-        }
-
-        // calculate normal
-        vec3 normal = cross(ddy, ddx);
-        normal = normalize((invView * vec4(normal, 0.)).xyz);
-
-        // shading
-        float thickness = clamp(texture2D(thicknessSampler, texCoord).x, 0., 1.);
-        vec3 posWorld = (invView * vec4(posEye, 1.)).xyz;
-        vec3 rayDir = normalize(posWorld - camPos);
-
-        /*if (depth == 0.) {
-            vec3 col = getSkyColour(rayDir);
-            glFragColor = vec4(texCoord, 0., 1.);
-            return;
-        }*/
-
-        vec3 col = shadingPBR(camPos, posWorld, normal, rayDir, thickness);
-
-        //Tonemapping.
-        col = ACESFilm(col);
-
-        //Gamma correction 1.0/2.2 = 0.4545...
-        col = pow(col, vec3(0.4545));
-
-        //Output to screen.
-        //glFragColor = vec4(normal*0.5+0.5, 1./*thickness*/);
-        glFragColor = vec4(col, thickness);
-        
-        //glFragColor = vec4(clamp(abs(posEye), 0., 1.), 1.);
-        //glFragColor = vec4(depth, 0., 0., 1.);
-        //glFragColor = vec4(n * 0.5 + 0.5, 1.);
-    }
-    `;
+BABYLON.Effect.ShadersStore["renderFluidFragmentShader"] = renderFluidFragment;

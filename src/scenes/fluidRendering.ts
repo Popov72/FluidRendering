@@ -4,6 +4,8 @@ import * as BABYLON from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import { FluidRenderer } from "./fluidRenderer";
 
+import flareImg from "../assets/flare32bits.png";
+
 const cameraMax = 100;
 
 export class FluidRendering implements CreateSceneClass {
@@ -47,7 +49,7 @@ export class FluidRendering implements CreateSceneClass {
 
         scene.createDefaultSkybox(scene.environmentTexture);
 
-        var camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 0, Math.PI/2.4, 20, new BABYLON.Vector3(0, 0, 0), scene);
+        var camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 0, Math.PI/2.4, 30, new BABYLON.Vector3(0, 0, 0), scene);
         camera.fov = 60 * Math.PI/180;
         camera.attachControl(canvas, true);
         //camera.minZ = 0.1;
@@ -72,22 +74,25 @@ export class FluidRendering implements CreateSceneClass {
         var particleSystem = new BABYLON.ParticleSystem("particles", numParticles, scene);
 
         //Texture of each particle
-        particleSystem.particleTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flare.png", scene);
+        //particleSystem.particleTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flare.png", scene);
+        particleSystem.particleTexture = new BABYLON.Texture(flareImg, scene);
 
         // Where the particles come from
-        particleSystem.createConeEmitter(2, Math.PI / 2);
+        particleSystem.createConeEmitter(4, Math.PI / 2);
 
         // Colors of all particles
-        particleSystem.color1 = new BABYLON.Color4(0.7, 0.8, 1.0, 1.0);
+        particleSystem.color1 = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
         particleSystem.color2 = new BABYLON.Color4(0.2, 0.5, 1.0, 1.0);
+        particleSystem.color2 = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
         particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
+        particleSystem.colorDead = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
 
         // Size of each particle (random between...
         particleSystem.minSize = 0.5*1.5;
         particleSystem.maxSize = 0.5*1.5;
 
         // Life time of each particle (random between...
-        particleSystem.minLifeTime = 2.5;
+        particleSystem.minLifeTime = 2.0;
         particleSystem.maxLifeTime = 2.5;
 
         // Emission rate
@@ -99,20 +104,20 @@ export class FluidRendering implements CreateSceneClass {
         // Speed
         particleSystem.minEmitPower = 2.5;
         particleSystem.maxEmitPower = 6.5;
-        particleSystem.updateSpeed = 0.015;
+        particleSystem.updateSpeed = 0.02;
 
         // Start the particle system
         particleSystem.preWarmCycles = 60 * 8;
 
         particleSystem.start();
 
+        (window as any).ps = particleSystem;
+
         if (!animate) {
             particleSystem.updateSpeed = 0;
         }
 
         if (liquidRendering) {
-            particleSystem.render = () => 0;
-
             const fluidRenderer = new FluidRenderer(scene, particleSystem, dirLight, particleAlpha);
         }
 

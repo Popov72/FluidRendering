@@ -2,7 +2,7 @@ import { Engine } from "@babylonjs/core/Engines/engine";
 import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
 import { getSceneModuleWithName } from "./createScene";
 
-//import "@babylonjs/inspector";
+import "@babylonjs/inspector";
 
 var seed = 1;
 Math.random = function() {
