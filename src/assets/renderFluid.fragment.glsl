@@ -39,11 +39,18 @@ const float DENSITY = 3.5;
 vec3 uvToEye(vec2 texCoord, float depth) {
     vec4 ndc;
     
+#ifdef USE_LINEARZ
     depth = depth * ##CAMERAFAR##;
+#endif
 
     ndc.xy = texCoord * 2.0 - 1.0;
-    ndc.z = projection[2].z - projection[2].w/depth;
-    //ndc.z = depth * 2.0 - 1.0;
+#ifdef USE_LINEARZ
+    ndc.z = projection[2].z - projection[2].w / depth;
+#elif defined(IS_NDC_HALF_ZRANGE)
+    ndc.z = depth;
+#else
+    ndc.z = depth * 2.0 - 1.0;
+#endif
     ndc.w = 1.0;
 
     vec4 eyePos = invProjection * ndc;
@@ -110,7 +117,7 @@ vec3 getSkyColour(vec3 rayDir){
     return inv_gamma(textureCube(reflectionSampler, rayDir).rgb);
 }
 
-vec3 getEnvironment(vec3 rayDir, vec3 geoNormalFar, float thickness, out vec3 transmittance){
+vec3 getEnvironment(vec3 rayDir, vec3 geoNormalFar, float thickness, vec3 waterColour, out vec3 transmittance){
     vec3 refractedDir = normalize(refract(rayDir, geoNormalFar, ETA_REVERSE));
     vec3 transmitted = getSkyColour(refractedDir);
     
@@ -146,7 +153,8 @@ vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness, ve
     result += CLARITY * getEnvironment(refract(rayDir, n, ETA), 
                                 -n,
                                 thickness,
-                                transmittance) * diffuseColor;
+                                diffuseColor,
+                                transmittance);
 
     float mu = dot(refract(rayDir, n, ETA), lightDir);
     //float phase = mix(HenyeyGreenstein(-0.3, mu), HenyeyGreenstein(0.85, mu), 0.5);
@@ -211,7 +219,7 @@ void main(void) {
         return;
     }*/
 
-    vec3 diffuseColor = texture2D(diffuseSampler, texCoord).rgb;
+    vec3 diffuseColor = waterColour;//vec3(1.);//texture2D(diffuseSampler, texCoord).rgb;
 
     vec3 col = shadingPBR(camPos, posWorld, normal, rayDir, thickness, diffuseColor);
 

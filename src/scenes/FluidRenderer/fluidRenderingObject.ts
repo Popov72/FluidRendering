@@ -1,57 +1,54 @@
 import * as BABYLON from "@babylonjs/core";
 
-import particleDepthVertex from "../assets/particleDepth.vertex.glsl";
-import particleDepthFragment from "../assets/particleDepth.fragment.glsl";
+export class FluidRenderingObject {
 
-import particleThicknessVertex from "../assets/particleThickness.vertex.glsl";
-import particleThicknessFragment from "../assets/particleThickness.fragment.glsl";
+    protected _scene: BABYLON.Scene;
+    protected _engine: BABYLON.Engine;
 
-import bilaterialBlurFragment from "../assets/bilateralBlur.fragment.glsl";
-import standardBlurFragment from "../assets/standardBlur.fragment.glsl";
+    protected _vertexBuffers: { [key: string]: BABYLON.VertexBuffer };
+    protected _indexBuffer: BABYLON.DataBuffer;
 
-import renderFluidFragment from "../assets/renderFluid.fragment.glsl";
+    protected _useInstancing: boolean;
+    protected _textureTypeFloat: number;
+    protected _textureTypeHalfFloat: number;
 
-export class FluidRenderer {
-    private _scene: BABYLON.Scene;
-    private _engine: BABYLON.Engine;
-    private _ps: BABYLON.ParticleSystem;
-    private _psRender: () => number;
-    private _dirLight: BABYLON.Vector3;
-    private _particleAlpha: number;
-    private _vertexBuffers: { [key: string]: BABYLON.VertexBuffer };
-    private _indexBuffer: BABYLON.DataBuffer;
-    private _useInstancing: boolean;
-    private _mapSize: number;
-    private _textureTypeFloat: number;
-    private _textureTypeHalfFloat: number;
+    protected _depthEffectWrapper: BABYLON.EffectWrapper;
+    protected _rtDepth: BABYLON.RenderTargetWrapper;
+    protected _textureDepth: BABYLON.ThinTexture;
+    protected _rtDepthBlur: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
+    protected _textureBlurredDepth: BABYLON.ThinTexture;
+    protected _blurDepthPostProcesses: BABYLON.PostProcess[];
 
-    private _depthEffectWrapper: BABYLON.EffectWrapper;
-    private _rtDepth: BABYLON.RenderTargetWrapper;
-    private _textureDepth: BABYLON.ThinTexture;
-    private _rtDepthBlur: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
-    private _textureBlurredDepth: BABYLON.ThinTexture;
-    private _blurDepthPostProcesses: BABYLON.PostProcess[];
+    protected _rtDiffuse: BABYLON.RenderTargetWrapper;
+    protected _textureDiffuse: BABYLON.ThinTexture;
+    protected _rtDiffuseBlur: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
+    protected _textureBlurredDiffuse: BABYLON.ThinTexture;
+    protected _blurDiffusePostProcesses: BABYLON.PostProcess[];
 
-    private _rtDiffuse: BABYLON.RenderTargetWrapper;
-    private _textureDiffuse: BABYLON.ThinTexture;
-    private _rtDiffuseBlur: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
-    private _textureBlurredDiffuse: BABYLON.ThinTexture;
-    private _blurDiffusePostProcesses: BABYLON.PostProcess[];
+    protected _thicknessEffectWrapper: BABYLON.EffectWrapper;
+    protected _rtThickness: BABYLON.RenderTargetWrapper;
+    protected _textureThickness: BABYLON.ThinTexture;
+    protected _rtThicknessBlur: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
+    protected _textureBlurredThickness: BABYLON.ThinTexture;
+    protected _blurThicknessPostProcesses: BABYLON.PostProcess[];
 
-    private _thicknessEffectWrapper: BABYLON.EffectWrapper;
-    private _rtThickness: BABYLON.RenderTargetWrapper;
-    private _textureThickness: BABYLON.ThinTexture;
-    private _rtThicknessBlur: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
-    private _textureBlurredThickness: BABYLON.ThinTexture;
-    private _blurThicknessPostProcesses: BABYLON.PostProcess[];
+    protected _renderPostProcess: BABYLON.PostProcess;
+    protected _passPostProcess: BABYLON.PostProcess;
 
-    private _renderPostProcess: BABYLON.PostProcess;
-    private _passPostProcess: BABYLON.PostProcess;
+    protected _invProjectionMatrix: BABYLON.Matrix;
+    protected _invViewMatrix: BABYLON.Matrix;
+    protected _depthClearColor: BABYLON.Color4;
+    protected _thicknessClearColor: BABYLON.Color4;
 
-    private _invProjectionMatrix: BABYLON.Matrix;
-    private _invViewMatrix: BABYLON.Matrix;
-    private _depthClearColor: BABYLON.Color4;
-    private _thicknessClearColor: BABYLON.Color4;
+    public diffuseColor: BABYLON.Color3 = new BABYLON.Color3(1, 1, 1);
+
+    public particleSize: number | BABYLON.VertexBuffer = 0.75;
+
+    public particleThicknessAlpha: number = 0.075;
+
+    public dirLight: BABYLON.Vector3 = new BABYLON.Vector3(-2, -1, 1).normalize();
+
+    public priority: number = 0;
 
     public debug = true;
 
@@ -61,22 +58,33 @@ export class FluidRenderer {
 
     public blurKernel = 60;
 
-    public onDisposeObservable: BABYLON.Observable<FluidRenderer> = new BABYLON.Observable<FluidRenderer>();
+    public onDisposeObservable: BABYLON.Observable<FluidRenderingObject> = new BABYLON.Observable<FluidRenderingObject>();
 
-    constructor(scene: BABYLON.Scene, ps: BABYLON.ParticleSystem, dirLight: BABYLON.Vector3, particleAlpha: number) {
+    protected _mapSize = 1024;
+
+    public get mapSize() {
+        return this._mapSize;
+    }
+
+    public set mapSize(size: number) {
+        if (this._mapSize === size) {
+            return;
+        }
+
+        this._mapSize = size;
+    }
+
+    constructor(scene: BABYLON.Scene) {
         this._scene = scene;
         this._engine = scene.getEngine();
-        this._ps = ps;
-        this._dirLight = dirLight;
-        this._particleAlpha = particleAlpha;
-        this._vertexBuffers = (ps as any)._vertexBuffers;
-        this._indexBuffer = (ps as any)._indexBuffer;
-        this._useInstancing = (ps as any)._useInstancing;
+    
+        this._vertexBuffers = null as any;
+        this._indexBuffer = null as any;
+        this._useInstancing = null as any;
         this._invProjectionMatrix = new BABYLON.Matrix();
         this._invViewMatrix = new BABYLON.Matrix();
         this._depthClearColor = new BABYLON.Color4(1, 0, 0, 1);
         this._thicknessClearColor = new BABYLON.Color4(0, 0, 0, 1);
-        this._mapSize = 1024;
         this._depthEffectWrapper = null as any;
 
         this._rtDepth = null as any;
@@ -101,64 +109,13 @@ export class FluidRenderer {
         this._renderPostProcess = null as any;
         this._passPostProcess = null as any;
 
-        BABYLON.Effect.ShadersStore["renderFluidFragmentShader"] = BABYLON.Effect.ShadersStore["renderFluidFragmentShader"].replace("##CAMERAFAR##", this._scene.activeCamera!.maxZ + ".");
-
-        this._psRender = ps.render.bind(ps);
-
-        ps.render = () => 0;
-        ps.blendMode = -1;
-
-        ps.onBeforeDrawParticlesObservable.add(() => {
-            this._engine.setAlphaMode(BABYLON.Constants.ALPHA_COMBINE);
-        });
-
-        let time = 0;
-        const pos: number[] = [];
-
-        const generateVertices = () => {
-            //let numRemove = 0;
-            pos.length = 0;
-            for (let y = -10; y < 5; ++y) {
-                for (let x = -15; x < 15; ++x) {
-                    for (let z = -15; z < 15; ++z) {
-                        const limit = -x / 3;
-                        if (y > limit) continue;
-                        pos.push(
-                            2.2913386821746826 + x * 0.4,
-                            -1.6357861757278442 + y * 0.4 + 0.5 * Math.sin((x+time/10)*3+(z+time/8)*5+time),
-                            -0.021622177213430405 - z * 0.4,
-                        );
-                    }
-                }
-            }
-            //console.log(numRemove);
-        };
-
-        /*generateVertices();
-        this._vertexBuffers["position"] = new BABYLON.VertexBuffer(this._engine, pos, "position", true, false, undefined, true);*/
-
         this._textureTypeFloat = BABYLON.Constants.TEXTURETYPE_FLOAT;
         this._textureTypeHalfFloat = BABYLON.Constants.TEXTURETYPE_HALF_FLOAT;
-
-        this._initialize();
-
-        //console.log(this._vertexBuffers["position"].getData(), this._vertexBuffers);
-
-        scene.onAfterDrawPhaseObservable.add(() => {
-            this._render();
-            /*generateVertices();
-            this._vertexBuffers["position"].update(pos);
-            time += 0.05;*/
-
-        });
-
-        this._engine.onResizeObservable.add(() => {
-            this.dispose();
-            this._initialize();
-        });
     }
 
-    protected _initialize(): void {
+    public initialize(): void {
+        this.dispose(false);
+
         this._initializeDepthStep();
         this._initializeDiffuseStep();
         this._initializeThicknessStep();
@@ -185,9 +142,9 @@ export class FluidRenderer {
         // Creates the effect used to draw the particles in the depth texture
         this._depthEffectWrapper = new BABYLON.EffectWrapper({
             engine: this._engine,
-            useShaderStore: false,
-            vertexShader: particleDepthVertex,
-            fragmentShader: particleDepthFragment.replace("##CAMERAFAR##", this._scene.activeCamera!.maxZ + "."),
+            useShaderStore: true,
+            vertexShader: "fluidParticleDepth",
+            fragmentShader: "fluidParticleDepth",
             attributeNames: ["position", "size", "offset"],
             uniformNames: ["view", "projection"],
             samplerNames: [],
@@ -231,9 +188,9 @@ export class FluidRenderer {
         // Creates the effect used to draw the particles in the thickness texture
         this._thicknessEffectWrapper = new BABYLON.EffectWrapper({
             engine: this._engine,
-            useShaderStore: false,
-            vertexShader: particleThicknessVertex,
-            fragmentShader: particleThicknessFragment,
+            useShaderStore: true,
+            vertexShader: "fluidParticleThickness",
+            fragmentShader: "fluidParticleThickness",
             attributeNames: ["position", "size", "offset"],
             uniformNames: ["view", "projection", "particleAlpha"],
             samplerNames: [],
@@ -400,7 +357,7 @@ export class FluidRenderer {
             effect.setFloat("texelSize", texelSize);
             effect.setTexture("reflectionSampler", this._scene.environmentTexture);
 
-            effect.setVector3("dirLight", this._dirLight);
+            effect.setVector3("dirLight", this.dirLight);
             effect.setVector3("camPos", this._scene.activeCamera!.globalPosition);
         });
 
@@ -418,14 +375,22 @@ export class FluidRenderer {
         this._passPostProcess.shareOutputWith(this._renderPostProcess);
     }
 
-    private _render(): void {
+    protected _isReady(): boolean {
+        return true;
+    }
+
+    protected _numParticles(): number {
+        return 0;
+    }
+
+    public render(): void {
         const depthDrawWrapper = this._depthEffectWrapper._drawWrapper;
         const thicknessDrawWrapper = this._thicknessEffectWrapper._drawWrapper;
 
         const depthEffect = depthDrawWrapper.effect!;
         const thicknessEffect = thicknessDrawWrapper.effect!;
 
-        if (!depthEffect.isReady() || !thicknessEffect.isReady() || !this._ps.isReady()) {
+        if (!depthEffect.isReady() || !thicknessEffect.isReady() || !this._isReady()) {
             return;
         }
 
@@ -442,22 +407,26 @@ export class FluidRenderer {
         depthEffect.setMatrix("view", this._scene.getViewMatrix());
         depthEffect.setMatrix("projection", this._scene.getProjectionMatrix());
 
+        const numParticles = this._numParticles();
+
         if (this._useInstancing) {
-            this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, this._ps.getActiveCount());
+            this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);
         } else {
-            this._engine.drawElementsType(BABYLON.Constants.MATERIAL_TriangleFillMode, 0, this._ps.getActiveCount());
+            this._engine.drawElementsType(BABYLON.Constants.MATERIAL_TriangleFillMode, 0, numParticles);
         }
 
         this._engine.unBindFramebuffer(this._rtDepth);
 
         // Render the particles in the diffuse texture
-        this._engine.bindFramebuffer(this._rtDiffuse);
+        /*if (this._psRender) {
+            this._engine.bindFramebuffer(this._rtDiffuse);
 
-        this._engine.clear(this._thicknessClearColor, true, true, false);
+            this._engine.clear(this._thicknessClearColor, true, true, false);
 
-        this._psRender();
+            this._psRender();
 
-        this._engine.unBindFramebuffer(this._rtDiffuse);
+            this._engine.unBindFramebuffer(this._rtDiffuse);
+        }*/
 
         // Render the particles in the thickness texture
         this._engine.bindFramebuffer(this._rtThickness);
@@ -472,12 +441,12 @@ export class FluidRenderer {
 
         thicknessEffect.setMatrix("view", this._scene.getViewMatrix());
         thicknessEffect.setMatrix("projection", this._scene.getProjectionMatrix());
-        thicknessEffect.setFloat("particleAlpha", this._particleAlpha);
+        thicknessEffect.setFloat("particleAlpha", this.particleThicknessAlpha);
 
         if (this._useInstancing) {
-            this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, this._ps.getActiveCount());
+            this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);
         } else {
-            this._engine.drawElementsType(BABYLON.Constants.MATERIAL_TriangleFillMode, 0, this._ps.getActiveCount());
+            this._engine.drawElementsType(BABYLON.Constants.MATERIAL_TriangleFillMode, 0, numParticles);
         }
 
         this._engine.depthCullingState.depthMask = true;
@@ -492,10 +461,10 @@ export class FluidRenderer {
             this._engine.unBindFramebuffer(this._rtDepthBlur!);
         }
 
-        if (this._blurDiffusePostProcesses && this._blurDiffusePostProcesses.length > 0) {
+        /*if (this._psRender && this._blurDiffusePostProcesses && this._blurDiffusePostProcesses.length > 0) {
             this._scene.postProcessManager.directRender(this._blurDiffusePostProcesses, this._rtDiffuseBlur, true);
             this._engine.unBindFramebuffer(this._rtDiffuseBlur!);
-        }
+        }*/
 
         if (this._blurThicknessPostProcesses && this._blurThicknessPostProcesses.length > 0) {
             this._scene.postProcessManager.directRender(this._blurThicknessPostProcesses, this._rtThicknessBlur, true);
@@ -507,13 +476,13 @@ export class FluidRenderer {
         }
     }
 
-    public dispose(): void {
+    public dispose(disposeAll = true): void {
         if (this.onDisposeObservable.hasObservers()) {
             this.onDisposeObservable.notifyObservers(this);
         }
 
-        this._depthEffectWrapper.dispose();
-        this._rtDepth.dispose();
+        this._depthEffectWrapper?.dispose();
+        this._rtDepth?.dispose();
         this._rtDepthBlur?.dispose();
         this._rtDepthBlur = null;
         if (this._blurDepthPostProcesses) {
@@ -521,7 +490,7 @@ export class FluidRenderer {
         }
         this._blurDepthPostProcesses = [];
 
-        this._rtDiffuse.dispose();
+        this._rtDiffuse?.dispose();
         this._rtDiffuseBlur?.dispose();
         this._rtDiffuseBlur = null;
         if (this._blurDiffusePostProcesses) {
@@ -529,8 +498,8 @@ export class FluidRenderer {
         }
         this._blurDiffusePostProcesses = [];
 
-        this._thicknessEffectWrapper.dispose();
-        this._rtThickness.dispose();
+        this._thicknessEffectWrapper?.dispose();
+        this._rtThickness?.dispose();
         this._rtThicknessBlur?.dispose();
         this._rtThicknessBlur = null;
         if (this._blurThicknessPostProcesses) {
@@ -538,13 +507,8 @@ export class FluidRenderer {
         }
         this._blurThicknessPostProcesses = [];
 
-        this._renderPostProcess.dispose();
-        this._passPostProcess.dispose();
+        this._renderPostProcess?.dispose();
+        this._passPostProcess?.dispose();
     }
 }
 
-BABYLON.Effect.ShadersStore["bilateralBlurFragmentShader"] = bilaterialBlurFragment;
-
-BABYLON.Effect.ShadersStore["standardBlurFragmentShader"] = standardBlurFragment;
-
-BABYLON.Effect.ShadersStore["renderFluidFragmentShader"] = renderFluidFragment;

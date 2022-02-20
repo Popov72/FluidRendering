@@ -1,12 +1,39 @@
 import { CreateSceneClass } from "../createScene";
 
 import * as BABYLON from "@babylonjs/core";
-import * as GUI from "@babylonjs/gui";
-import { FluidRenderer } from "./fluidRenderer";
 
 import flareImg from "../assets/flare32bits.png";
 
+import "./FluidRenderer/fluidRendererSceneComponent";
+
 const cameraMax = 100;
+
+declare module "@babylonjs/core/Particles/IParticleSystem" {
+    export interface IParticleSystem {
+        renderAsFluid: boolean;
+    }
+}
+
+declare module "@babylonjs/core/Particles/ParticleSystem" {
+    export interface ParticleSystem {
+        /** @hidden (Backing field) */
+        _renderAsFluid: boolean;
+
+        renderAsFluid: boolean;
+    }
+}
+
+Object.defineProperty(BABYLON.ParticleSystem.prototype, "renderAsFluid", {
+    get: function (this: BABYLON.ParticleSystem) {
+        return this._renderAsFluid;
+    },
+    set: function (this: BABYLON.ParticleSystem, value: boolean) {
+        this._renderAsFluid = value;
+        this._scene?.fluidRenderer?.collectParticleSystems();
+    },
+    enumerable: true,
+    configurable: true
+});
 
 export class FluidRendering implements CreateSceneClass {
 
@@ -34,7 +61,7 @@ export class FluidRendering implements CreateSceneClass {
         //const numParticlesEmitRate = 30*30*15-3780;//1500*4;
         const numParticles = 20000*4;
         const numParticlesEmitRate = 1500*4;
-        const particleAlpha = 0.075;
+        const particleAlpha = 0.075;//0.075;
         const animate = true;
         const liquidRendering = true;
         const showObstacle = false;
@@ -74,8 +101,8 @@ export class FluidRendering implements CreateSceneClass {
         var particleSystem = new BABYLON.ParticleSystem("particles", numParticles, scene);
 
         //Texture of each particle
-        //particleSystem.particleTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flare.png", scene);
-        particleSystem.particleTexture = new BABYLON.Texture(flareImg, scene);
+        particleSystem.particleTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flare.png", scene);
+        //particleSystem.particleTexture = new BABYLON.Texture(flareImg, scene);
 
         // Where the particles come from
         particleSystem.createConeEmitter(4, Math.PI / 2);
@@ -117,8 +144,10 @@ export class FluidRendering implements CreateSceneClass {
             particleSystem.updateSpeed = 0;
         }
 
+        particleSystem.renderAsFluid = liquidRendering;
+
         if (liquidRendering) {
-            const fluidRenderer = new FluidRenderer(scene, particleSystem, dirLight, particleAlpha);
+            scene.enableFluidRenderer();
         }
 
         return scene;

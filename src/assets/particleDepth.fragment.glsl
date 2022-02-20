@@ -15,8 +15,11 @@ void main(void) {
     vec4 realViewPos = vec4(viewPos + normal * sphereRadius, 1.0);
     vec4 clipSpacePos = projection * realViewPos;
 
+#ifdef USE_LINEARZ
+    float depth = clamp(realViewPos.z / ##CAMERAFAR##, 0., 1.);
+#else
     float depth = clipSpacePos.z / clipSpacePos.w;
-    depth = clamp(realViewPos.z / ##CAMERAFAR##, 0., 1.);
+#endif
 
     gl_FragDepth = depth;
 

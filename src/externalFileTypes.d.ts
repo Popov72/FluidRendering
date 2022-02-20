@@ -15,3 +15,5 @@ declare module "ammo.js";
 // Shaders
 declare module '*.wgsl';
 declare module '*.glsl';
+
+declare module '*.json';
