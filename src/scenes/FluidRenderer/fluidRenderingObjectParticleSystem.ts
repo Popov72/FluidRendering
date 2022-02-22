@@ -14,13 +14,9 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
     }
 
     constructor(scene: BABYLON.Scene, ps: BABYLON.IParticleSystem) {
-        super(scene);
+        super(scene, (ps as any)._vertexBuffers, (ps as any)._indexBuffer, (ps as any)._useInstancing);
 
         this._particleSystem = ps;
-
-        this._vertexBuffers = (ps as any)._vertexBuffers;
-        this._indexBuffer = (ps as any)._indexBuffer;
-        this._useInstancing = (ps as any)._useInstancing;
 
         this._renderCallback = ps.render.bind(ps);
         this._blendMode = ps.blendMode;
@@ -33,22 +29,24 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
         });
     }
 
-    protected _isReady(): boolean {
+    public isReady(): boolean {
         return this._particleSystem.isReady();
     }
 
-    protected _numParticles(): number {
+    public numParticles(): number {
         return this._particleSystem.getActiveCount();
     }
 
-    public dispose(disposeAll = true) {
-        super.dispose(disposeAll);
+    public renderDiffuseTexture(): void {
+        this._renderCallback();
+    }
 
-        if (disposeAll) {
-            this._particleSystem.onBeforeDrawParticlesObservable.remove(this._onBeforeDrawParticleObserver);
-            this._onBeforeDrawParticleObserver = null;
-            this._particleSystem.render = this._renderCallback;
-            this._particleSystem.blendMode = this._blendMode;
-        }
+    public dispose() {
+        super.dispose();
+
+        this._particleSystem.onBeforeDrawParticlesObservable.remove(this._onBeforeDrawParticleObserver);
+        this._onBeforeDrawParticleObserver = null;
+        this._particleSystem.render = this._renderCallback;
+        this._particleSystem.blendMode = this._blendMode;
     }
 }
