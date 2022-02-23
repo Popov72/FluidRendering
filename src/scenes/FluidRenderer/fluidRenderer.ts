@@ -49,7 +49,6 @@ export class FluidRenderer {
         const output = new FluidRenderingOutput(this._scene);
 
         renderingObject.generateDiffuseTexture = true;
-        renderingObject._output = output;
         output.generateDiffuseTexture = true;
 
         this._renderingObjects.push({ object: renderingObject, output });

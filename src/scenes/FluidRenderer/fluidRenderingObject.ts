@@ -1,5 +1,4 @@
 import * as BABYLON from "@babylonjs/core";
-import { FluidRenderingOutput } from "./fluidRenderingOutput";
 
 export abstract class FluidRenderingObject {
 
@@ -8,24 +7,21 @@ export abstract class FluidRenderingObject {
 
     public priority: number = 0;
 
-    /** @hidden */
-    public _output: BABYLON.Nullable<FluidRenderingOutput> = null;
+    public diffuseColor: BABYLON.Color3 = new BABYLON.Color3(1, 1, 1);
 
-    protected _generateDiffuseTexture: boolean = false;
+    public particleSize: number = 0.75;
 
-    public get generateDiffuseTexture() {
-        return this._generateDiffuseTexture;
+    public particleThicknessAlpha: number = 0.075;
+
+    public generateDiffuseTexture: boolean = false;
+
+    public dirLight: BABYLON.Vector3 = new BABYLON.Vector3(-2, -1, 1).normalize();
+
+    public get useInstancing() {
+        return !this.indexBuffer;
     }
 
-    public set generateDiffuseTexture(generate: boolean) {
-        if (generate === this._generateDiffuseTexture) {
-            return;
-        }
-        this._generateDiffuseTexture = generate;
-        this._output?.initialize();
-    }
-
-    constructor(scene: BABYLON.Scene, public readonly vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, public readonly indexBuffer: BABYLON.DataBuffer, public readonly useInstancing: boolean) {
+    constructor(scene: BABYLON.Scene, public readonly vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, public readonly indexBuffer: BABYLON.Nullable<BABYLON.DataBuffer>) {
         this._scene = scene;
         this._engine = scene.getEngine();
     }
@@ -39,7 +35,6 @@ export abstract class FluidRenderingObject {
     }
 
     public renderDiffuseTexture(): void {
-
     }
 
     public dispose(): void {

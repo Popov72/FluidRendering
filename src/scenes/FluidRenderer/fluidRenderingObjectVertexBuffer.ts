@@ -4,8 +4,17 @@ import { FluidRenderingObject } from "./fluidRenderingObject";
 
 export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
 
-    constructor(scene: BABYLON.Scene, vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, indexBuffer: BABYLON.DataBuffer) {
-        super(scene, vertexBuffers, indexBuffer, true);
+    private _disposeVBOffset: boolean;
+
+    constructor(scene: BABYLON.Scene, vertexBuffers: { [key: string]: BABYLON.VertexBuffer }) {
+        super(scene, vertexBuffers, null);
+
+        this._disposeVBOffset = false;
+
+        if (!vertexBuffers["offset"]) {
+            vertexBuffers["offset"] = new BABYLON.VertexBuffer(this._engine, [0, 0, 1, 0, 0, 1, 1, 1], "offset", false, false, 2 * 4)
+            this._disposeVBOffset = true;
+        }
     }
 
     public isReady(): boolean {
@@ -17,5 +26,13 @@ export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
     }
 
     public renderDiffuseTexture(): void {
+    }
+
+    public dispose(): void {
+        super.dispose();
+
+        if (this._disposeVBOffset) {
+            this.vertexBuffers["offset"].dispose();
+        }
     }
 }

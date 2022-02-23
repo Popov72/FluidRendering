@@ -16,11 +16,10 @@ void main(void) {
     cornerPos.xy = vec2(offset.x - 0.5, offset.y - 0.5) * size;
     cornerPos.z = 0.0;
 
-    viewPos = (view * vec4(position, 1.0)).xyz + cornerPos;
+    viewPos = (view * vec4(position, 1.0)).xyz;
 
-    gl_Position = projection * vec4(viewPos, 1.0);
+    gl_Position = projection * vec4(viewPos + cornerPos, 1.0);
 
     uv = offset;
-    viewPos -= cornerPos;
     sphereRadius = size.x / 2.0;
 }
