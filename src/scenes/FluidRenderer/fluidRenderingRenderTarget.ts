@@ -24,9 +24,13 @@ export class FluidRenderingRenderTarget {
 
     public enableBlur = true;
 
-    public blurScale = 2;
+    public blurSizeDivisor = 1;
 
-    public blurKernel = 60;
+    public blurKernel = 20;
+
+    public blurScale = 0.1;
+
+    public blurDepthScale = 50;
 
     public onDisposeObservable: BABYLON.Observable<FluidRenderingRenderTarget> = new BABYLON.Observable<FluidRenderingRenderTarget>();
 
@@ -76,7 +80,7 @@ export class FluidRenderingRenderTarget {
         this._createRenderTarget();
 
         if (this.enableBlur) {
-            const [rtBlur, textureBlurred, blurPostProcesses] = this._createBlurPostProcesses(this._texture, this._blurTextureType, this._blurTextureFormat, this.blurScale, this._name, this._useStandardBlur);
+            const [rtBlur, textureBlurred, blurPostProcesses] = this._createBlurPostProcesses(this._texture, this._blurTextureType, this._blurTextureFormat, this.blurSizeDivisor, this._name, this._useStandardBlur);
             this._rtBlur = rtBlur;
             this._textureBlurred = textureBlurred;
             this._blurPostProcesses = blurPostProcesses;
@@ -107,8 +111,8 @@ export class FluidRenderingRenderTarget {
 
         this._texture = new BABYLON.ThinTexture(renderTexture);
 
-        renderTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-        renderTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+        this._texture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+        this._texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 
         if (this.debug) {
             const texture = new BABYLON.Texture(null, this._scene);
@@ -124,12 +128,13 @@ export class FluidRenderingRenderTarget {
     protected _createBlurPostProcesses(textureBlurSource: BABYLON.ThinTexture, textureType: number, textureFormat: number, blurSizeDivisor: number, debugName: string, useStandardBlur = false): [BABYLON.RenderTargetWrapper, BABYLON.ThinTexture, BABYLON.PostProcess[]] {
         const engine = this._scene.getEngine();
         const targetSize = Math.floor(this._blurTextureSize / blurSizeDivisor);
+        const supportFloatLinearFiltering = engine.getCaps().textureFloatLinearFiltering;
 
         const rtBlur = this._engine.createRenderTargetTexture(targetSize, {
             generateMipMaps: false,
             type: textureType,
             format: textureFormat,
-            samplingMode: BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE,
+            samplingMode: supportFloatLinearFiltering ? BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE : BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
             generateDepthBuffer: false,
             generateStencilBuffer: false,
             samples: 1,
@@ -160,8 +165,14 @@ export class FluidRenderingRenderTarget {
             effect.setTexture("textureSampler", textureBlurSource);
             effect.setFloat("filterRadius", this.blurKernel >> 1);
             effect.setFloat2("blurDir", 1 / this._blurTextureSize, 0);
-            effect.setFloat("blurScale", .05);
-            effect.setFloat("blurDepthFalloff", .1);
+            effect.setFloat("blurScale", this.blurScale);
+            effect.setFloat("blurDepthFalloff", this.blurDepthScale);
+        });
+        kernelBlurXPostprocess.onSizeChangedObservable.add(() => {
+            kernelBlurXPostprocess._textures.forEach((rt) => {
+                rt.texture!.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+                rt.texture!.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+            });
         });
 
         const kernelBlurYPostprocess = new BABYLON.PostProcess("BilateralBlurY", useStandardBlur ? "standardBlur" : "bilateralBlur", ["filterRadius", "blurScale", "blurDir", "blurDepthFalloff"],
@@ -170,8 +181,14 @@ export class FluidRenderingRenderTarget {
         kernelBlurYPostprocess.onApplyObservable.add((effect) => {
             effect.setFloat("filterRadius", this.blurKernel >> 1);
             effect.setFloat2("blurDir", 0, 1 / this._blurTextureSize);
-            effect.setFloat("blurScale", .05);
-            effect.setFloat("blurDepthFalloff", .1);
+            effect.setFloat("blurScale", this.blurScale);
+            effect.setFloat("blurDepthFalloff", this.blurDepthScale);
+        });
+        kernelBlurYPostprocess.onSizeChangedObservable.add(() => {
+            kernelBlurYPostprocess._textures.forEach((rt) => {
+                rt.texture!.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+                rt.texture!.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+            });
         });
         
         kernelBlurXPostprocess.autoClear = false;

@@ -1,5 +1,9 @@
 attribute vec3 position;
-//attribute vec2 size;
+#ifdef FLUIDRENDERING_PARTICLESIZE_FROM_ATTRIBUTE
+    attribute vec2 size;
+#else
+    uniform vec2 size;
+#endif
 attribute vec2 offset;
 
 uniform mat4 view;
@@ -10,8 +14,6 @@ varying vec3 viewPos;
 varying float sphereRadius;
 
 void main(void) {
-    vec2 size = vec2(0.75);
-
     vec3 cornerPos;
     cornerPos.xy = vec2(offset.x - 0.5, offset.y - 0.5) * size;
     cornerPos.z = 0.0;

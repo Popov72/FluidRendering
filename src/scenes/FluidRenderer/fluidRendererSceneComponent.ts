@@ -3,6 +3,7 @@ import * as BABYLON from "@babylonjs/core";
 import { FluidRenderer } from "./fluidRenderer";
 
 const NAME_FLUIDRENDERER = "FluidRenderer";
+const STEP_GATHERACTIVECAMERARENDERTARGET_FLUIDRENDERER = 1;
 const STEP_AFTERCAMERADRAW_FLUIDRENDERER = 5;
 
 declare module "@babylonjs/core/abstractScene" {
@@ -81,7 +82,12 @@ export class FluidRendererSceneComponent implements BABYLON.ISceneComponent {
      * Registers the component in a given scene
      */
     public register(): void {
+        this.scene._gatherActiveCameraRenderTargetsStage.registerStep(STEP_GATHERACTIVECAMERARENDERTARGET_FLUIDRENDERER, this, this._gatherActiveCameraRenderTargets);
         this.scene._afterCameraDrawStage.registerStep(STEP_AFTERCAMERADRAW_FLUIDRENDERER, this, this._afterCameraDraw);
+    }
+
+    private _gatherActiveCameraRenderTargets(renderTargets: BABYLON.SmartArrayNoDuplicate<BABYLON.RenderTargetTexture>): void {
+        this.scene.fluidRenderer?._prepareRendering();
     }
 
     private _afterCameraDraw(camera: BABYLON.Camera) {

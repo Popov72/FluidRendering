@@ -30,7 +30,7 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
     }
 
     public isReady(): boolean {
-        return this._particleSystem.isReady();
+        return super.isReady() && this._particleSystem.isReady();
     }
 
     public numParticles(): number {

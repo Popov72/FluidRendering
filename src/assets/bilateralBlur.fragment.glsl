@@ -9,17 +9,12 @@ varying vec2 vUV;
 
 void main(void) {
     float depth = texture2D(textureSampler, vUV).x;
-    /*if (depth == 0.) {
-        glFragColor = vec4(0., 0., 0., 1.);
-        return;
-    }*/
 
     float sum = 0.;
     float wsum = 0.;
 
     for (float x = -filterRadius; x <= filterRadius; x += 1.0) {
         float sampl = texture2D(textureSampler, vUV + x * blurDir).x;
-        //float fg = sign(sampl);
 
         // spatial domain
         float r = x * blurScale;

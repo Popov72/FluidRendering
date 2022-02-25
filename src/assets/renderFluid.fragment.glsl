@@ -13,7 +13,11 @@
 #define ETA_REVERSE IOR
 
 uniform sampler2D depthSampler;
-uniform sampler2D diffuseSampler;
+#ifdef FLUIDRENDERING_DIFFUSETEXTURE
+    uniform sampler2D diffuseSampler;
+#else
+    uniform vec3 diffuseColor;
+#endif
 uniform sampler2D thicknessSampler;
 uniform samplerCube reflectionSampler;
 
@@ -26,9 +30,7 @@ uniform vec3 camPos;
 
 varying vec2 vUV;
 
-const vec3 sunLightColour = vec3(2.0);
-
-vec3 waterColour = 0.85 * vec3(0.1, 0.75, 0.9);
+const vec3 lightColour = vec3(2.0);
 
 // Amount of the background visible through the water
 const float CLARITY = 0.75;
@@ -143,7 +145,7 @@ vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness, ve
 
     vec3 lightDir = -dirLight;
     I +=  BRDF(p, n, -rayDir, lightDir, F0, roughness) 
-        * sunLightColour 
+        * lightColour 
         * dot_c(n, lightDir);
 
     vec3 transmittance;
@@ -160,7 +162,7 @@ vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness, ve
     //float phase = mix(HenyeyGreenstein(-0.3, mu), HenyeyGreenstein(0.85, mu), 0.5);
     float phase = HenyeyGreenstein(-0.83, mu);
     
-    result += CLARITY * sunLightColour * transmittance * phase;
+    result += CLARITY * lightColour * transmittance * phase;
     
     // Reflection of the environment.
     vec3 reflectedDir = normalize(reflect(rayDir, n));
@@ -204,6 +206,11 @@ void main(void) {
         ddy = ddy2;
     }
 
+    if (max(length(ddx), length(ddy)) > 0.7) {
+        glFragColor = vec4(1., 1., 1., 0.);
+        return;
+    }
+
     // calculate normal
     vec3 normal = cross(ddy, ddx);
     normal = normalize((invView * vec4(normal, 0.)).xyz);
@@ -213,27 +220,26 @@ void main(void) {
     vec3 posWorld = (invView * vec4(posEye, 1.)).xyz;
     vec3 rayDir = normalize(posWorld - camPos);
 
-    /*if (depth == 0.) {
-        vec3 col = getSkyColour(rayDir);
-        glFragColor = vec4(texCoord, 0., 1.);
-        return;
-    }*/
-
-    vec3 diffuseColor = waterColour;//vec3(1.);//texture2D(diffuseSampler, texCoord).rgb;
+#ifdef FLUIDRENDERING_DIFFUSETEXTURE
+    vec3 diffuseColor = texture2D(diffuseSampler, texCoord).rgb;
+    #ifdef FLUIDRENDERING_DIFFUSETEXTURE_GAMMASPACE
+        diffuseColor = pow(diffuseColor, vec3(GAMMA));
+    #endif
+#endif
 
     vec3 col = shadingPBR(camPos, posWorld, normal, rayDir, thickness, diffuseColor);
 
     //Tonemapping.
     col = ACESFilm(col);
 
-    //Gamma correction 1.0/2.2 = 0.4545...
-    col = pow(col, vec3(0.4545));
+    //Gamma correction
+    col = pow(col, vec3(INV_GAMMA));
 
     //Output to screen.
     //glFragColor = vec4(normal*0.5+0.5, 1./*thickness*/);
     glFragColor = vec4(col, thickness);
     
-    //glFragColor = vec4(clamp(abs(posEye), 0., 1.), 1.);
-    //glFragColor = vec4(depth, 0., 0., 1.);
-    //glFragColor = vec4(n * 0.5 + 0.5, 1.);
+    //glFragColor = vec4(clamp(abs(posEye/10.), 0., 1.), 1.);
+    //glFragColor = vec4(depth, depth, depth, 1.);
+    //glFragColor = vec4(normal * 0.5 + 0.5, 1.);
 }

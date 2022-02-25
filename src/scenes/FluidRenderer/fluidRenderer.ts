@@ -16,6 +16,12 @@ import renderFluidFragment from "../../assets/renderFluid.fragment.glsl";
 
 import { FluidRenderingObjectParticleSystem } from "./fluidRenderingObjectParticleSystem";
 import { FluidRenderingOutput } from "./fluidRenderingOutput";
+import { FluidRenderingObjectVertexBuffer } from "./fluidRenderingObjectVertexBuffer";
+
+export interface IFluidRenderingEntity {
+    object: FluidRenderingObject;
+    output: FluidRenderingOutput;
+}
 
 export class FluidRenderer {
     /** @hidden */
@@ -26,13 +32,15 @@ export class FluidRenderer {
     private _scene: BABYLON.Scene;
     private _engine: BABYLON.Engine;
     private _onEngineResizeObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Engine>>;
-    private _renderingObjects: Array<{ object: FluidRenderingObject, output: FluidRenderingOutput }>;
+    private _renderingObjects: Array<IFluidRenderingEntity>;
+    private _outputs: FluidRenderingOutput[];
 
     constructor(scene: BABYLON.Scene) {
         this._scene = scene;
         this._engine = scene.getEngine();
         this._onEngineResizeObserver = null as any;
         this._renderingObjects = [];
+        this._outputs = [];
 
         FluidRenderer._SceneComponentInitialization(this._scene);
 
@@ -44,38 +52,55 @@ export class FluidRenderer {
         return index !== -1 ? this._renderingObjects[index].object as FluidRenderingObjectParticleSystem : null;
     }
 
-    public addParticleSystem(ps: BABYLON.IParticleSystem): void {
+    public addParticleSystem(ps: BABYLON.IParticleSystem): IFluidRenderingEntity {
         const renderingObject = new FluidRenderingObjectParticleSystem(this._scene, ps);
         const output = new FluidRenderingOutput(this._scene);
 
-        renderingObject.generateDiffuseTexture = true;
         output.generateDiffuseTexture = true;
 
-        this._renderingObjects.push({ object: renderingObject, output });
+        const entity = { object: renderingObject, output };
 
-        /*const loadModel = async () => {
-            await BABYLON.SceneLoader.AppendAsync("https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", this._scene);
-        };*/
-
-        //loadModel();
-
-        //this._vertexBuffers["position"] = new BABYLON.VertexBuffer(this._engine, pos, "position", true, false, undefined, true);
-
-        output.initialize();
-
-        //console.log(this._vertexBuffers["position"].getData(), this._vertexBuffers);
+        this._renderingObjects.push(entity);
+        this._outputs.push(output);
 
         this._onEngineResizeObserver = this._engine.onResizeObservable.add(() => {
             this._initialize();
         });
 
         this._sortRenderingObjects();
+
+        return entity;
+    }
+
+    public addVertexBuffer(vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number): IFluidRenderingEntity {
+        const renderingObject = new FluidRenderingObjectVertexBuffer(this._scene, vertexBuffers, numParticles);
+        const output = new FluidRenderingOutput(this._scene);
+
+        output.generateDiffuseTexture = false;
+
+        const entity = { object: renderingObject, output };
+
+        this._renderingObjects.push(entity);
+        this._outputs.push(output);
+
+        this._onEngineResizeObserver = this._engine.onResizeObservable.add(() => {
+            this._initialize();
+        });
+
+        this._sortRenderingObjects();
+
+        return entity;
     }
 
     private _sortRenderingObjects(): void {
         this._renderingObjects.sort((a, b) => {
             return a.object.priority < b.object.priority ? -1 : a.object.priority > b.object.priority ? 1 : 0;
         });
+
+        for (let i = 0; i < this._outputs.length; ++i) {
+            const output = this._outputs[i];
+            output.isFirstOutput = i === 0;//this._outputs.length - 1;
+        }
     }
 
     public collectParticleSystems(): void {
@@ -113,6 +138,13 @@ export class FluidRenderer {
     private _initialize(): void {
         for (let i = 0; i < this._renderingObjects.length; ++i) {
             this._renderingObjects[i].output.initialize();
+        }
+    }
+
+    /** @hidden */
+    public _prepareRendering(): void {
+        for (let i = 0; i < this._outputs.length; ++i) {
+            this._outputs[i]._prepareRendering();
         }
     }
 

@@ -22,7 +22,7 @@ export const babylonInit = async (): Promise<void>  => {
     const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement; 
 
     let engine: Engine;
-    const webgpuSupported = false;//await WebGPUEngine.IsSupportedAsync;
+    const webgpuSupported = await WebGPUEngine.IsSupportedAsync;
 
     if (webgpuSupported) {
         engine = new WebGPUEngine(canvas, {

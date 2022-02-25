@@ -6,7 +6,7 @@ import flareImg from "../assets/flare32bits.png";
 
 import "./FluidRenderer/fluidRendererSceneComponent";
 
-const cameraMax = 100;
+const cameraMax = 10000;
 
 declare module "@babylonjs/core/Particles/IParticleSystem" {
     export interface IParticleSystem {
@@ -93,7 +93,7 @@ export class FluidRendering implements CreateSceneClass {
         mat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 1);*/
 
         if (showObstacle) {
-            const plane = BABYLON.MeshBuilder.CreatePlane("plane", { size: 10 }, scene);
+            const plane = BABYLON.MeshBuilder.CreatePlane("plane", { size: 15 }, scene);
             plane.position.z = -3;
         }
 
@@ -101,8 +101,8 @@ export class FluidRendering implements CreateSceneClass {
         var particleSystem = new BABYLON.ParticleSystem("particles", numParticles, scene);
 
         //Texture of each particle
-        particleSystem.particleTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flare.png", scene);
-        //particleSystem.particleTexture = new BABYLON.Texture(flareImg, scene);
+        //particleSystem.particleTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flare.png", scene);
+        particleSystem.particleTexture = new BABYLON.Texture(flareImg, scene);
 
         // Where the particles come from
         particleSystem.createConeEmitter(4, Math.PI / 2);
@@ -147,7 +147,110 @@ export class FluidRendering implements CreateSceneClass {
         particleSystem.renderAsFluid = liquidRendering;
 
         if (liquidRendering) {
-            scene.enableFluidRenderer();
+            const fluidRenderer = scene.enableFluidRenderer();
+
+            const loadModel = async () => {
+                await BABYLON.SceneLoader.AppendAsync("https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", scene);
+            };
+
+            await loadModel();
+
+            var pcs = new BABYLON.PointsCloudSystem("pcs", 3, scene);
+
+            scene.getMeshByName("him")!.getChildMeshes().forEach((m) => {
+                m.setEnabled(false);
+                m.scaling.setAll(0.1);
+                m.rotation.y = Math.PI / 2;
+                (m.material as any).disableLighting = true;
+                (m.material as any).emissiveTexture = (m.material as any).diffuseTexture;
+                m.position.z += 15;
+                //pcs.addVolumePoints(m as BABYLON.Mesh, 5000, BABYLON.PointColor.Color, 0);
+                pcs.addSurfacePoints(m as BABYLON.Mesh, 20000, BABYLON.PointColor.Color, 0);
+            });
+    
+            scene.activeCamera = camera;
+
+            pcs.buildMeshAsync().then((mesh) => {
+                const vertexBuffers: { [key: string]: BABYLON.VertexBuffer } = {};
+
+                const positions: Float32Array = (pcs as any)._positions32;
+                const numParticles = positions.length / 3;
+
+                vertexBuffers["position"] = new BABYLON.VertexBuffer(this._engine, positions, "position", true, false, 3, true);
+                vertexBuffers["color"] = new BABYLON.VertexBuffer(this._engine, (pcs as any)._colors32, "color", false, false, 4, true);
+
+                const entity = fluidRenderer?.addVertexBuffer(vertexBuffers, numParticles);
+
+                if (entity) {
+                    entity.object.particleSize = 0.1;
+                    entity.object.particleThicknessAlpha = 0.1;
+                    entity.output.blurKernel = 10;
+                    entity.output.blurScale = 0.1;
+                    entity.output.blurDepthScale = 50;
+                }
+
+                mesh.setEnabled(false);
+
+                scene.activeCamera = camera;
+
+                const velocity: number[] = [];
+                const accel: number[] = [];
+                const stopped: number[] = [];
+
+                const min = new BABYLON.Vector3(1e10, 1e10, 1e10), max = new BABYLON.Vector3(-1e10, -1e10, -1e10);
+                for (let i = 0; i < numParticles; ++i) {
+                    min.x = Math.min(positions[i * 3 + 0], min.x);
+                    min.y = Math.min(positions[i * 3 + 1], min.y);
+                    min.z = Math.min(positions[i * 3 + 2], min.z);
+                    max.x = Math.max(positions[i * 3 + 0], max.x);
+                    max.y = Math.max(positions[i * 3 + 1], max.y);
+                    max.z = Math.max(positions[i * 3 + 2], max.z);
+                }
+                const center = min.add(max).scaleInPlace(0.5);
+                const diag = BABYLON.Vector3.Distance(center, min);
+
+                const pos = new BABYLON.Vector3();
+                for (let i = 0; i < numParticles; ++i) {
+                    pos.copyFromFloats(positions[i * 3 + 0], positions[i * 3 + 1], positions[i * 3 + 2]);
+                    //const dist = BABYLON.Vector3.Distance(pos, center);
+                    const f = Math.random() * 0.005;//Math.abs(diag - dist) / diag * 0.001;
+                    const g = Math.random() * 0.001;//Math.abs(diag - dist) / diag * 0.001;
+                    const h = Math.random() * 0.005;//Math.abs(diag - dist) / diag * 0.001;
+                    accel.push((-0.5 + Math.random()) * Math.random() * f);
+                    accel.push(Math.random() * (Math.random() + 1.0) * g);
+                    accel.push((-0.5 + Math.random()) * Math.random() * h);
+                    velocity.push(0, 0, 0);
+                    stopped.push(0);
+                }
+
+                let dt = 1 / 60 / 1000;
+                scene.onBeforeRenderObservable.add(() => {
+                    for (let i = 0; i < numParticles; ++i) {
+                        if (stopped[i]) continue;
+                        accel[i * 3 + 1] += -9.81 * dt;
+                        velocity[i * 3 + 0] += accel[i * 3 + 0];
+                        velocity[i * 3 + 1] += accel[i * 3 + 1];
+                        velocity[i * 3 + 2] += accel[i * 3 + 2];
+                        positions[i * 3 + 0] += velocity[i * 3 + 0];
+                        positions[i * 3 + 1] += velocity[i * 3 + 1];
+                        positions[i * 3 + 2] += velocity[i * 3 + 2];
+                        if (positions[i * 3 + 1] <= -2) {
+                            //velocity[i * 3 + 0] *= Math.random() / 10 + 0.8;
+                            velocity[i * 3 + 1] *= -(Math.random() / 10 + 0.4);
+                            //velocity[i * 3 + 2] *= Math.random() / 10 + 0.8;
+                            if (positions[i * 3 + 1] + velocity[i * 3 + 1] < -2) {
+                                stopped[i] = 1;
+                            }
+                            positions[i * 3 + 1] = -2;
+                        }
+                    }
+                    vertexBuffers["position"].updateDirectly(positions, 0);
+                });
+
+                window.setTimeout(() => {
+                    new BABYLON.FxaaPostProcess("bb", 1, camera);
+                }, 2000);
+            });
         }
 
         return scene;
