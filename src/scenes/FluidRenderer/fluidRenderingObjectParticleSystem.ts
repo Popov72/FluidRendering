@@ -4,7 +4,7 @@ import { FluidRenderingObject } from "./fluidRenderingObject";
 
 export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
 
-    private _particleSystem: BABYLON.IParticleSystem;
+    private _particleSystem: BABYLON.ParticleSystem;
     private _renderCallback: () => number;
     private _blendMode: number;
     private _onBeforeDrawParticleObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Nullable<BABYLON.Effect>>>;
@@ -13,7 +13,7 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
         return this._particleSystem;
     }
 
-    constructor(scene: BABYLON.Scene, ps: BABYLON.IParticleSystem) {
+    constructor(scene: BABYLON.Scene, ps: BABYLON.ParticleSystem) {
         super(scene, (ps as any)._vertexBuffers, (ps as any)._indexBuffer);
 
         this._particleSystem = ps;

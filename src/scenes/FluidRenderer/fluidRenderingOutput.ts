@@ -7,6 +7,7 @@ export class FluidRenderingOutput {
     private static _Id = 1;
 
     protected _scene: BABYLON.Scene;
+    protected _camera: BABYLON.Nullable<BABYLON.Camera>;
     protected _engine: BABYLON.Engine;
     protected _needInitialization: boolean;
     protected _id: number = FluidRenderingOutput._Id++;
@@ -163,24 +164,25 @@ export class FluidRenderingOutput {
         this._needInitialization = true;
     }
 
-    private _isFirstOutput: boolean = true;
+    private _positionOrder: number = 0;
 
-    public get isFirstOutput() {
-        return this._isFirstOutput;
+    public get positionOrder() {
+        return this._positionOrder;
     }
 
-    public set isFirstOutput(add: boolean) {
-        if (this._isFirstOutput === add) {
+    public set positionOrder(order: number) {
+        if (this._positionOrder === order) {
             return;
         }
 
-        this._isFirstOutput = add;
+        this._positionOrder = order;
         this._renderPostProcessIsDirty = true;
     }
 
-    constructor(scene: BABYLON.Scene) {
+    constructor(scene: BABYLON.Scene, camera?: BABYLON.Camera) {
         this._scene = scene;
         this._engine = scene.getEngine();
+        this._camera = camera ?? scene.activeCamera;
         this._needInitialization = true;
     
         this._invProjectionMatrix = new BABYLON.Matrix();
@@ -246,6 +248,10 @@ export class FluidRenderingOutput {
 
         this.dispose(true);
 
+        if (!this._camera) {
+            return;
+        }
+
         if (this.generateDiffuseTexture) {
             samplerNames.push("diffuseSampler");
             defines.push("#define FLUIDRENDERING_DIFFUSETEXTURE");
@@ -258,7 +264,8 @@ export class FluidRenderingOutput {
         }
 
         this._renderPostProcessIsDirty = false;
-        this._renderPostProcess = new BABYLON.PostProcess("FluidRendering", "renderFluid", uniformNames, samplerNames, 1, this._scene.activeCamera, BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE, engine, false, defines.join("\n"), BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
+        this._renderPostProcess = new BABYLON.PostProcess("FluidRendering", "renderFluid", uniformNames, samplerNames, 1, null, BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE, engine, false, defines.join("\n"), BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
+        this._camera.attachPostProcess(this._renderPostProcess, this._positionOrder);
         this._renderPostProcess.alphaMode = BABYLON.Constants.ALPHA_COMBINE;
         this._renderPostProcess.externalTextureSamplerBinding = true;
         this._renderPostProcess.onApplyObservable.add((effect) => {
@@ -298,28 +305,48 @@ export class FluidRenderingOutput {
             effect.setTexture("reflectionSampler", this._scene.environmentTexture);
 
             effect.setVector3("dirLight", this.dirLight);
-            effect.setVector3("camPos", this._scene.activeCamera!.globalPosition);
+            effect.setVector3("camPos", this._camera!.globalPosition);
         });
 
-        if (this._isFirstOutput) {
+        if (this._positionOrder === 0) {
             this._renderPostProcess.onSizeChangedObservable.add(() => {
-                this._renderPostProcess.inputTexture.createDepthStencilTexture(0, true, engine.isStencilEnable, 1);
-                this._renderPostProcess.inputTexture._shareDepth(this._thicknessRenderTarget.renderTarget);
+                if (!this._renderPostProcess.inputTexture.depthStencilTexture) {
+                    this._renderPostProcess.inputTexture.createDepthStencilTexture(0, true, engine.isStencilEnable, 1);
+                    this._renderPostProcess.inputTexture._shareDepth(this._thicknessRenderTarget.renderTarget);
+                }
             });
 
             this._renderPostProcess.onActivateObservable.add((effect) => {
                 this._engine.clear(this._scene.clearColor, true, true, true);
             });
         } else {
-            this._scene.activeCamera!._postProcesses[0]!.onSizeChangedObservable.add(() => {
-                this._scene.activeCamera!._postProcesses[0]!.inputTexture._shareDepth(this._thicknessRenderTarget.renderTarget);
+            const firstPP = this._camera._getFirstPostProcess()!;
+            firstPP.onSizeChangedObservable.add(() => {
+                firstPP.inputTexture._shareDepth(this._thicknessRenderTarget.renderTarget);
             });
 
-            this._renderPostProcess.shareOutputWith(this._scene.activeCamera!._postProcesses[0]!);
+            this._renderPostProcess.shareOutputWith(firstPP);
 
-            this._passPostProcess = new BABYLON.PassPostProcess("pass", 1, this._scene.activeCamera);
-            this._passPostProcess.autoClear = false;
-            this._passPostProcess.shareOutputWith(this._scene.activeCamera!._postProcesses[0]!);
+            const findNextPostProcess = (index: number) => {
+                const postProcesses = this._camera?._postProcesses;
+                if (!postProcesses) {
+                    return null;
+                }
+                for (let i = index + 1; i < postProcesses.length; ++i) {
+                    if (postProcesses[i]) {
+                        return postProcesses[i];
+                    }
+                }
+                return null;
+            };
+
+            let nextPostProcess = findNextPostProcess(this._positionOrder);
+            if (!nextPostProcess) {
+                this._passPostProcess = nextPostProcess = new BABYLON.PassPostProcess("fluidRenderingPass", 1, null, undefined, engine);
+                this._camera.attachPostProcess(this._passPostProcess, this._positionOrder + 1);
+            }
+            nextPostProcess.autoClear = false;
+            nextPostProcess.shareOutputWith(firstPP);
         }
     }
 
@@ -393,8 +420,14 @@ export class FluidRenderingOutput {
             this._thicknessRenderTarget = null as any;
         }
 
+        if (this._renderPostProcess && this._camera) {
+            this._camera.detachPostProcess(this._renderPostProcess);
+        }
         this._renderPostProcess?.dispose();
         this._renderPostProcess = null as any;
+        if (this._renderPostProcess && this._camera) {
+            this._camera.detachPostProcess(this._passPostProcess);
+        }
         this._passPostProcess?.dispose();
         this._passPostProcess = null as any;
 

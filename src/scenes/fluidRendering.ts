@@ -170,6 +170,8 @@ export class FluidRendering implements CreateSceneClass {
     
             scene.activeCamera = camera;
 
+            new BABYLON.FxaaPostProcess("Fxaa", 1, camera);
+
             pcs.buildMeshAsync().then((mesh) => {
                 const vertexBuffers: { [key: string]: BABYLON.VertexBuffer } = {};
 
@@ -246,10 +248,6 @@ export class FluidRendering implements CreateSceneClass {
                     }
                     vertexBuffers["position"].updateDirectly(positions, 0);
                 });
-
-                window.setTimeout(() => {
-                    new BABYLON.FxaaPostProcess("bb", 1, camera);
-                }, 2000);
             });
         }
 

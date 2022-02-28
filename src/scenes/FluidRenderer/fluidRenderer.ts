@@ -47,12 +47,12 @@ export class FluidRenderer {
         this.collectParticleSystems();
     }
 
-    public getRenderingObjectParticleSystem(ps: BABYLON.IParticleSystem): BABYLON.Nullable<FluidRenderingObjectParticleSystem> {
+    public getRenderingObjectParticleSystem(ps: BABYLON.ParticleSystem): BABYLON.Nullable<FluidRenderingObjectParticleSystem> {
         const index = this._getParticleSystemIndex(ps);
         return index !== -1 ? this._renderingObjects[index].object as FluidRenderingObjectParticleSystem : null;
     }
 
-    public addParticleSystem(ps: BABYLON.IParticleSystem): IFluidRenderingEntity {
+    public addParticleSystem(ps: BABYLON.ParticleSystem): IFluidRenderingEntity {
         const renderingObject = new FluidRenderingObjectParticleSystem(this._scene, ps);
         const output = new FluidRenderingOutput(this._scene);
 
@@ -99,7 +99,7 @@ export class FluidRenderer {
 
         for (let i = 0; i < this._outputs.length; ++i) {
             const output = this._outputs[i];
-            output.isFirstOutput = i === 0;//this._outputs.length - 1;
+            output.positionOrder = i;
         }
     }
 
@@ -108,8 +108,8 @@ export class FluidRenderer {
             const ps = this._scene.particleSystems[i];
             const index = this._getParticleSystemIndex(ps);
             if (index === -1) {
-                if (ps.renderAsFluid) {
-                    this.addParticleSystem(ps);
+                if (ps.renderAsFluid && ps.getClassName() === "ParticleSystem") {
+                    this.addParticleSystem(ps as BABYLON.ParticleSystem);
                 }
             } else if (!ps.renderAsFluid) {
                 const renderingObject = this._renderingObjects[index];
