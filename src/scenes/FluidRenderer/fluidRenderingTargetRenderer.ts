@@ -2,7 +2,7 @@ import * as BABYLON from "@babylonjs/core";
 import { FluidRenderingObject } from "./fluidRenderingObject";
 import { FluidRenderingRenderTarget } from "./fluidRenderingRenderTarget";
 
-export class FluidRenderingOutput {
+export class FluidRenderingTargetRenderer {
 
     private static _Id = 1;
 
@@ -10,7 +10,7 @@ export class FluidRenderingOutput {
     protected _camera: BABYLON.Nullable<BABYLON.Camera>;
     protected _engine: BABYLON.Engine;
     protected _needInitialization: boolean;
-    protected _id: number = FluidRenderingOutput._Id++;
+    protected _id: number = FluidRenderingTargetRenderer._Id++;
 
     protected _depthRenderTarget: FluidRenderingRenderTarget;
     protected _diffuseRenderTarget: BABYLON.Nullable<FluidRenderingRenderTarget>;
@@ -179,6 +179,21 @@ export class FluidRenderingOutput {
         this._renderPostProcessIsDirty = true;
     }
 
+    private _needPostProcessChaining: boolean = false;
+
+    public get needPostProcessChaining() {
+        return this._needPostProcessChaining;
+    }
+
+    public set needPostProcessChaining(needChaining: boolean) {
+        if (this._needPostProcessChaining === needChaining) {
+            return;
+        }
+
+        this._needPostProcessChaining = needChaining;
+        this._renderPostProcessIsDirty = true;
+    }
+
     constructor(scene: BABYLON.Scene, camera?: BABYLON.Camera) {
         this._scene = scene;
         this._engine = scene.getEngine();
@@ -205,8 +220,8 @@ export class FluidRenderingOutput {
         this._needInitialization = false;
 
         this._depthRenderTarget = new FluidRenderingRenderTarget("Depth", this._scene, this.mapSize, this.mapSize, this.mapSize,
-            BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RGBA, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
-            BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RGBA, false);
+            BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
+            BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, false);
 
         this._initializeRenderTarget(this._depthRenderTarget);
 
@@ -312,8 +327,8 @@ export class FluidRenderingOutput {
             this._renderPostProcess.onSizeChangedObservable.add(() => {
                 if (!this._renderPostProcess.inputTexture.depthStencilTexture) {
                     this._renderPostProcess.inputTexture.createDepthStencilTexture(0, true, engine.isStencilEnable, 1);
-                    this._renderPostProcess.inputTexture._shareDepth(this._thicknessRenderTarget.renderTarget);
                 }
+                this._renderPostProcess.inputTexture._shareDepth(this._thicknessRenderTarget.renderTarget);
             });
 
             this._renderPostProcess.onActivateObservable.add((effect) => {
@@ -326,7 +341,9 @@ export class FluidRenderingOutput {
             });
 
             this._renderPostProcess.shareOutputWith(firstPP);
+        }
 
+        if (this.needPostProcessChaining) {
             const findNextPostProcess = (index: number) => {
                 const postProcesses = this._camera?._postProcesses;
                 if (!postProcesses) {
@@ -340,6 +357,7 @@ export class FluidRenderingOutput {
                 return null;
             };
 
+            const firstPP = this._camera._getFirstPostProcess()!;
             let nextPostProcess = findNextPostProcess(this._positionOrder);
             if (!nextPostProcess) {
                 this._passPostProcess = nextPostProcess = new BABYLON.PassPostProcess("fluidRenderingPass", 1, null, undefined, engine);

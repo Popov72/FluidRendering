@@ -186,9 +186,9 @@ export class FluidRendering implements CreateSceneClass {
                 if (entity) {
                     entity.object.particleSize = 0.1;
                     entity.object.particleThicknessAlpha = 0.1;
-                    entity.output.blurKernel = 10;
-                    entity.output.blurScale = 0.1;
-                    entity.output.blurDepthScale = 50;
+                    entity.targetRenderer.blurKernel = 10;
+                    entity.targetRenderer.blurScale = 0.1;
+                    entity.targetRenderer.blurDepthScale = 50;
                 }
 
                 mesh.setEnabled(false);

@@ -15,12 +15,12 @@ import standardBlurFragment from "../../assets/standardBlur.fragment.glsl";
 import renderFluidFragment from "../../assets/renderFluid.fragment.glsl";
 
 import { FluidRenderingObjectParticleSystem } from "./fluidRenderingObjectParticleSystem";
-import { FluidRenderingOutput } from "./fluidRenderingOutput";
+import { FluidRenderingTargetRenderer } from "./fluidRenderingTargetRenderer";
 import { FluidRenderingObjectVertexBuffer } from "./fluidRenderingObjectVertexBuffer";
 
 export interface IFluidRenderingEntity {
     object: FluidRenderingObject;
-    output: FluidRenderingOutput;
+    targetRenderer: FluidRenderingTargetRenderer;
 }
 
 export class FluidRenderer {
@@ -33,14 +33,14 @@ export class FluidRenderer {
     private _engine: BABYLON.Engine;
     private _onEngineResizeObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Engine>>;
     private _renderingObjects: Array<IFluidRenderingEntity>;
-    private _outputs: FluidRenderingOutput[];
+    private _targetRenderers: FluidRenderingTargetRenderer[];
 
     constructor(scene: BABYLON.Scene) {
         this._scene = scene;
         this._engine = scene.getEngine();
         this._onEngineResizeObserver = null as any;
         this._renderingObjects = [];
-        this._outputs = [];
+        this._targetRenderers = [];
 
         FluidRenderer._SceneComponentInitialization(this._scene);
 
@@ -54,14 +54,14 @@ export class FluidRenderer {
 
     public addParticleSystem(ps: BABYLON.ParticleSystem): IFluidRenderingEntity {
         const renderingObject = new FluidRenderingObjectParticleSystem(this._scene, ps);
-        const output = new FluidRenderingOutput(this._scene);
+        const targetRenderer = new FluidRenderingTargetRenderer(this._scene);
 
-        output.generateDiffuseTexture = true;
+        targetRenderer.generateDiffuseTexture = true;
 
-        const entity = { object: renderingObject, output };
+        const entity = { object: renderingObject, targetRenderer };
 
         this._renderingObjects.push(entity);
-        this._outputs.push(output);
+        this._targetRenderers.push(targetRenderer);
 
         this._onEngineResizeObserver = this._engine.onResizeObservable.add(() => {
             this._initialize();
@@ -74,14 +74,14 @@ export class FluidRenderer {
 
     public addVertexBuffer(vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number): IFluidRenderingEntity {
         const renderingObject = new FluidRenderingObjectVertexBuffer(this._scene, vertexBuffers, numParticles);
-        const output = new FluidRenderingOutput(this._scene);
+        const targetRenderer = new FluidRenderingTargetRenderer(this._scene);
 
-        output.generateDiffuseTexture = false;
+        targetRenderer.generateDiffuseTexture = false;
 
-        const entity = { object: renderingObject, output };
+        const entity = { object: renderingObject, targetRenderer };
 
         this._renderingObjects.push(entity);
-        this._outputs.push(output);
+        this._targetRenderers.push(targetRenderer);
 
         this._onEngineResizeObserver = this._engine.onResizeObservable.add(() => {
             this._initialize();
@@ -97,9 +97,10 @@ export class FluidRenderer {
             return a.object.priority < b.object.priority ? -1 : a.object.priority > b.object.priority ? 1 : 0;
         });
 
-        for (let i = 0; i < this._outputs.length; ++i) {
-            const output = this._outputs[i];
-            output.positionOrder = i;
+        for (let i = 0; i < this._targetRenderers.length; ++i) {
+            const targetRenderer = this._targetRenderers[i];
+            targetRenderer.positionOrder = i;
+            targetRenderer.needPostProcessChaining = i === this._targetRenderers.length - 1;
         }
     }
 
@@ -114,7 +115,7 @@ export class FluidRenderer {
             } else if (!ps.renderAsFluid) {
                 const renderingObject = this._renderingObjects[index];
                 renderingObject.object.dispose();
-                renderingObject.output.dispose();
+                renderingObject.targetRenderer.dispose();
                 this._renderingObjects.splice(index, 1);
             }
         }
@@ -137,14 +138,14 @@ export class FluidRenderer {
 
     private _initialize(): void {
         for (let i = 0; i < this._renderingObjects.length; ++i) {
-            this._renderingObjects[i].output.initialize();
+            this._renderingObjects[i].targetRenderer.initialize();
         }
     }
 
     /** @hidden */
     public _prepareRendering(): void {
-        for (let i = 0; i < this._outputs.length; ++i) {
-            this._outputs[i]._prepareRendering();
+        for (let i = 0; i < this._targetRenderers.length; ++i) {
+            this._targetRenderers[i]._prepareRendering();
         }
     }
 
@@ -152,7 +153,7 @@ export class FluidRenderer {
     public _render(): void {
         for (let i = 0; i < this._renderingObjects.length; ++i) {
             const renderingObject = this._renderingObjects[i];
-            renderingObject.output.render(renderingObject.object);
+            renderingObject.targetRenderer.render(renderingObject.object);
         }
     }
 
@@ -163,7 +164,7 @@ export class FluidRenderer {
         for (let i = 0; i < this._renderingObjects.length; ++i) {
             const renderingObject = this._renderingObjects[i];
             renderingObject.object.dispose();
-            renderingObject.output.dispose();
+            renderingObject.targetRenderer.dispose();
         }
 
         this._renderingObjects = [];
