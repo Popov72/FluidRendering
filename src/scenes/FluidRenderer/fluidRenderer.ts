@@ -172,6 +172,10 @@ export class FluidRenderer {
 
     /** @hidden */
     public _render(): void {
+        for (let i = 0; i < this._targetRenderers.length; ++i) {
+            this._targetRenderers[i].clearTargets();
+        }
+
         for (let i = 0; i < this._renderingObjects.length; ++i) {
             const renderingObject = this._renderingObjects[i];
             renderingObject.targetRenderer.render(renderingObject.object);

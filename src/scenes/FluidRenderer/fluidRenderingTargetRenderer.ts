@@ -374,6 +374,27 @@ export class FluidRenderingTargetRenderer {
         }
     }
 
+    public clearTargets(): void {
+        if (this._depthRenderTarget?.renderTarget) {
+            this._engine.bindFramebuffer(this._depthRenderTarget.renderTarget);
+            this._engine.clear(this._depthClearColor, true, true, false);
+            this._engine.unBindFramebuffer(this._depthRenderTarget.renderTarget);
+        }
+
+        if (this._diffuseRenderTarget?.renderTarget) {
+            this._engine.bindFramebuffer(this._diffuseRenderTarget.renderTarget);
+            this._engine.clear(this._thicknessClearColor, true, true, false);
+            this._engine.unBindFramebuffer(this._diffuseRenderTarget.renderTarget);
+        }
+
+        if (this._thicknessRenderTarget?.renderTarget) {
+            this._engine.bindFramebuffer(this._thicknessRenderTarget.renderTarget);
+            this._engine.clear(this._thicknessClearColor, true, false, false);
+            this._engine.unBindFramebuffer(this._thicknessRenderTarget.renderTarget);
+            this._engine.unbindInstanceAttributes();
+        }
+    }
+
     public render(fluidObject: FluidRenderingObject): void {
         if (this._needInitialization || !fluidObject.isReady()) {
             return;
@@ -385,8 +406,6 @@ export class FluidRenderingTargetRenderer {
         if (this._depthRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._depthRenderTarget.renderTarget);
 
-            this._engine.clear(this._depthClearColor, true, true, false);
-
             fluidObject.renderDepthTexture();
 
             this._engine.unBindFramebuffer(this._depthRenderTarget.renderTarget);
@@ -396,8 +415,6 @@ export class FluidRenderingTargetRenderer {
         if (this._diffuseRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._diffuseRenderTarget.renderTarget);
 
-            this._engine.clear(this._thicknessClearColor, true, true, false);
-
             fluidObject.renderDiffuseTexture();
 
             this._engine.unBindFramebuffer(this._diffuseRenderTarget.renderTarget);
@@ -406,8 +423,6 @@ export class FluidRenderingTargetRenderer {
         // Render the particles in the thickness texture
         if (this._thicknessRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._thicknessRenderTarget.renderTarget);
-
-            this._engine.clear(this._thicknessClearColor, true, false, false);
 
             fluidObject.renderThicknessTexture();
 
