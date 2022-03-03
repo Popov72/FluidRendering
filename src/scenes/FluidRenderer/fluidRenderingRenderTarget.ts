@@ -14,11 +14,11 @@ export class FluidRenderingRenderTarget {
     protected _blurTextureFormat: number;
     protected _useStandardBlur: boolean;
 
-    protected _rt: BABYLON.RenderTargetWrapper;
-    protected _texture: BABYLON.ThinTexture;
+    protected _rt: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
+    protected _texture: BABYLON.Nullable<BABYLON.ThinTexture>;
     protected _rtBlur: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
-    protected _textureBlurred: BABYLON.ThinTexture;
-    protected _blurPostProcesses: BABYLON.PostProcess[];
+    protected _textureBlurred: BABYLON.Nullable<BABYLON.ThinTexture>;
+    protected _blurPostProcesses: BABYLON.Nullable<BABYLON.PostProcess[]>;
 
     public debug = true;
 
@@ -67,11 +67,11 @@ export class FluidRenderingRenderTarget {
         this._blurTextureFormat = blurTextureFormat;
         this._useStandardBlur = useStandardBlur;
     
-        this._rt = null as any;
-        this._texture = null as any;
-        this._rtBlur = null as any;
-        this._textureBlurred = null as any;
-        this._blurPostProcesses = null as any;
+        this._rt = null;
+        this._texture = null;
+        this._rtBlur = null;
+        this._textureBlurred = null;
+        this._blurPostProcesses = null;
     }
 
     public initialize(): void {
@@ -79,7 +79,7 @@ export class FluidRenderingRenderTarget {
 
         this._createRenderTarget();
 
-        if (this.enableBlur) {
+        if (this.enableBlur && this._texture) {
             const [rtBlur, textureBlurred, blurPostProcesses] = this._createBlurPostProcesses(this._texture, this._blurTextureType, this._blurTextureFormat, this.blurSizeDivisor, this._name, this._useStandardBlur);
             this._rtBlur = rtBlur;
             this._textureBlurred = textureBlurred;
@@ -88,7 +88,7 @@ export class FluidRenderingRenderTarget {
     }
 
     public applyBlurPostProcesses(): void {
-        if (this.enableBlur) {
+        if (this.enableBlur && this._blurPostProcesses) {
             this._scene.postProcessManager.directRender(this._blurPostProcesses, this._rtBlur, true);
             this._engine.unBindFramebuffer(this._rtBlur!);
         }
@@ -104,8 +104,6 @@ export class FluidRenderingRenderTarget {
             generateStencilBuffer: false,
             samples: 1,
         });
-        //this._rtDepth.createDepthStencilTexture(0, false, false, 1, BABYLON.Constants.TEXTUREFORMAT_DEPTH32_FLOAT);
-        //const renderTexture = this._rtDepth._depthStencilTexture;
 
         const renderTexture = this._rt.texture!;
 
@@ -190,7 +188,7 @@ export class FluidRenderingRenderTarget {
                 rt.texture!.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
             });
         });
-        
+
         kernelBlurXPostprocess.autoClear = false;
         kernelBlurYPostprocess.autoClear = false;
 
@@ -203,11 +201,12 @@ export class FluidRenderingRenderTarget {
         }
 
         this._rt?.dispose();
+        this._rt = null;
         this._rtBlur?.dispose();
         this._rtBlur = null;
         if (this._blurPostProcesses) {
             this._blurPostProcesses.forEach((pp) => pp.dispose());
         }
-        this._blurPostProcesses = [];
+        this._blurPostProcesses = null;
     }
 }

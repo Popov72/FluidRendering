@@ -5,12 +5,12 @@ export abstract class FluidRenderingObject {
     protected _scene: BABYLON.Scene;
     protected _engine: BABYLON.Engine;
     protected _effectsAreDirty: boolean;
-    protected _depthEffectWrapper: BABYLON.EffectWrapper;
-    protected _thicknessEffectWrapper: BABYLON.EffectWrapper;
+    protected _depthEffectWrapper: BABYLON.Nullable<BABYLON.EffectWrapper>;
+    protected _thicknessEffectWrapper: BABYLON.Nullable<BABYLON.EffectWrapper>;
 
     public priority: number = 0;
 
-    private _particleSize: BABYLON.Nullable<number> = null;
+    protected _particleSize: BABYLON.Nullable<number> = null;
 
     public get particleSize() {
         return this._particleSize;
@@ -36,8 +36,8 @@ export abstract class FluidRenderingObject {
         this._scene = scene;
         this._engine = scene.getEngine();
         this._effectsAreDirty = true;
-        this._depthEffectWrapper = null as any;
-        this._thicknessEffectWrapper = null as any;
+        this._depthEffectWrapper = null;
+        this._thicknessEffectWrapper = null;
     }
 
     protected _createEffects(): void {
@@ -84,6 +84,10 @@ export abstract class FluidRenderingObject {
             this._createEffects();
         }
 
+        if (!this._depthEffectWrapper || !this._thicknessEffectWrapper) {
+            return false;
+        }
+
         const depthEffect = this._depthEffectWrapper._drawWrapper.effect!;
         const thicknessEffect = this._thicknessEffectWrapper._drawWrapper.effect!;
 
@@ -95,6 +99,10 @@ export abstract class FluidRenderingObject {
     }
 
     public renderDepthTexture(): void {
+        if (!this._depthEffectWrapper) {
+            return;
+        }
+
         const depthDrawWrapper = this._depthEffectWrapper._drawWrapper;
         const depthEffect = depthDrawWrapper.effect!;
 
@@ -117,6 +125,10 @@ export abstract class FluidRenderingObject {
     }
 
     public renderThicknessTexture(): void {
+        if (!this._thicknessEffectWrapper) {
+            return;
+        }
+
         const thicknessDrawWrapper = this._thicknessEffectWrapper._drawWrapper;
         const thicknessEffect = thicknessDrawWrapper.effect!;
 

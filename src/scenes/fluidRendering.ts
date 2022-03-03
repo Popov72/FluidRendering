@@ -101,8 +101,8 @@ export class FluidRendering implements CreateSceneClass {
         var particleSystem = new BABYLON.ParticleSystem("particles", numParticles, scene);
 
         //Texture of each particle
-        //particleSystem.particleTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flare.png", scene);
         particleSystem.particleTexture = new BABYLON.Texture(flareImg, scene);
+        particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
 
         // Where the particles come from
         particleSystem.createConeEmitter(4, Math.PI / 2);
@@ -181,7 +181,7 @@ export class FluidRendering implements CreateSceneClass {
                 vertexBuffers["position"] = new BABYLON.VertexBuffer(this._engine, positions, "position", true, false, 3, true);
                 vertexBuffers["color"] = new BABYLON.VertexBuffer(this._engine, (pcs as any)._colors32, "color", false, false, 4, true);
 
-                const entity = fluidRenderer?.addVertexBuffer(vertexBuffers, numParticles);
+                const entity = fluidRenderer?.addVertexBuffer(vertexBuffers, numParticles, true);
 
                 if (entity) {
                     entity.object.particleSize = 0.1;
@@ -226,28 +226,30 @@ export class FluidRendering implements CreateSceneClass {
                 }
 
                 let dt = 1 / 60 / 1000;
-                scene.onBeforeRenderObservable.add(() => {
-                    for (let i = 0; i < numParticles; ++i) {
-                        if (stopped[i]) continue;
-                        accel[i * 3 + 1] += -9.81 * dt;
-                        velocity[i * 3 + 0] += accel[i * 3 + 0];
-                        velocity[i * 3 + 1] += accel[i * 3 + 1];
-                        velocity[i * 3 + 2] += accel[i * 3 + 2];
-                        positions[i * 3 + 0] += velocity[i * 3 + 0];
-                        positions[i * 3 + 1] += velocity[i * 3 + 1];
-                        positions[i * 3 + 2] += velocity[i * 3 + 2];
-                        if (positions[i * 3 + 1] <= -2) {
-                            //velocity[i * 3 + 0] *= Math.random() / 10 + 0.8;
-                            velocity[i * 3 + 1] *= -(Math.random() / 10 + 0.4);
-                            //velocity[i * 3 + 2] *= Math.random() / 10 + 0.8;
-                            if (positions[i * 3 + 1] + velocity[i * 3 + 1] < -2) {
-                                stopped[i] = 1;
+                (window as any).doit = () => {
+                    scene.onBeforeRenderObservable.add(() => {
+                        for (let i = 0; i < numParticles; ++i) {
+                            if (stopped[i]) continue;
+                            accel[i * 3 + 1] += -9.81 * dt;
+                            velocity[i * 3 + 0] += accel[i * 3 + 0];
+                            velocity[i * 3 + 1] += accel[i * 3 + 1];
+                            velocity[i * 3 + 2] += accel[i * 3 + 2];
+                            positions[i * 3 + 0] += velocity[i * 3 + 0];
+                            positions[i * 3 + 1] += velocity[i * 3 + 1];
+                            positions[i * 3 + 2] += velocity[i * 3 + 2];
+                            if (positions[i * 3 + 1] <= -2) {
+                                //velocity[i * 3 + 0] *= Math.random() / 10 + 0.8;
+                                velocity[i * 3 + 1] *= -(Math.random() / 10 + 0.4);
+                                //velocity[i * 3 + 2] *= Math.random() / 10 + 0.8;
+                                if (positions[i * 3 + 1] + velocity[i * 3 + 1] < -2) {
+                                    stopped[i] = 1;
+                                }
+                                positions[i * 3 + 1] = -2;
                             }
-                            positions[i * 3 + 1] = -2;
                         }
-                    }
-                    vertexBuffers["position"].updateDirectly(positions, 0);
-                });
+                        vertexBuffers["position"].updateDirectly(positions, 0);
+                    });
+                };
             });
         }
 

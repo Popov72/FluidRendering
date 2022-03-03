@@ -9,6 +9,9 @@ import particleDepthFragment from "../../assets/particleDepth.fragment.glsl";
 import particleThicknessVertex from "../../assets/particleThickness.vertex.glsl";
 import particleThicknessFragment from "../../assets/particleThickness.fragment.glsl";
 
+import particleDiffuseVertex from "../../assets/particleDiffuse.vertex.glsl";
+import particleDiffuseFragment from "../../assets/particleDiffuse.fragment.glsl";
+
 import bilateralBlurFragment from "../../assets/bilateralBlur.fragment.glsl";
 import standardBlurFragment from "../../assets/standardBlur.fragment.glsl";
 
@@ -35,14 +38,26 @@ export class FluidRenderer {
     private _renderingObjects: Array<IFluidRenderingEntity>;
     private _targetRenderers: FluidRenderingTargetRenderer[];
 
+    public get renderingObjects() {
+        return this._renderingObjects;
+    }
+
+    public get targetRenderers() {
+        return this._targetRenderers;
+    }
+
     constructor(scene: BABYLON.Scene) {
         this._scene = scene;
         this._engine = scene.getEngine();
-        this._onEngineResizeObserver = null as any;
+        this._onEngineResizeObserver = null;
         this._renderingObjects = [];
         this._targetRenderers = [];
 
         FluidRenderer._SceneComponentInitialization(this._scene);
+
+        this._onEngineResizeObserver = this._engine.onResizeObservable.add(() => {
+            this._initialize();
+        });
 
         this.collectParticleSystems();
     }
@@ -52,40 +67,42 @@ export class FluidRenderer {
         return index !== -1 ? this._renderingObjects[index].object as FluidRenderingObjectParticleSystem : null;
     }
 
-    public addParticleSystem(ps: BABYLON.ParticleSystem): IFluidRenderingEntity {
+    public addParticleSystem(ps: BABYLON.ParticleSystem, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer): IFluidRenderingEntity {
         const renderingObject = new FluidRenderingObjectParticleSystem(this._scene, ps);
-        const targetRenderer = new FluidRenderingTargetRenderer(this._scene);
 
-        targetRenderer.generateDiffuseTexture = true;
+        if (!targetRenderer) {
+            targetRenderer = new FluidRenderingTargetRenderer(this._scene);
+            this._targetRenderers.push(targetRenderer);
+        }
+
+        if (generateDiffuseTexture !== undefined) {
+            targetRenderer.generateDiffuseTexture = generateDiffuseTexture;
+        }
 
         const entity = { object: renderingObject, targetRenderer };
 
         this._renderingObjects.push(entity);
-        this._targetRenderers.push(targetRenderer);
-
-        this._onEngineResizeObserver = this._engine.onResizeObservable.add(() => {
-            this._initialize();
-        });
 
         this._sortRenderingObjects();
 
         return entity;
     }
 
-    public addVertexBuffer(vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number): IFluidRenderingEntity {
+    public addVertexBuffer(vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer): IFluidRenderingEntity {
         const renderingObject = new FluidRenderingObjectVertexBuffer(this._scene, vertexBuffers, numParticles);
-        const targetRenderer = new FluidRenderingTargetRenderer(this._scene);
 
-        targetRenderer.generateDiffuseTexture = false;
+        if (!targetRenderer) {
+            targetRenderer = new FluidRenderingTargetRenderer(this._scene);
+            this._targetRenderers.push(targetRenderer);
+        }
+
+        if (generateDiffuseTexture !== undefined) {
+            targetRenderer.generateDiffuseTexture = generateDiffuseTexture;
+        }
 
         const entity = { object: renderingObject, targetRenderer };
 
         this._renderingObjects.push(entity);
-        this._targetRenderers.push(targetRenderer);
-
-        this._onEngineResizeObserver = this._engine.onResizeObservable.add(() => {
-            this._initialize();
-        });
 
         this._sortRenderingObjects();
 
@@ -110,7 +127,7 @@ export class FluidRenderer {
             const index = this._getParticleSystemIndex(ps);
             if (index === -1) {
                 if (ps.renderAsFluid && ps.getClassName() === "ParticleSystem") {
-                    this.addParticleSystem(ps as BABYLON.ParticleSystem);
+                    this.addParticleSystem(ps as BABYLON.ParticleSystem, true);
                 }
             } else if (!ps.renderAsFluid) {
                 const renderingObject = this._renderingObjects[index];
@@ -144,8 +161,12 @@ export class FluidRenderer {
 
     /** @hidden */
     public _prepareRendering(): void {
+        let needInitialization = false;
         for (let i = 0; i < this._targetRenderers.length; ++i) {
-            this._targetRenderers[i]._prepareRendering();
+            needInitialization = needInitialization || this._targetRenderers[i].needInitialization;
+        }
+        if (needInitialization) {
+            this._initialize();
         }
     }
 
@@ -176,6 +197,9 @@ BABYLON.Effect.ShadersStore["fluidParticleDepthFragmentShader"] = particleDepthF
 
 BABYLON.Effect.ShadersStore["fluidParticleThicknessVertexShader"] = particleThicknessVertex;
 BABYLON.Effect.ShadersStore["fluidParticleThicknessFragmentShader"] = particleThicknessFragment;
+
+BABYLON.Effect.ShadersStore["fluidParticleDiffuseVertexShader"] = particleDiffuseVertex;
+BABYLON.Effect.ShadersStore["fluidParticleDiffuseFragmentShader"] = particleDiffuseFragment;
 
 BABYLON.Effect.ShadersStore["bilateralBlurFragmentShader"] = bilateralBlurFragment;
 

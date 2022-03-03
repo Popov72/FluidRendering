@@ -1,6 +1,7 @@
 uniform float particleAlpha;
 
 varying vec2 uv;
+varying vec3 diffuseColor;
 
 void main(void) {
     vec3 normal;
@@ -8,7 +9,6 @@ void main(void) {
     normal.xy = uv * 2.0 - 1.0;
     float r2 = dot(normal.xy, normal.xy);
     if (r2 > 1.0) discard;
-    float thickness = sqrt(1.0 - r2);
 
-    glFragColor = vec4(1., 1., 1., particleAlpha * thickness);
+    glFragColor = vec4(diffuseColor, 1.0);
 }
