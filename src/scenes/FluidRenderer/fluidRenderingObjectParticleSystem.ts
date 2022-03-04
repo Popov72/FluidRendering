@@ -13,6 +13,10 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
         return this._particleSystem;
     }
 
+    public getClassName(): string {
+        return "FluidRenderingObjectParticleSystem";
+    }
+
     constructor(scene: BABYLON.Scene, ps: BABYLON.ParticleSystem) {
         super(scene, (ps as any)._vertexBuffers, (ps as any)._indexBuffer);
 
@@ -48,5 +52,6 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
         this._onBeforeDrawParticleObserver = null;
         this._particleSystem.render = this._renderCallback;
         this._particleSystem.blendMode = this._blendMode;
+        this._particleSystem._renderAsFluid = false;
     }
 }

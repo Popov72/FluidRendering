@@ -8,6 +8,10 @@ export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
     private _disposeVBOffset: boolean;
     private _diffuseEffectWrapper: BABYLON.Nullable<BABYLON.EffectWrapper>;
 
+    public getClassName(): string {
+        return "FluidRenderingObjectVertexBuffer";
+    }
+
     constructor(scene: BABYLON.Scene, vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number) {
         super(scene, vertexBuffers, null);
 

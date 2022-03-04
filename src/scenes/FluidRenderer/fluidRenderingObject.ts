@@ -32,6 +32,10 @@ export abstract class FluidRenderingObject {
         return !this.indexBuffer;
     }
 
+    public getClassName(): string {
+        return "FluidRenderingObject";
+    }
+
     constructor(scene: BABYLON.Scene, public readonly vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, public readonly indexBuffer: BABYLON.Nullable<BABYLON.DataBuffer>) {
         this._scene = scene;
         this._engine = scene.getEngine();

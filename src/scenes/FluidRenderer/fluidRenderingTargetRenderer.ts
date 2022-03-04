@@ -367,21 +367,8 @@ export class FluidRenderingTargetRenderer {
         }
 
         if (this.needPostProcessChaining) {
-            const findNextPostProcess = (index: number) => {
-                const postProcesses = this._camera?._postProcesses;
-                if (!postProcesses) {
-                    return null;
-                }
-                for (let i = index + 1; i < postProcesses.length; ++i) {
-                    if (postProcesses[i]) {
-                        return postProcesses[i];
-                    }
-                }
-                return null;
-            };
-
             const firstPP = this._camera._getFirstPostProcess()!;
-            let nextPostProcess = findNextPostProcess(this._positionOrder);
+            let nextPostProcess = this._findNextPostProcess(this._positionOrder);
             if (!nextPostProcess) {
                 this._passPostProcess = nextPostProcess = new BABYLON.PassPostProcess("fluidRenderingPass", 1, null, undefined, engine);
                 this._camera.attachPostProcess(this._passPostProcess, this._positionOrder + 1);
@@ -389,6 +376,19 @@ export class FluidRenderingTargetRenderer {
             nextPostProcess.autoClear = false;
             nextPostProcess.shareOutputWith(firstPP);
         }
+    }
+
+    private _findNextPostProcess(index: number): BABYLON.Nullable<BABYLON.PostProcess>  {
+        const postProcesses = this._camera?._postProcesses;
+        if (!postProcesses) {
+            return null;
+        }
+        for (let i = index + 1; i < postProcesses.length; ++i) {
+            if (postProcesses[i]) {
+                return postProcesses[i];
+            }
+        }
+        return null;
     }
 
     public clearTargets(): void {
@@ -467,6 +467,13 @@ export class FluidRenderingTargetRenderer {
 
             this._thicknessRenderTarget?.dispose();
             this._thicknessRenderTarget = null;
+        }
+
+        if (this.needPostProcessChaining) {
+            let nextPostProcess = this._findNextPostProcess(this._positionOrder);
+            if (nextPostProcess && nextPostProcess !== this._passPostProcess) {
+                nextPostProcess.useOwnOutput();
+            }
         }
 
         if (this._renderPostProcess && this._camera) {

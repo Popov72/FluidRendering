@@ -21,7 +21,7 @@ import { FluidRenderingObjectParticleSystem } from "./fluidRenderingObjectPartic
 import { FluidRenderingTargetRenderer } from "./fluidRenderingTargetRenderer";
 import { FluidRenderingObjectVertexBuffer } from "./fluidRenderingObjectVertexBuffer";
 
-export interface IFluidRenderingEntity {
+export interface IFluidRenderingRenderObject {
     object: FluidRenderingObject;
     targetRenderer: FluidRenderingTargetRenderer;
 }
@@ -35,11 +35,11 @@ export class FluidRenderer {
     private _scene: BABYLON.Scene;
     private _engine: BABYLON.Engine;
     private _onEngineResizeObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Engine>>;
-    private _renderingObjects: Array<IFluidRenderingEntity>;
+    private _renderObjects: Array<IFluidRenderingRenderObject>;
     private _targetRenderers: FluidRenderingTargetRenderer[];
 
-    public get renderingObjects() {
-        return this._renderingObjects;
+    public get renderObjects() {
+        return this._renderObjects;
     }
 
     public get targetRenderers() {
@@ -50,7 +50,7 @@ export class FluidRenderer {
         this._scene = scene;
         this._engine = scene.getEngine();
         this._onEngineResizeObserver = null;
-        this._renderingObjects = [];
+        this._renderObjects = [];
         this._targetRenderers = [];
 
         FluidRenderer._SceneComponentInitialization(this._scene);
@@ -62,13 +62,23 @@ export class FluidRenderer {
         this.collectParticleSystems();
     }
 
-    public getRenderingObjectParticleSystem(ps: BABYLON.ParticleSystem): BABYLON.Nullable<FluidRenderingObjectParticleSystem> {
+    public recreate(): void {
+        this._sortRenderingObjects();
+        this._initialize();
+    }
+
+    public getRenderObjectFromParticleSystem(ps: BABYLON.ParticleSystem): BABYLON.Nullable<IFluidRenderingRenderObject> {
         const index = this._getParticleSystemIndex(ps);
-        return index !== -1 ? this._renderingObjects[index].object as FluidRenderingObjectParticleSystem : null;
+        return index !== -1 ? this._renderObjects[index] : null;
     }
 
-    public addParticleSystem(ps: BABYLON.ParticleSystem, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer): IFluidRenderingEntity {
-        const renderingObject = new FluidRenderingObjectParticleSystem(this._scene, ps);
+    public getRenderObjectFromVertexBuffer(vb: BABYLON.VertexBuffer): BABYLON.Nullable<IFluidRenderingRenderObject> {
+        const index = this._getVertexBufferIndex(vb);
+        return index !== -1 ? this._renderObjects[index] : null;
+    }
+
+    public addParticleSystem(ps: BABYLON.ParticleSystem, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer): IFluidRenderingRenderObject {
+        const object = new FluidRenderingObjectParticleSystem(this._scene, ps);
 
         if (!targetRenderer) {
             targetRenderer = new FluidRenderingTargetRenderer(this._scene);
@@ -79,17 +89,17 @@ export class FluidRenderer {
             targetRenderer.generateDiffuseTexture = generateDiffuseTexture;
         }
 
-        const entity = { object: renderingObject, targetRenderer };
+        const renderObject = { object, targetRenderer };
 
-        this._renderingObjects.push(entity);
+        this._renderObjects.push(renderObject);
 
         this._sortRenderingObjects();
 
-        return entity;
+        return renderObject;
     }
 
-    public addVertexBuffer(vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer): IFluidRenderingEntity {
-        const renderingObject = new FluidRenderingObjectVertexBuffer(this._scene, vertexBuffers, numParticles);
+    public addVertexBuffer(vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer): IFluidRenderingRenderObject {
+        const object = new FluidRenderingObjectVertexBuffer(this._scene, vertexBuffers, numParticles);
 
         if (!targetRenderer) {
             targetRenderer = new FluidRenderingTargetRenderer(this._scene);
@@ -100,25 +110,36 @@ export class FluidRenderer {
             targetRenderer.generateDiffuseTexture = generateDiffuseTexture;
         }
 
-        const entity = { object: renderingObject, targetRenderer };
+        const renderObject = { object, targetRenderer };
 
-        this._renderingObjects.push(entity);
+        this._renderObjects.push(renderObject);
 
         this._sortRenderingObjects();
 
-        return entity;
+        return renderObject;
+    }
+
+    public removeRenderObject(renderObject: IFluidRenderingRenderObject): boolean {
+        const index = this._renderObjects.indexOf(renderObject);
+        if (index === -1) {
+            return false;
+        }
+
+        renderObject.object.dispose();
+
+        this._renderObjects.splice(index, 1);
+
+        if (this._removeUnusedTargetRenderers()) {
+            this._initialize();
+        }
+
+        return true;
     }
 
     private _sortRenderingObjects(): void {
-        this._renderingObjects.sort((a, b) => {
+        this._renderObjects.sort((a, b) => {
             return a.object.priority < b.object.priority ? -1 : a.object.priority > b.object.priority ? 1 : 0;
         });
-
-        for (let i = 0; i < this._targetRenderers.length; ++i) {
-            const targetRenderer = this._targetRenderers[i];
-            targetRenderer.positionOrder = i;
-            targetRenderer.needPostProcessChaining = i === this._targetRenderers.length - 1;
-        }
     }
 
     public collectParticleSystems(): void {
@@ -130,21 +151,52 @@ export class FluidRenderer {
                     this.addParticleSystem(ps as BABYLON.ParticleSystem, true);
                 }
             } else if (!ps.renderAsFluid) {
-                const renderingObject = this._renderingObjects[index];
-                renderingObject.object.dispose();
-                renderingObject.targetRenderer.dispose();
-                this._renderingObjects.splice(index, 1);
+                this._renderObjects[index].object.dispose();
+                this._renderObjects.splice(index, 1);
             }
         }
+        this._removeUnusedTargetRenderers();
+        this._initialize();
+    }
+
+    private _removeUnusedTargetRenderers(): boolean {
+        const indexes: { [id: number]: boolean } = {};
+
+        for (let i = 0; i < this._renderObjects.length; ++i) {
+            const targetRenderer = this._renderObjects[i].targetRenderer;
+            indexes[this._targetRenderers.indexOf(targetRenderer)] = true;
+        }
+
+        let removed = false;
+        const newList: Array<FluidRenderingTargetRenderer> = [];
+        for (let i = 0; i < this._targetRenderers.length; ++i) {
+            if (!indexes[i]) {
+                this._targetRenderers[i].dispose();
+                removed = true;
+            } else {
+                newList.push(this._targetRenderers[i]);
+            }
+        }
+
+        if (removed) {
+            this._targetRenderers.length = 0;
+            this._targetRenderers.push(...newList);
+        }
+
+        return removed;
     }
 
     private static _IsParticleSystemObject(obj: FluidRenderingObject): obj is FluidRenderingObjectParticleSystem {
         return !!(obj as FluidRenderingObjectParticleSystem).particleSystem;
     }
-    
+
+    private static _IsVertexBufferObject(obj: FluidRenderingObject): obj is FluidRenderingObjectVertexBuffer {
+        return (obj as FluidRenderingObjectVertexBuffer).getClassName() === "FluidRenderingObjectVertexBuffer";
+    }
+
     private _getParticleSystemIndex(ps: BABYLON.IParticleSystem): number {
-        for (let i = 0; i < this._renderingObjects.length; ++i) {
-            const obj = this._renderingObjects[i].object;
+        for (let i = 0; i < this._renderObjects.length; ++i) {
+            const obj = this._renderObjects[i].object;
             if (FluidRenderer._IsParticleSystemObject(obj) && obj.particleSystem === ps) {
                 return i;
             }
@@ -153,9 +205,28 @@ export class FluidRenderer {
         return -1;
     }
 
+    private _getVertexBufferIndex(vb: BABYLON.VertexBuffer): number {
+        for (let i = 0; i < this._renderObjects.length; ++i) {
+            const obj = this._renderObjects[i].object;
+            if (FluidRenderer._IsVertexBufferObject(obj) && obj.vertexBuffers[BABYLON.VertexBuffer.PositionKind] === vb) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     private _initialize(): void {
-        for (let i = 0; i < this._renderingObjects.length; ++i) {
-            this._renderingObjects[i].targetRenderer.initialize();
+        for (let i = 0; i < this._targetRenderers.length; ++i) {
+            this._targetRenderers[i].dispose();
+        }
+
+        for (let i = 0; i < this._targetRenderers.length; ++i) {
+            const targetRenderer = this._targetRenderers[i];
+
+            targetRenderer.positionOrder = i;
+            targetRenderer.needPostProcessChaining = i === this._targetRenderers.length - 1;
+            targetRenderer.initialize();
         }
     }
 
@@ -176,8 +247,8 @@ export class FluidRenderer {
             this._targetRenderers[i].clearTargets();
         }
 
-        for (let i = 0; i < this._renderingObjects.length; ++i) {
-            const renderingObject = this._renderingObjects[i];
+        for (let i = 0; i < this._renderObjects.length; ++i) {
+            const renderingObject = this._renderObjects[i];
             renderingObject.targetRenderer.render(renderingObject.object);
         }
     }
@@ -186,13 +257,16 @@ export class FluidRenderer {
         this._engine.onResizeObservable.remove(this._onEngineResizeObserver);
         this._onEngineResizeObserver = null;
 
-        for (let i = 0; i < this._renderingObjects.length; ++i) {
-            const renderingObject = this._renderingObjects[i];
-            renderingObject.object.dispose();
-            renderingObject.targetRenderer.dispose();
+        for (let i = 0; i < this._renderObjects.length; ++i) {
+            this._renderObjects[i].object.dispose();
         }
 
-        this._renderingObjects = [];
+        for (let i = 0; i < this._targetRenderers.length; ++i) {
+            this._targetRenderers[i].dispose();
+        }
+
+        this._renderObjects = [];
+        this._targetRenderers = [];
     }
 }
 
