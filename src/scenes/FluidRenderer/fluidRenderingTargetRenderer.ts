@@ -120,7 +120,7 @@ export class FluidRenderingTargetRenderer {
         }
 
         this._blurKernel = kernel;
-        this._needInitialization = true;
+        this._setBlurParametersForAllTargets();
     }
 
     private _blurScale = 0.05;
@@ -135,7 +135,7 @@ export class FluidRenderingTargetRenderer {
         }
 
         this._blurScale = scale;
-        this._needInitialization = true;
+        this._setBlurParametersForAllTargets();
     }
 
     private _blurDepthScale = 0.1;
@@ -150,7 +150,7 @@ export class FluidRenderingTargetRenderer {
         }
 
         this._blurDepthScale = scale;
-        this._needInitialization = true;
+        this._setBlurParametersForAllTargets();
     }
 
     private _mapSize = 1024;
@@ -245,13 +245,30 @@ export class FluidRenderingTargetRenderer {
         this._createLiquidRenderingPostProcess();
     }
 
+    protected _setBlurParametersForAllTargets(): void {
+        if (this._depthRenderTarget) {
+            this._setBlurParameters(this._depthRenderTarget);
+        }
+        if (this._diffuseRenderTarget) {
+            this._setBlurParameters(this._diffuseRenderTarget);
+        }
+        if (this._thicknessRenderTarget) {
+            this._setBlurParameters(this._thicknessRenderTarget);
+        }
+    }
+
+    protected _setBlurParameters(renderTarget: FluidRenderingRenderTarget): void {
+        renderTarget.blurKernel = this.blurKernel;
+        renderTarget.blurScale = this.blurScale;
+        renderTarget.blurDepthScale = this.blurDepthScale;
+    }
+
     protected _initializeRenderTarget(renderTarget: FluidRenderingRenderTarget): void {
         renderTarget.debug = this.debug;
         renderTarget.enableBlur = this.enableBlur;
         renderTarget.blurSizeDivisor = this.blurSizeDivisor;
-        renderTarget.blurKernel = this.blurKernel;
-        renderTarget.blurScale = this.blurScale;
-        renderTarget.blurDepthScale = this.blurDepthScale;
+
+        this._setBlurParameters(renderTarget);
 
         renderTarget.initialize();
     }
