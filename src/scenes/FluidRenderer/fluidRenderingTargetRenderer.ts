@@ -2,6 +2,16 @@ import * as BABYLON from "@babylonjs/core";
 import { FluidRenderingObject } from "./fluidRenderingObject";
 import { FluidRenderingRenderTarget } from "./fluidRenderingRenderTarget";
 
+export enum FluidRenderingDebug {
+    DepthTexture,
+    DepthBlurredTexture,
+    ThicknessTexture,
+    ThicknessBlurredTexture,
+    DiffuseTexture,
+    DiffuseBlurredTexture,
+    Normals,
+}
+
 export class FluidRenderingTargetRenderer {
 
     private static _Id = 1;
@@ -63,7 +73,22 @@ export class FluidRenderingTargetRenderer {
 
     public dirLight: BABYLON.Vector3 = new BABYLON.Vector3(-2, -1, 1).normalize();
 
-    private _debug = true;
+    private _debugFeature: FluidRenderingDebug = FluidRenderingDebug.DepthBlurredTexture;
+
+    public get debugFeature() {
+        return this._debugFeature;
+    }
+
+    public set debugFeature(feature: FluidRenderingDebug) {
+        if (this._debugFeature === feature) {
+            return;
+        }
+
+        this._needInitialization = this._needInitialization || (feature === FluidRenderingDebug.Normals || this._debugFeature === FluidRenderingDebug.Normals);
+        this._debugFeature = feature;
+    }
+
+    private _debug = false;
 
     public get debug() {
         return this._debug;
@@ -75,6 +100,80 @@ export class FluidRenderingTargetRenderer {
         }
 
         this._debug = debug;
+        this._needInitialization = true;
+    }
+
+    private _checkMaxLengthThreshold = true;
+
+    public get checkMaxLengthThreshold() {
+        return this._checkMaxLengthThreshold;
+    }
+
+    public set checkMaxLengthThreshold(useThreshold: boolean) {
+        if (this._checkMaxLengthThreshold === useThreshold) {
+            return;
+        }
+
+        this._needInitialization = this._needInitialization || (useThreshold && !this._checkMaxLengthThreshold || !useThreshold && this._checkMaxLengthThreshold);
+        this._checkMaxLengthThreshold = useThreshold;
+    }
+
+    private _maxLengthThreshold = 0.7;
+
+    public get maxLengthThreshold() {
+        return this._maxLengthThreshold;
+    }
+
+    public set maxLengthThreshold(threshold: number) {
+        if (this._maxLengthThreshold === threshold) {
+            return;
+        }
+
+        this._maxLengthThreshold = threshold;
+    }
+
+    private _useMinZDiff = true;
+
+    public get useMinZDiff() {
+        return this._useMinZDiff;
+    }
+
+    public set useMinZDiff(useMinZDiff: boolean) {
+        if (this._useMinZDiff === useMinZDiff) {
+            return;
+        }
+
+        this._needInitialization = this._needInitialization || (useMinZDiff && !this._useMinZDiff || !useMinZDiff && this._useMinZDiff);
+        this._useMinZDiff = useMinZDiff;
+    }
+
+    private _checkNonBlurredDepth = false;
+
+    public get checkNonBlurredDepth() {
+        return this._checkNonBlurredDepth;
+    }
+
+    public set checkNonBlurredDepth(check: boolean) {
+        if (this._checkNonBlurredDepth === check) {
+            return;
+        }
+
+        this._needInitialization = this._needInitialization || (check && !this._checkNonBlurredDepth || !check && this._checkNonBlurredDepth);
+        this._checkNonBlurredDepth = check;
+    }
+
+    private _showTexturesInInspector = true;
+
+    public get showTexturesInInspector() {
+        return this._showTexturesInInspector;
+    }
+
+    public set showTexturesInInspector(showInInspector: boolean) {
+        if (this._showTexturesInInspector === showInInspector) {
+            return;
+        }
+
+        this._showTexturesInInspector = showInInspector;
         this._needInitialization = true;
     }
 
@@ -264,7 +363,7 @@ export class FluidRenderingTargetRenderer {
     }
 
     protected _initializeRenderTarget(renderTarget: FluidRenderingRenderTarget): void {
-        renderTarget.debug = this.debug;
+        renderTarget.debug = this.showTexturesInInspector;
         renderTarget.enableBlur = this.enableBlur;
         renderTarget.blurSizeDivisor = this.blurSizeDivisor;
 
@@ -278,7 +377,7 @@ export class FluidRenderingTargetRenderer {
         const targetSize = Math.floor(this.mapSize / this.blurSizeDivisor);
 
         const uniformNames = ["projection", "invProjection", "invView", "texelSize", "dirLight", "camPos"];
-        const samplerNames = ["depthSampler", "thicknessSampler", "reflectionSampler"];
+        const samplerNames = ["nonBlurredDepthSampler", "depthSampler", "thicknessSampler", "reflectionSampler"];
         const defines = [];
 
         this.dispose(true);
@@ -287,15 +386,39 @@ export class FluidRenderingTargetRenderer {
             return;
         }
 
-        if (this.generateDiffuseTexture) {
+        if (this._generateDiffuseTexture) {
             samplerNames.push("diffuseSampler");
             defines.push("#define FLUIDRENDERING_DIFFUSETEXTURE");
 
-            if (this.diffuseTextureInGammaSpace) {
+            if (this._diffuseTextureInGammaSpace) {
                 defines.push("#define FLUIDRENDERING_DIFFUSETEXTURE_GAMMASPACE");
             }
         } else {
             uniformNames.push("diffuseColor");
+        }
+
+        if (this._useMinZDiff) {
+            defines.push("#define FLUIDRENDERING_USE_MINZ_DIFF");
+        }
+
+        if (this._checkMaxLengthThreshold) {
+            defines.push("#define FLUIDRENDERING_CHECK_MAXLENGTH");
+            uniformNames.push("maxLengthThreshold");
+        }
+
+        if (this._checkNonBlurredDepth) {
+            defines.push("#define FLUIDRENDERING_CHECK_NONBLURREDDEPTH");
+            samplerNames.push("nonBlurredDepthSampler");
+        }
+
+        if (this._debug) {
+            defines.push("#define FLUIDRENDERING_DEBUG");
+            if (this._debugFeature !== FluidRenderingDebug.Normals) {
+                defines.push("#define FLUIDRENDERING_DEBUG_TEXTURE");
+                samplerNames.push("debugSampler");
+            } else {
+                defines.push("#define FLUIDRENDERING_DEBUG_SHOWNORMAL");
+            }
         }
 
         this._renderPostProcess = new BABYLON.PostProcess("FluidRendering", "renderFluid", uniformNames, samplerNames, 1, null, BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE, engine, false, defines.join("\n"), BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
@@ -310,6 +433,10 @@ export class FluidRenderingTargetRenderer {
             this._invViewMatrix.invert();
 
             let texelSize = 1 / targetSize;
+
+            if (this._checkNonBlurredDepth) {
+                effect.setTexture("nonBlurredDepthSampler", this._depthRenderTarget!.texture);
+            }
 
             if (!this._depthRenderTarget!.enableBlur) {
                 effect.setTexture("depthSampler", this._depthRenderTarget!.texture);
@@ -340,6 +467,43 @@ export class FluidRenderingTargetRenderer {
 
             effect.setVector3("dirLight", this.dirLight);
             effect.setVector3("camPos", this._camera!.globalPosition);
+
+            if (this._checkMaxLengthThreshold) {
+                effect.setFloat("maxLengthThreshold", this._maxLengthThreshold);
+            }
+
+            if (this._debug) {
+                let texture: BABYLON.Nullable<BABYLON.ThinTexture> = null;
+                switch (this._debugFeature) {
+                    case FluidRenderingDebug.DepthTexture:
+                        texture = this._depthRenderTarget!.texture;
+                        break;
+                    case FluidRenderingDebug.DepthBlurredTexture:
+                        texture = this._depthRenderTarget!.enableBlur ? this._depthRenderTarget!.textureBlur : this._depthRenderTarget!.texture;
+                        break;
+                    case FluidRenderingDebug.ThicknessTexture:
+                        texture = this._thicknessRenderTarget!.texture;
+                        break;
+                    case FluidRenderingDebug.ThicknessBlurredTexture:
+                        texture = this._thicknessRenderTarget!.enableBlur ? this._thicknessRenderTarget!.textureBlur : this._thicknessRenderTarget!.texture;
+                        break;
+                    case FluidRenderingDebug.DiffuseTexture:
+                        if (this._diffuseRenderTarget) {
+                            texture = this._diffuseRenderTarget.texture;
+                        }
+                        break;
+                    case FluidRenderingDebug.ThicknessBlurredTexture:
+                        if (this._diffuseRenderTarget) {
+                            texture = this._diffuseRenderTarget.enableBlur ? this._diffuseRenderTarget.textureBlur : this._diffuseRenderTarget.texture;
+                        }
+                        break;
+                }
+                if (this._debugFeature !== FluidRenderingDebug.Normals) {
+                    effect.setTexture("debugSampler", texture);
+                } else {
+                    effect.setFloat("maxLengthThreshold", this._maxLengthThreshold);
+                }
+            }
         });
 
         if (this._positionOrder === 0) {

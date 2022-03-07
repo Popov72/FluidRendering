@@ -13,6 +13,9 @@
 #define ETA_REVERSE IOR
 
 uniform sampler2D depthSampler;
+#ifdef FLUIDRENDERING_CHECK_NONBLURREDDEPTH
+    uniform sampler2D nonBlurredDepthSampler;
+#endif
 #ifdef FLUIDRENDERING_DIFFUSETEXTURE
     uniform sampler2D diffuseSampler;
 #else
@@ -20,6 +23,9 @@ uniform sampler2D depthSampler;
 #endif
 uniform sampler2D thicknessSampler;
 uniform samplerCube reflectionSampler;
+#if defined(FLUIDRENDERING_DEBUG) && defined(FLUIDRENDERING_DEBUG_TEXTURE)
+    uniform sampler2D debugSampler;
+#endif
 
 uniform mat4 projection;
 uniform mat4 invProjection;
@@ -27,6 +33,9 @@ uniform mat4 invView;
 uniform float texelSize;
 uniform vec3 dirLight;
 uniform vec3 camPos;
+#ifdef FLUIDRENDERING_CHECK_MAXLENGTH
+    uniform float maxLengthThreshold;
+#endif
 
 varying vec2 vUV;
 
@@ -188,6 +197,20 @@ vec3 ACESFilm(vec3 x){
 void main(void) {
     vec2 texCoord = vUV;
 
+#if defined(FLUIDRENDERING_DEBUG) && defined(FLUIDRENDERING_DEBUG_TEXTURE)
+    vec4 color = texture2D(debugSampler, texCoord);
+    glFragColor = color;
+    return;
+#endif
+
+#ifdef FLUIDRENDERING_CHECK_NONBLURREDDEPTH
+    float nonBlurredDepth = texture2D(nonBlurredDepthSampler, texCoord).x;
+    if (nonBlurredDepth == 1.) {
+        glFragColor = vec4(1., 1., 1., 0.);
+        return;
+    }
+#endif
+
     float depth = texture2D(depthSampler, texCoord).x;
 
     // calculate eye-space position from depth
@@ -195,25 +218,35 @@ void main(void) {
 
     // calculate differences
     vec3 ddx = getEyePos(texCoord + vec2(texelSize, 0.)) - posEye;
+    vec3 ddy = getEyePos(texCoord + vec2(0., texelSize)) - posEye;
+
+#ifdef FLUIDRENDERING_USE_MINZ_DIFF
     vec3 ddx2 = posEye - getEyePos(texCoord + vec2(-texelSize, 0.));
     if (abs(ddx.z) > abs(ddx2.z)) {
         ddx = ddx2;
     }
 
-    vec3 ddy = getEyePos(texCoord + vec2(0., texelSize)) - posEye;
     vec3 ddy2 = posEye - getEyePos(texCoord + vec2(0., -texelSize));
-    if (abs(ddy2.z) < abs(ddy.z)) {
+    if (abs(ddy.z) > abs(ddy2.z)) {
         ddy = ddy2;
     }
+#endif
 
-    if (max(length(ddx), length(ddy)) > 0.7) {
+#ifdef FLUIDRENDERING_CHECK_MAXLENGTH
+    if (max(length(ddx), length(ddy)) > maxLengthThreshold) {
         glFragColor = vec4(1., 1., 1., 0.);
         return;
     }
+#endif
 
     // calculate normal
     vec3 normal = cross(ddy, ddx);
     normal = normalize((invView * vec4(normal, 0.)).xyz);
+
+#if defined(FLUIDRENDERING_DEBUG) && defined(FLUIDRENDERING_DEBUG_SHOWNORMAL)
+    glFragColor = vec4(normal * 0.5 + 0.5, 1.0);
+    return;
+#endif
 
     // shading
     float thickness = clamp(texture2D(thicknessSampler, texCoord).x, 0., 1.);
