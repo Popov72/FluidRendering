@@ -52,6 +52,5 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
         this._onBeforeDrawParticleObserver = null;
         this._particleSystem.render = this._renderCallback;
         this._particleSystem.blendMode = this._blendMode;
-        this._particleSystem._renderAsFluid = false;
     }
 }

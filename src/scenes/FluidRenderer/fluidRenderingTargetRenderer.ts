@@ -69,7 +69,7 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
-    public fluidColor = new BABYLON.Vector3(0.085, 0.6375, 0.765);
+    public fluidColor = new BABYLON.Color3(0.085, 0.6375, 0.765);
 
     public dirLight: BABYLON.Vector3 = new BABYLON.Vector3(-2, -1, 1).normalize();
 
@@ -451,7 +451,7 @@ export class FluidRenderingTargetRenderer {
                     effect.setTexture("diffuseSampler", this._diffuseRenderTarget.textureBlur);
                 }
             } else {
-                effect.setVector3("diffuseColor", this.fluidColor);
+                effect.setColor3("diffuseColor", this.fluidColor);
             }
             if (!this._thicknessRenderTarget!.enableBlur) {
                 effect.setTexture("thicknessSampler", this._thicknessRenderTarget!.texture);
@@ -492,7 +492,7 @@ export class FluidRenderingTargetRenderer {
                             texture = this._diffuseRenderTarget.texture;
                         }
                         break;
-                    case FluidRenderingDebug.ThicknessBlurredTexture:
+                    case FluidRenderingDebug.DiffuseBlurredTexture:
                         if (this._diffuseRenderTarget) {
                             texture = this._diffuseRenderTarget.enableBlur ? this._diffuseRenderTarget.textureBlur : this._diffuseRenderTarget.texture;
                         }

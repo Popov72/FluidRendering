@@ -5,6 +5,7 @@ import * as BABYLON from "@babylonjs/core";
 import flareImg from "../assets/flare32bits.png";
 
 import "./FluidRenderer/fluidRendererSceneComponent";
+import { FluidRendererGUI } from "./FluidRenderer/fluidRendererGUI";
 
 const cameraMax = 10000;
 
@@ -182,6 +183,8 @@ export class FluidRendering implements CreateSceneClass {
                 vertexBuffers["color"] = new BABYLON.VertexBuffer(this._engine, (pcs as any)._colors32, "color", false, false, 4, true);
 
                 const entity = fluidRenderer?.addVertexBuffer(vertexBuffers, numParticles, true);
+
+                new FluidRendererGUI(this._scene);
 
                 if (entity) {
                     entity.object.particleSize = 0.1;
