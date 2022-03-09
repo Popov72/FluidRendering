@@ -215,7 +215,7 @@ export class FluidRendererGUI {
         const params = {
             objects_index: this._parameterRead("objects_index"),
             objects_particleUseFixedSize: this._parameterRead("objects_particleUseFixedSize"),
-            objects_particleSize: this._parameterRead("objects_particleSize") ?? 0.01,
+            objects_particleSize: this._parameterRead("objects_particleSize") ?? 0.5,
             objects_particleThicknessAlpha: this._parameterRead("objects_particleThicknessAlpha"),
         };
 
@@ -231,8 +231,8 @@ export class FluidRendererGUI {
 
         this._addList(renderObjects, params, "objects_index", "Index", objectList);
         this._renderObjectsGUIElements.push(this._addCheckbox(renderObjects, params, "objects_particleUseFixedSize", "Use fixed particle size"));
-        this._renderObjectsGUIElements.push(this._addSlider(renderObjects, params, "objects_particleSize", "Particle size", 0, 2, 0.01));
-        this._renderObjectsGUIElements.push(this._addSlider(renderObjects, params, "objects_particleThicknessAlpha", "Particle alpha", 0, 1, 0.01));
+        this._renderObjectsGUIElements.push(this._addSlider(renderObjects, params, "objects_particleSize", "Particle size", 0, 2, 0.001));
+        this._renderObjectsGUIElements.push(this._addSlider(renderObjects, params, "objects_particleThicknessAlpha", "Particle alpha", 0, 1, 0.001));
     }
 
     private _readValue(obj: any, name: string): any {
@@ -367,7 +367,7 @@ export class FluidRendererGUI {
                     particleUseFixedParticleSizeCtrl.updateDisplay();
                     if (fluidRenderer.renderObjects[this._renderObjectIndex].object.particleSize === null) {
                         const particleSizeCtrl = this._renderObjectsGUIElements[1];
-                        (particleSizeCtrl.object as any).objects_particleSize = 0.01;
+                        (particleSizeCtrl.object as any).objects_particleSize = 0.5;
                         particleSizeCtrl.updateDisplay();
                     }
                 }
