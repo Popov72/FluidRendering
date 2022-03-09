@@ -15,6 +15,8 @@ export class FluidRendererGUI {
     private _onKeyObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.KeyboardInfo>>;
     private _targetRendererIndex: number;
     private _targetRenderersGUIElements: LiLGUI.Controller[];
+    private _renderObjectIndex: number;
+    private _renderObjectsGUIElements: LiLGUI.Controller[];
 
     public set visible(v: boolean) {
         if (v === this._visible) {
@@ -32,6 +34,8 @@ export class FluidRendererGUI {
         this._onKeyObserver = null;
         this._targetRendererIndex = 0;
         this._targetRenderersGUIElements = [];
+        this._renderObjectIndex = 0;
+        this._renderObjectsGUIElements = [];
         this._gui = null;
 
         this.initialize();
@@ -77,7 +81,7 @@ export class FluidRendererGUI {
 
         this._makeMenuGeneral();
         this._makeMenuTargetRenderers();
-        //this._makeMenuRenderObjects()
+        this._makeMenuRenderObjects()
     }
 
     private _addList(menu: LiLGUI.GUI, params: object, name: string, friendlyName: string, list: any[]): LiLGUI.Controller {
@@ -123,6 +127,8 @@ export class FluidRendererGUI {
         
         const general = this._gui.addFolder("General");
 
+        general.$title.style.fontWeight = "bold";
+
         this._addCheckbox(general, params, "enable", "Enable fluid renderer");
 
         general.open();
@@ -144,6 +150,7 @@ export class FluidRendererGUI {
             targets_maxLengthThreshold: this._parameterRead("targets_maxLengthThreshold"),
             targets_useMinZDiff: this._parameterRead("targets_useMinZDiff"),
             targets_checkNonBlurredDepth: this._parameterRead("targets_checkNonBlurredDepth"),
+            targets_useLinearZ: this._parameterRead("targets_useLinearZ"),
             targets_enableBlur: this._parameterRead("targets_enableBlur"),
             targets_blurSizeDivisor: this._parameterRead("targets_blurSizeDivisor"),
             targets_blurKernel: this._parameterRead("targets_blurKernel"),
@@ -153,6 +160,7 @@ export class FluidRendererGUI {
         };
         
         const targetRenderers = this._gui.addFolder("Target renderers");
+        targetRenderers.$title.style.fontWeight = "bold";
 
         const targetList: number[] = [];
         if (this._scene.fluidRenderer) {
@@ -161,24 +169,70 @@ export class FluidRendererGUI {
             }
         }
 
+
         this._addList(targetRenderers, params, "targets_index", "Index", targetList);
-        this._targetRenderersGUIElements.push(this._addCheckbox(targetRenderers, params, "targets_generateDiffuseTexture", "Generate diffuse texture"));
-        this._targetRenderersGUIElements.push(this._addCheckbox(targetRenderers, params, "targets_diffuseTextureInGammaSpace", "Diffuse texture is in gamma space"));
-        this._targetRenderersGUIElements.push(this._addColor(targetRenderers, params, "targets_fluidColor", "Fluid color"));
-        this._targetRenderersGUIElements.push(this._addCheckbox(targetRenderers, params, "targets_debug", "Debug"));
-        this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_debugFeature", "Debug feature", Object.keys(FluidRenderingDebug).filter(k => isNaN(Number(k)))));
-        this._targetRenderersGUIElements.push(this._addCheckbox(targetRenderers, params, "targets_checkMaxLengthThreshold", "Check max length threshold"));
-        this._targetRenderersGUIElements.push(this._addSlider(targetRenderers, params, "targets_maxLengthThreshold", "Max length threshold", 0, 1, 0.001));
-        this._targetRenderersGUIElements.push(this._addCheckbox(targetRenderers, params, "targets_useMinZDiff", "Use min Z-diff"));
-        this._targetRenderersGUIElements.push(this._addCheckbox(targetRenderers, params, "targets_checkNonBlurredDepth", "Check non-blurred depth"));
-        this._targetRenderersGUIElements.push(this._addCheckbox(targetRenderers, params, "targets_enableBlur", "enable blur"));
-        this._targetRenderersGUIElements.push(this._addSlider(targetRenderers, params, "targets_blurSizeDivisor", "Blur size divisor", 1, 10, 1));
-        this._targetRenderersGUIElements.push(this._addSlider(targetRenderers, params, "targets_blurKernel", "Blur kernel", 0, 100, 1));
-        this._targetRenderersGUIElements.push(this._addSlider(targetRenderers, params, "targets_blurScale", "Blur scale", 0, 1, 0.001));
-        this._targetRenderersGUIElements.push(this._addSlider(targetRenderers, params, "targets_blurDepthScale", "Blur depth scale", 0, 50, 0.001));
         this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_mapSize", "Map size", [64, 128, 256, 512, 1024, 2048, 4096]));
 
+        const menuColor = targetRenderers.addFolder("Color");
+        menuColor.$title.style.fontStyle = "italic";
+
+        this._targetRenderersGUIElements.push(this._addCheckbox(menuColor, params, "targets_generateDiffuseTexture", "Generate diffuse texture"));
+        this._targetRenderersGUIElements.push(this._addCheckbox(menuColor, params, "targets_diffuseTextureInGammaSpace", "Diffuse texture is in gamma space"));
+        this._targetRenderersGUIElements.push(this._addColor(menuColor, params, "targets_fluidColor", "Fluid color"));
+
+        const menuSilhouette = targetRenderers.addFolder("Edges");
+        menuSilhouette.$title.style.fontStyle = "italic";
+
+        this._targetRenderersGUIElements.push(this._addCheckbox(menuSilhouette, params, "targets_checkMaxLengthThreshold", "Check max length threshold"));
+        this._targetRenderersGUIElements.push(this._addSlider(menuSilhouette, params, "targets_maxLengthThreshold", "Max length threshold", 0, 1, 0.001));
+        this._targetRenderersGUIElements.push(this._addCheckbox(menuSilhouette, params, "targets_useMinZDiff", "Use min Z-diff"));
+        this._targetRenderersGUIElements.push(this._addCheckbox(menuSilhouette, params, "targets_checkNonBlurredDepth", "Check non-blurred depth"));
+        this._targetRenderersGUIElements.push(this._addCheckbox(menuSilhouette, params, "targets_useLinearZ", "Use linear Z"));
+
+        const menuBlur = targetRenderers.addFolder("Blur");
+        menuBlur.$title.style.fontStyle = "italic";
+
+        this._targetRenderersGUIElements.push(this._addCheckbox(menuBlur, params, "targets_enableBlur", "Enable"));
+        this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurSizeDivisor", "Size divisor", 1, 10, 1));
+        this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurKernel", "Kernel", 0, 100, 1));
+        this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurScale", "Scale", 0, 1, 0.001));
+        this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurDepthScale", "Depth scale", 0, 50, 0.001));
+
+        const menuDebug = targetRenderers.addFolder("Debug");
+        menuDebug.$title.style.fontStyle = "italic";
+
+        this._targetRenderersGUIElements.push(this._addCheckbox(menuDebug, params, "targets_debug", "Enable"));
+        this._targetRenderersGUIElements.push(this._addList(menuDebug, params, "targets_debugFeature", "Feature", Object.keys(FluidRenderingDebug).filter(k => isNaN(Number(k)))));
+
         targetRenderers.open();
+    }
+
+    private _makeMenuRenderObjects(): void {
+        if (!this._gui || !(this._scene.fluidRenderer?.renderObjects.length ?? 0)) {
+            return;
+        }
+
+        const params = {
+            objects_index: this._parameterRead("objects_index"),
+            objects_particleUseFixedSize: this._parameterRead("objects_particleUseFixedSize"),
+            objects_particleSize: this._parameterRead("objects_particleSize") ?? 0.01,
+            objects_particleThicknessAlpha: this._parameterRead("objects_particleThicknessAlpha"),
+        };
+
+        const renderObjects = this._gui.addFolder("Render objects");
+        renderObjects.$title.style.fontWeight = "bold";
+
+        const objectList: number[] = [];
+        if (this._scene.fluidRenderer) {
+            for (let i = 0; i < this._scene.fluidRenderer.renderObjects.length; ++i) {
+                objectList.push(i);
+            }
+        }
+
+        this._addList(renderObjects, params, "objects_index", "Index", objectList);
+        this._renderObjectsGUIElements.push(this._addCheckbox(renderObjects, params, "objects_particleUseFixedSize", "Use fixed particle size"));
+        this._renderObjectsGUIElements.push(this._addSlider(renderObjects, params, "objects_particleSize", "Particle size", 0, 2, 0.01));
+        this._renderObjectsGUIElements.push(this._addSlider(renderObjects, params, "objects_particleThicknessAlpha", "Particle alpha", 0, 1, 0.01));
     }
 
     private _readValue(obj: any, name: string): any {
@@ -215,6 +269,8 @@ export class FluidRendererGUI {
         switch (name) {
             case "enable":
                 return !!this._scene.fluidRenderer;
+            case "objects_particleUseFixedSize":
+                return fluidRenderer?.renderObjects[this._renderObjectIndex].object.particleSize !== null;
         }
 
         if (name.startsWith("targets_")) {
@@ -228,7 +284,11 @@ export class FluidRendererGUI {
 
         if (name.startsWith("objects_")) {
             name = name.substring(8);
-            return 0;//this._readValue(this._wavesSettings, name);
+            if (name === "index") {
+                return this._renderObjectIndex;
+            } else {
+                return fluidRenderer ? this._readValue(fluidRenderer.renderObjects[this._renderObjectIndex].object, name) : "";
+            }
         }
     }
 
@@ -267,10 +327,22 @@ export class FluidRendererGUI {
                     fluidRenderer.targetRenderers[this._targetRendererIndex].debugFeature = val;
                 }
                 return;
+            case "objects_particleUseFixedSize":
+                if (fluidRenderer && fluidRenderer.renderObjects.length > this._renderObjectIndex) {
+                    const particleSizeCtrl = this._renderObjectsGUIElements[1];
+                    fluidRenderer.renderObjects[this._renderObjectIndex].object.particleSize = !!value ? (particleSizeCtrl.object as any).objects_particleSize : null;
+                }
+                return;
+            case "objects_particleSize":
+                if (fluidRenderer && fluidRenderer.renderObjects.length > this._renderObjectIndex) {
+                    const particleUseFixedParticleSizeCtrl = this._renderObjectsGUIElements[0];
+                    if (!(particleUseFixedParticleSizeCtrl.object as any).objects_particleUseFixedSize) {
+                        return;
+                    }
+                }
         }
 
         if (name.startsWith("targets_")) {
-            const fluidRenderer = this._scene.fluidRenderer;
             name = name.substring(8);
             if (name === "index") {
                 this._targetRendererIndex = value || 0;
@@ -286,8 +358,24 @@ export class FluidRendererGUI {
 
         if (name.startsWith("objects_")) {
             name = name.substring(8);
-            //this._setValue(this._wavesSettings, name, value === false ? false : value === true ? true : parseFloat(value));
-            //this._wavesGenerator!.initializeCascades();
+            if (name === "index") {
+                this._renderObjectIndex = value || 0;
+                if (fluidRenderer) {
+                    this._fillValues(this._renderObjectsGUIElements, fluidRenderer.renderObjects[this._renderObjectIndex].object);
+                    const particleUseFixedParticleSizeCtrl = this._renderObjectsGUIElements[0];
+                    (particleUseFixedParticleSizeCtrl.object as any).objects_particleUseFixedSize = fluidRenderer.renderObjects[this._renderObjectIndex].object.particleSize !== null;
+                    particleUseFixedParticleSizeCtrl.updateDisplay();
+                    if (fluidRenderer.renderObjects[this._renderObjectIndex].object.particleSize === null) {
+                        const particleSizeCtrl = this._renderObjectsGUIElements[1];
+                        (particleSizeCtrl.object as any).objects_particleSize = 0.01;
+                        particleSizeCtrl.updateDisplay();
+                    }
+                }
+            } else {
+                if (fluidRenderer) {
+                    this._setValue(fluidRenderer.renderObjects[this._renderObjectIndex].object, name, value === false ? false : value === true ? true : parseFloat(value));
+                }
+            }
         }
     }
 }

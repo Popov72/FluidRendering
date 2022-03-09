@@ -36,6 +36,9 @@ uniform vec3 camPos;
 #ifdef FLUIDRENDERING_CHECK_MAXLENGTH
     uniform float maxLengthThreshold;
 #endif
+#ifdef FLUIDRENDERING_USE_LINEARZ
+    uniform float cameraFar;
+#endif
 
 varying vec2 vUV;
 
@@ -50,12 +53,12 @@ const float DENSITY = 3.5;
 vec3 uvToEye(vec2 texCoord, float depth) {
     vec4 ndc;
     
-#ifdef USE_LINEARZ
-    depth = depth * ##CAMERAFAR##;
+#ifdef FLUIDRENDERING_USE_LINEARZ
+    depth = depth * cameraFar;
 #endif
 
     ndc.xy = texCoord * 2.0 - 1.0;
-#ifdef USE_LINEARZ
+#ifdef FLUIDRENDERING_USE_LINEARZ
     ndc.z = projection[2].z - projection[2].w / depth;
 #elif defined(IS_NDC_HALF_ZRANGE)
     ndc.z = depth;

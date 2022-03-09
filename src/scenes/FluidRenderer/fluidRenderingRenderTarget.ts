@@ -20,7 +20,7 @@ export class FluidRenderingRenderTarget {
     protected _textureBlurred: BABYLON.Nullable<BABYLON.ThinTexture>;
     protected _blurPostProcesses: BABYLON.Nullable<BABYLON.PostProcess[]>;
 
-    public debug = true;
+    public showTexturesInInspector = true;
 
     public enableBlur = true;
 
@@ -112,7 +112,7 @@ export class FluidRenderingRenderTarget {
         this._texture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
         this._texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 
-        if (this.debug) {
+        if (this.showTexturesInInspector) {
             const texture = new BABYLON.Texture(null, this._scene);
             texture.name = "rtt" + this._name;
             texture._texture = renderTexture;
@@ -143,7 +143,7 @@ export class FluidRenderingRenderTarget {
         renderTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
         renderTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 
-        if (this.debug) {
+        if (this.showTexturesInInspector) {
             const texture = new BABYLON.Texture(null, this._scene);
             texture.name = "rttBlurred" + debugName;
             texture._texture = renderTexture;

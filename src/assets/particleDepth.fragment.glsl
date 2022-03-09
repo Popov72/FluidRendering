@@ -1,4 +1,7 @@
 uniform mat4 projection;
+#ifdef FLUIDRENDERING_USE_LINEARZ
+    uniform float cameraFar;
+#endif
 
 varying vec2 uv;
 varying vec3 viewPos;
@@ -15,8 +18,8 @@ void main(void) {
     vec4 realViewPos = vec4(viewPos + normal * sphereRadius, 1.0);
     vec4 clipSpacePos = projection * realViewPos;
 
-#ifdef USE_LINEARZ
-    float depth = clamp(realViewPos.z / ##CAMERAFAR##, 0., 1.);
+#ifdef FLUIDRENDERING_USE_LINEARZ
+    float depth = clamp(realViewPos.z / cameraFar, 0., 1.);
 #else
     float depth = clipSpacePos.z / clipSpacePos.w;
 #endif

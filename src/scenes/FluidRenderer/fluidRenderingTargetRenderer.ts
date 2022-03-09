@@ -297,6 +297,21 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
+    private _useLinearZ = false;
+
+    public get useLinearZ() {
+        return this._useLinearZ;
+    }
+
+    public set useLinearZ(useLinearZ: boolean) {
+        if (this._useLinearZ === useLinearZ) {
+            return;
+        }
+
+        this._useLinearZ = useLinearZ;
+        this._needInitialization = true;
+    }
+
     constructor(scene: BABYLON.Scene, camera?: BABYLON.Camera) {
         this._scene = scene;
         this._engine = scene.getEngine();
@@ -363,7 +378,7 @@ export class FluidRenderingTargetRenderer {
     }
 
     protected _initializeRenderTarget(renderTarget: FluidRenderingRenderTarget): void {
-        renderTarget.debug = this.showTexturesInInspector;
+        renderTarget.showTexturesInInspector = this.showTexturesInInspector;
         renderTarget.enableBlur = this.enableBlur;
         renderTarget.blurSizeDivisor = this.blurSizeDivisor;
 
@@ -421,6 +436,11 @@ export class FluidRenderingTargetRenderer {
             }
         }
 
+        if (this._useLinearZ) {
+            defines.push("#define FLUIDRENDERING_USE_LINEARZ");
+            uniformNames.push("cameraFar");
+        }
+
         this._renderPostProcess = new BABYLON.PostProcess("FluidRendering", "renderFluid", uniformNames, samplerNames, 1, null, BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE, engine, false, defines.join("\n"), BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
         this._camera.attachPostProcess(this._renderPostProcess, this._positionOrder);
         this._renderPostProcess.alphaMode = BABYLON.Constants.ALPHA_COMBINE;
@@ -470,6 +490,10 @@ export class FluidRenderingTargetRenderer {
 
             if (this._checkMaxLengthThreshold) {
                 effect.setFloat("maxLengthThreshold", this._maxLengthThreshold);
+            }
+
+            if (this._useLinearZ) {
+                effect.setFloat("cameraFar", this._camera!.maxZ);
             }
 
             if (this._debug) {
@@ -580,6 +604,8 @@ export class FluidRenderingTargetRenderer {
         if (this._needInitialization || !fluidObject.isReady()) {
             return;
         }
+
+        fluidObject.useLinearZ = this._useLinearZ;
 
         const currentRenderTarget = this._engine._currentRenderTarget;
 
