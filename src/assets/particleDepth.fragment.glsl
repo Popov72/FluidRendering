@@ -18,13 +18,15 @@ void main(void) {
     vec4 realViewPos = vec4(viewPos + normal * sphereRadius, 1.0);
     vec4 clipSpacePos = projection * realViewPos;
 
+    float glFragDepth = clipSpacePos.z / clipSpacePos.w;
+
 #ifdef FLUIDRENDERING_USE_LINEARZ
     float depth = clamp(realViewPos.z / cameraFar, 0., 1.);
 #else
-    float depth = clipSpacePos.z / clipSpacePos.w;
+    float depth = glFragDepth;
 #endif
 
-    gl_FragDepth = depth;
+    gl_FragDepth = glFragDepth;
 
     glFragColor = vec4(vec3(depth), 1.);
 }
