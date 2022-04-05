@@ -39,7 +39,7 @@ export class FluidRenderingTargetRenderer {
         return this._needInitialization;
     }
 
-    private _generateDiffuseTexture: boolean = false;
+    private _generateDiffuseTexture = false;
 
     public get generateDiffuseTexture() {
         return this._generateDiffuseTexture;
@@ -54,7 +54,7 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
-    private _diffuseTextureInGammaSpace: boolean = true;
+    private _diffuseTextureInGammaSpace = true;
 
     public get diffuseTextureInGammaSpace() {
         return this._diffuseTextureInGammaSpace;
@@ -103,7 +103,7 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
-    private _checkMaxLengthThreshold = true;
+    private _checkMaxLengthThreshold = false;
 
     public get checkMaxLengthThreshold() {
         return this._checkMaxLengthThreshold;
@@ -267,7 +267,7 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
-    private _positionOrder: number = 0;
+    private _positionOrder = 0;
 
     public get positionOrder() {
         return this._positionOrder;
@@ -282,7 +282,7 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
-    private _needPostProcessChaining: boolean = false;
+    private _needPostProcessChaining = false;
 
     public get needPostProcessChaining() {
         return this._needPostProcessChaining;
@@ -540,7 +540,7 @@ export class FluidRenderingTargetRenderer {
                 }
             });
 
-            this._renderPostProcess.onActivateObservable.add((effect) => {
+            this._renderPostProcess.onActivateObservable.add((/*effect*/) => {
                 this._engine.clear(this._scene.clearColor, true, true, true);
             });
         } else {
@@ -660,7 +660,7 @@ export class FluidRenderingTargetRenderer {
         }
 
         if (this.needPostProcessChaining) {
-            let nextPostProcess = this._findNextPostProcess(this._positionOrder);
+            const nextPostProcess = this._findNextPostProcess(this._positionOrder);
             if (nextPostProcess && nextPostProcess !== this._passPostProcess) {
                 nextPostProcess.useOwnOutput();
             }

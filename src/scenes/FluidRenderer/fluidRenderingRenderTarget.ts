@@ -138,7 +138,7 @@ export class FluidRenderingRenderTarget {
             samples: 1,
         });
 
-        let renderTexture = rtBlur.texture!;
+        const renderTexture = rtBlur.texture!;
 
         renderTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
         renderTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;

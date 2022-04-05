@@ -86,11 +86,11 @@ export class FluidRendererSceneComponent implements BABYLON.ISceneComponent {
         this.scene._afterCameraDrawStage.registerStep(STEP_AFTERCAMERADRAW_FLUIDRENDERER, this, this._afterCameraDraw);
     }
 
-    private _gatherActiveCameraRenderTargets(renderTargets: BABYLON.SmartArrayNoDuplicate<BABYLON.RenderTargetTexture>): void {
+    private _gatherActiveCameraRenderTargets(/*renderTargets: BABYLON.SmartArrayNoDuplicate<BABYLON.RenderTargetTexture>*/): void {
         this.scene.fluidRenderer?._prepareRendering();
     }
 
-    private _afterCameraDraw(camera: BABYLON.Camera) {
+    private _afterCameraDraw(/*camera: BABYLON.Camera*/) {
         this.scene.fluidRenderer?._render();
     }
 

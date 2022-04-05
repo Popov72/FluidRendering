@@ -28,7 +28,7 @@ export interface IFluidRenderingRenderObject {
 
 export class FluidRenderer {
     /** @hidden */
-    public static _SceneComponentInitialization: (scene: Scene) => void = (_) => {
+    public static _SceneComponentInitialization: (scene: Scene) => void = (/*_*/) => {
         throw `FluidRendererSceneComponent needs to be imported before as it contains a side-effect required by your code.`;        
     };
 

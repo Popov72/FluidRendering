@@ -7,7 +7,7 @@ import flareImg from "../assets/flare32bits.png";
 import "./FluidRenderer/fluidRendererSceneComponent";
 import { FluidRendererGUI } from "./FluidRenderer/fluidRendererGUI";
 
-const cameraMax = 10000;
+const cameraMax = 100;
 
 declare module "@babylonjs/core/Particles/IParticleSystem" {
     export interface IParticleSystem {
@@ -62,14 +62,14 @@ export class FluidRendering implements CreateSceneClass {
         //const numParticlesEmitRate = 30*30*15-3780;//1500*4;
         const numParticles = 20000*4;
         const numParticlesEmitRate = 1500*4;
-        const particleAlpha = 0.075;//0.075;
         const animate = true;
         const liquidRendering = true;
         const showObstacle = false;
+        const showParticleSystem = true;
 
         // Setup environment
         const dirLight = new BABYLON.Vector3(-2, -1, 1).normalize();
-        var light = new BABYLON.DirectionalLight("dirLight", dirLight, scene);        
+        new BABYLON.DirectionalLight("dirLight", dirLight, scene);        
 
         scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.env", scene);
         //scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
@@ -77,7 +77,7 @@ export class FluidRendering implements CreateSceneClass {
 
         scene.createDefaultSkybox(scene.environmentTexture);
 
-        var camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 0, Math.PI/2.4, 30, new BABYLON.Vector3(0, 0, 0), scene);
+        const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 0, Math.PI/2.4, 30, new BABYLON.Vector3(0, 0, 0), scene);
         camera.fov = 60 * Math.PI/180;
         camera.attachControl(canvas, true);
         //camera.minZ = 0.1;
@@ -99,53 +99,57 @@ export class FluidRendering implements CreateSceneClass {
         }
 
         // Create a particle system
-        var particleSystem = new BABYLON.ParticleSystem("particles", numParticles, scene);
+        let particleSystem: BABYLON.ParticleSystem;
 
-        //Texture of each particle
-        particleSystem.particleTexture = new BABYLON.Texture(flareImg, scene);
-        particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+        if (showParticleSystem) {
+            particleSystem = new BABYLON.ParticleSystem("particles", numParticles, scene);
 
-        // Where the particles come from
-        particleSystem.createConeEmitter(4, Math.PI / 2);
+            //Texture of each particle
+            particleSystem.particleTexture = new BABYLON.Texture(flareImg, scene);
+            particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
 
-        // Colors of all particles
-        particleSystem.color1 = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
-        particleSystem.color2 = new BABYLON.Color4(0.2, 0.5, 1.0, 1.0);
-        particleSystem.color2 = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
-        particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
-        particleSystem.colorDead = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
+            // Where the particles come from
+            particleSystem.createConeEmitter(4, Math.PI / 2);
 
-        // Size of each particle (random between...
-        particleSystem.minSize = 0.5*1.5;
-        particleSystem.maxSize = 0.5*1.5;
+            // Colors of all particles
+            particleSystem.color1 = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
+            particleSystem.color2 = new BABYLON.Color4(0.2, 0.5, 1.0, 1.0);
+            particleSystem.color2 = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
+            particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
+            particleSystem.colorDead = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
 
-        // Life time of each particle (random between...
-        particleSystem.minLifeTime = 2.0;
-        particleSystem.maxLifeTime = 2.5;
+            // Size of each particle (random between...
+            particleSystem.minSize = 0.5*1.5;
+            particleSystem.maxSize = 0.5*1.5;
 
-        // Emission rate
-        particleSystem.emitRate = numParticlesEmitRate;
+            // Life time of each particle (random between...
+            particleSystem.minLifeTime = 2.0;
+            particleSystem.maxLifeTime = 2.5;
 
-        // Set the gravity of all particles
-        particleSystem.gravity = new BABYLON.Vector3(0, -10.81, 0);
+            // Emission rate
+            particleSystem.emitRate = numParticlesEmitRate;
 
-        // Speed
-        particleSystem.minEmitPower = 2.5;
-        particleSystem.maxEmitPower = 6.5;
-        particleSystem.updateSpeed = 0.02;
+            // Set the gravity of all particles
+            particleSystem.gravity = new BABYLON.Vector3(0, -10.81, 0);
 
-        // Start the particle system
-        particleSystem.preWarmCycles = 60 * 8;
+            // Speed
+            particleSystem.minEmitPower = 2.5;
+            particleSystem.maxEmitPower = 6.5;
+            particleSystem.updateSpeed = 0.02;
 
-        particleSystem.start();
+            // Start the particle system
+            particleSystem.preWarmCycles = 60 * 8;
 
-        (window as any).ps = particleSystem;
+            particleSystem.start();
 
-        if (!animate) {
-            particleSystem.updateSpeed = 0;
+            (window as any).ps = particleSystem;
+
+            if (!animate) {
+                particleSystem.updateSpeed = 0;
+            }
+
+            particleSystem.renderAsFluid = liquidRendering;
         }
-
-        particleSystem.renderAsFluid = liquidRendering;
 
         if (liquidRendering) {
             const fluidRenderer = scene.enableFluidRenderer();
@@ -156,16 +160,18 @@ export class FluidRendering implements CreateSceneClass {
 
             await loadModel();
 
-            var pcs = new BABYLON.PointsCloudSystem("pcs", 3, scene);
+            const pcs = new BABYLON.PointsCloudSystem("pcs", 3, scene);
 
+            const ofsZ = showParticleSystem ? 15 : 0;
             scene.getMeshByName("him")!.getChildMeshes().forEach((m) => {
                 m.setEnabled(false);
                 m.scaling.setAll(0.1);
                 m.rotation.y = Math.PI / 2;
                 (m.material as any).disableLighting = true;
                 (m.material as any).emissiveTexture = (m.material as any).diffuseTexture;
-                m.position.z += 15;
+                m.position.z += ofsZ;
                 //pcs.addVolumePoints(m as BABYLON.Mesh, 5000, BABYLON.PointColor.Color, 0);
+                //pcs.addSurfacePoints(m as BABYLON.Mesh, 20000, BABYLON.PointColor.Color, 0);
                 pcs.addSurfacePoints(m as BABYLON.Mesh, 20000, BABYLON.PointColor.Color, 0);
             });
     
@@ -184,17 +190,18 @@ export class FluidRendering implements CreateSceneClass {
 
                 const entity = fluidRenderer?.addVertexBuffer(vertexBuffers, numParticles, true);
 
-                new FluidRendererGUI(this._scene);
-
                 if (entity) {
-                    entity.object.particleSize = 0.1;
+                    entity.object.particleSize = 0.12;
                     entity.object.particleThicknessAlpha = 0.1;
                     entity.targetRenderer.blurKernel = 10;
                     entity.targetRenderer.blurScale = 0.1;
-                    entity.targetRenderer.blurDepthScale = 50;
+                    entity.targetRenderer.blurDepthScale = 3.3;
+                    entity.targetRenderer.useLinearZ = true;
                 }
 
                 mesh.setEnabled(false);
+
+                new FluidRendererGUI(this._scene);
 
                 scene.activeCamera = camera;
 
@@ -211,8 +218,8 @@ export class FluidRendering implements CreateSceneClass {
                     max.y = Math.max(positions[i * 3 + 1], max.y);
                     max.z = Math.max(positions[i * 3 + 2], max.z);
                 }
-                const center = min.add(max).scaleInPlace(0.5);
-                const diag = BABYLON.Vector3.Distance(center, min);
+                //const center = min.add(max).scaleInPlace(0.5);
+                //const diag = BABYLON.Vector3.Distance(center, min);
 
                 const pos = new BABYLON.Vector3();
                 for (let i = 0; i < numParticles; ++i) {
@@ -228,7 +235,7 @@ export class FluidRendering implements CreateSceneClass {
                     stopped.push(0);
                 }
 
-                let dt = 1 / 60 / 1000;
+                const dt = 1 / 60 / 1000;
                 (window as any).doit = () => {
                     scene.onBeforeRenderObservable.add(() => {
                         for (let i = 0; i < numParticles; ++i) {

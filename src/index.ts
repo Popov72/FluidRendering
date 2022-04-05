@@ -4,9 +4,9 @@ import { getSceneModuleWithName } from "./createScene";
 
 import "@babylonjs/inspector";
 
-var seed = 1;
+let seed = 1;
 Math.random = function() {
-    var x = Math.sin(seed++) * 10000;
+    const x = Math.sin(seed++) * 10000;
     return x - Math.floor(x);
 }
 

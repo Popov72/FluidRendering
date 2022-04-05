@@ -8,7 +8,7 @@ export abstract class FluidRenderingObject {
     protected _depthEffectWrapper: BABYLON.Nullable<BABYLON.EffectWrapper>;
     protected _thicknessEffectWrapper: BABYLON.Nullable<BABYLON.EffectWrapper>;
 
-    public priority: number = 0;
+    public priority = 0;
 
     protected _particleSize: BABYLON.Nullable<number> = null;
 
@@ -26,7 +26,7 @@ export abstract class FluidRenderingObject {
         this._particleSize = size;
     }
 
-    public particleThicknessAlpha: number = 0.05;
+    public particleThicknessAlpha = 0.05;
 
     public get useInstancing() {
         return !this.indexBuffer;
@@ -185,6 +185,7 @@ export abstract class FluidRenderingObject {
     }
 
     public renderDiffuseTexture(): void {
+        // do nothing by default
     }
 
     public dispose(): void {

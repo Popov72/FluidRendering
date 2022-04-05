@@ -2,12 +2,12 @@ import * as BABYLON from "@babylonjs/core";
 
 import * as LiLGUI from 'lil-gui'; 
 import { FluidRenderingDebug } from "./fluidRenderingTargetRenderer";
-
+/*
 async function LoadDAT(): Promise<void> {
-    var _ = await import("@babylonjs/core/Misc/tools")
+    const _ = await import("@babylonjs/core/Misc/tools")
     return _.Tools.LoadScriptAsync("https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js");
 }
-
+*/
 export class FluidRendererGUI {
     private _gui: BABYLON.Nullable<LiLGUI.GUI>;
     private _visible: boolean;
@@ -305,7 +305,7 @@ export class FluidRendererGUI {
         const fluidRenderer = this._scene.fluidRenderer;
         switch (name) {
             case "enable":
-                if (!!value) {
+                if (value) {
                     this._scene.enableFluidRenderer();
                     this._targetRendererIndex = 0;
                     this.initialize();
@@ -320,17 +320,18 @@ export class FluidRendererGUI {
                     fluidRenderer.targetRenderers[this._targetRendererIndex].fluidColor.copyFrom(BABYLON.Color3.FromHexString(value));
                 }
                 return;
-            case "targets_debugFeature":
+            case "targets_debugFeature": {
                 const typedDebugFeature: keyof typeof FluidRenderingDebug = value;
                 const val = FluidRenderingDebug[typedDebugFeature];
                 if (fluidRenderer && fluidRenderer.targetRenderers.length > this._targetRendererIndex) {
                     fluidRenderer.targetRenderers[this._targetRendererIndex].debugFeature = val;
                 }
                 return;
+            }
             case "objects_particleUseFixedSize":
                 if (fluidRenderer && fluidRenderer.renderObjects.length > this._renderObjectIndex) {
                     const particleSizeCtrl = this._renderObjectsGUIElements[1];
-                    fluidRenderer.renderObjects[this._renderObjectIndex].object.particleSize = !!value ? (particleSizeCtrl.object as any).objects_particleSize : null;
+                    fluidRenderer.renderObjects[this._renderObjectIndex].object.particleSize = value ? (particleSizeCtrl.object as any).objects_particleSize : null;
                 }
                 return;
             case "objects_particleSize":
