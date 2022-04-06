@@ -1,4 +1,5 @@
 import * as BABYLON from "@babylonjs/core";
+import { Hash } from "./hash";
 
 interface Particle {
     mass: number;
@@ -18,6 +19,7 @@ export class FluidSimulator {
     protected _numParticles: number;
     protected _positions: Float32Array;
     protected _vbPositions: BABYLON.VertexBuffer;
+    protected _hash: Hash;
 
     private _smoothingRadius2: number;
     private _poly6Constant: number;
@@ -43,11 +45,14 @@ export class FluidSimulator {
 
     public gravity = new BABYLON.Vector3(0, -9.8, 0);
 
+    public checkXZBounds = true;
+
     private _computeConstants(): void {
         this._smoothingRadius2 = this._smoothingRadius * this._smoothingRadius;
         this._poly6Constant = 315 / (64 * Math.PI * Math.pow(this._smoothingRadius, 9));
         this._spikyConstant = -45 / (Math.PI * Math.pow(this._smoothingRadius, 6));
         this._viscConstant = 45 / (Math.PI * Math.pow(this._smoothingRadius, 6));
+        this._hash = new Hash(this._smoothingRadius, this._numParticles);
     }
 
     public get positionVertexBuffer() {
@@ -63,6 +68,7 @@ export class FluidSimulator {
         this._numParticles = numParticles;
         this._positions = positions ?? new Float32Array(numParticles * 3);
         this._vbPositions = new BABYLON.VertexBuffer(engine, this._positions, BABYLON.VertexBuffer.PositionKind, true, false, 3, true);
+        this._hash = new Hash(this._smoothingRadius, this._numParticles);
 
         this._smoothingRadius2 = 0;
         this._poly6Constant = 0;
@@ -87,6 +93,7 @@ export class FluidSimulator {
     }
 
     public update(deltaTime: number): void {
+        this._hash.create(this._positions);
         this._computeDensity();
         this._computeForces();
         this._updatePositions(deltaTime);
@@ -106,7 +113,10 @@ export class FluidSimulator {
 
             pA.density = 0;
 
-            for (let b = 0; b < this._particles.length; ++b) {
+            this._hash.query(this._positions, a, this._smoothingRadius);
+
+            for (let ib = 0; ib < this._hash.querySize; ++ib) {
+                const b = this._hash.queryIds[ib];
                 const diffX = paX - this._positions[b * 3 + 0];
                 const diffY = paY - this._positions[b * 3 + 1];
                 const diffZ = paZ - this._positions[b * 3 + 2];
@@ -139,8 +149,10 @@ export class FluidSimulator {
             let viscosityAccelY = 0;
             let viscosityAccelZ = 0;
 
-            for (let b = 0; b < this._particles.length; ++b) {
+            this._hash.query(this._positions, a, this._smoothingRadius);
 
+            for (let ib = 0; ib < this._hash.querySize; ++ib) {
+                const b = this._hash.queryIds[ib];
                 let diffX = paX - this._positions[b * 3 + 0];
                 let diffY = paY - this._positions[b * 3 + 1];
                 let diffZ = paZ - this._positions[b * 3 + 2];
@@ -201,20 +213,20 @@ export class FluidSimulator {
                 pA.velocityY *= -elastic;
             }
 
-            if (this._positions[a * 3 + 0] < -fx) {
+            if (this.checkXZBounds && this._positions[a * 3 + 0] < -fx) {
                 this._positions[a * 3 + 0] += (-fx - this._positions[a * 3 + 0]) * (1 + elastic);
                 pA.velocityX *= -elastic;
             }
-            if (this._positions[a * 3 + 0] > fx) {
+            if (this.checkXZBounds && this._positions[a * 3 + 0] > fx) {
                 this._positions[a * 3 + 0] -= (this._positions[a * 3 + 0] - fx) * (1 + elastic);
                 pA.velocityX *= -elastic;
             }
 
-            if (this._positions[a * 3 + 2] < -fz) {
+            if (this.checkXZBounds && this._positions[a * 3 + 2] < -fz) {
                 this._positions[a * 3 + 2] += (-fz - this._positions[a * 3 + 2]) * (1 + elastic);
                 pA.velocityZ *= -elastic;
             }
-            if (this._positions[a * 3 + 2] > fz) {
+            if (this.checkXZBounds && this._positions[a * 3 + 2] > fz) {
                 this._positions[a * 3 + 2] -= (this._positions[a * 3 + 2] - fz) * (1 + elastic);
                 pA.velocityZ *= -elastic;
             }

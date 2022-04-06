@@ -4,7 +4,7 @@ import * as BABYLON from "@babylonjs/core";
 
 import "./FluidRenderer/fluidRendererSceneComponent";
 import { FluidRendererGUI } from "./FluidRenderer/fluidRendererGUI";
-import { FluidSimulator } from "./FluidSimulator/fluidSimulator";
+import { FluidSimulator } from "./FluidSimulator2/fluidSimulator";
 
 const cameraMin = 0.2;
 const cameraMax = 2.1;
@@ -89,7 +89,7 @@ export class FluidRendering implements CreateSceneClass {
 
             new BABYLON.FxaaPostProcess("Fxaa", 1, camera);
 
-            const numX = 7, numY = 8 * 5, numZ = 7;
+            const numX = 10, numY = 10 * 5, numZ = 10;
 
             const numParticles = numX * numY * numZ;
             const positions = new Float32Array(numParticles * 3);
@@ -99,9 +99,6 @@ export class FluidRendering implements CreateSceneClass {
             for (let x = 0; x < numX; ++x) {
                 for (let y = 0; y < numY; ++y) {
                     for (let z = 0; z < numZ; ++z) {
-                        //positions[idx * 3 + 0] = (Math.random() - 0.5) * numX * particleRadius * 2;
-                        //positions[idx * 3 + 1] = Math.random() * numY * particleRadius * 2;
-                        //positions[idx * 3 + 2] = (Math.random() - 0.5) * numZ * particleRadius * 2 + ofsZ;
                         positions[idx * 3 + 0] = (x - numX / 2) * particleRadius * 2;
                         positions[idx * 3 + 1] = y * particleRadius * 2;
                         positions[idx * 3 + 2] = (z - numZ / 2) * particleRadius * 2;
