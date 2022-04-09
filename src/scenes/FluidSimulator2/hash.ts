@@ -45,8 +45,10 @@ export class Hash {
         );
     }
 
-    public create(pos: number[] | Float32Array) {
-        const numObjects = Math.min(pos.length / 3, this._cellEntries.length);
+    public create(pos: number[] | Float32Array, numElements?: number) {
+        numElements = numElements ?? pos.length / 3;
+
+        const numObjects = Math.min(numElements, this._cellEntries.length);
 
         // determine cell sizes
         this._cellStart.fill(0);

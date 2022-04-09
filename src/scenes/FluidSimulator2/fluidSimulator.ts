@@ -1,7 +1,7 @@
 import * as BABYLON from "@babylonjs/core";
 import { Hash } from "./hash";
 
-interface Particle {
+export interface IFluidParticle {
     mass: number;
     density: number;
     pressure: number;
@@ -15,8 +15,8 @@ interface Particle {
 
 export class FluidSimulator {
 
-    protected _particles: Particle[];
-    protected _numParticles: number;
+    protected _particles: IFluidParticle[];
+    protected _numMaxParticles: number;
     protected _positions: Float32Array;
     protected _vbPositions: BABYLON.VertexBuffer;
     protected _hash: Hash;
@@ -47,12 +47,14 @@ export class FluidSimulator {
 
     public checkXZBounds = true;
 
+    public currentNumParticles: number;
+
     private _computeConstants(): void {
         this._smoothingRadius2 = this._smoothingRadius * this._smoothingRadius;
         this._poly6Constant = 315 / (64 * Math.PI * Math.pow(this._smoothingRadius, 9));
         this._spikyConstant = -45 / (Math.PI * Math.pow(this._smoothingRadius, 6));
         this._viscConstant = 45 / (Math.PI * Math.pow(this._smoothingRadius, 6));
-        this._hash = new Hash(this._smoothingRadius, this._numParticles);
+        this._hash = new Hash(this._smoothingRadius, this._numMaxParticles);
     }
 
     public get positionVertexBuffer() {
@@ -60,40 +62,27 @@ export class FluidSimulator {
     }
 
     public get numParticles() {
-        return this._numParticles;
+        return this._numMaxParticles;
     }
 
-    constructor(numParticles: number, engine: BABYLON.Engine, positions?: Float32Array) {
-        this._particles = [];
-        this._numParticles = numParticles;
-        this._positions = positions ?? new Float32Array(numParticles * 3);
+    constructor(particles: IFluidParticle[], engine: BABYLON.Engine, positions?: Float32Array) {
+        this._particles = particles;
+        this._numMaxParticles = particles.length;
+        this._positions = positions ?? new Float32Array(this._numMaxParticles * 3);
         this._vbPositions = new BABYLON.VertexBuffer(engine, this._positions, BABYLON.VertexBuffer.PositionKind, true, false, 3, true);
-        this._hash = new Hash(this._smoothingRadius, this._numParticles);
+        this._hash = new Hash(this._smoothingRadius, this._numMaxParticles);
 
+        this.currentNumParticles = this._numMaxParticles;
         this._smoothingRadius2 = 0;
         this._poly6Constant = 0;
         this._spikyConstant = 0;
         this._viscConstant = 0;
 
-        for (let i = 0; i < numParticles; ++i) {
-            this._particles.push({
-                density: 0,
-                pressure: 0,
-                accelX: 0,
-                accelY: 0,
-                accelZ: 0,
-                velocityX: (Math.random() - 0.5) * 0.03,
-                velocityY: (Math.random() - 0.5) * 0.03,
-                velocityZ: (Math.random() - 0.5) * 0.03,
-                mass: 1,
-            });
-        }
-
         this._computeConstants();
     }
 
     public update(deltaTime: number): void {
-        this._hash.create(this._positions);
+        this._hash.create(this._positions, this.currentNumParticles);
         this._computeDensity();
         this._computeForces();
         this._updatePositions(deltaTime);
@@ -105,7 +94,7 @@ export class FluidSimulator {
     }
 
     protected _computeDensity(): void {
-        for (let a = 0; a < this._particles.length; ++a) {
+        for (let a = 0; a < this.currentNumParticles; ++a) {
             const pA = this._particles[a];
             const paX = this._positions[a * 3 + 0];
             const paY = this._positions[a * 3 + 1];
@@ -135,7 +124,7 @@ export class FluidSimulator {
 
     protected _computeForces(): void {
         // Pressurce-based force + viscosity-based force computation
-        for (let a = 0; a < this._particles.length; ++a) {
+        for (let a = 0; a < this.currentNumParticles; ++a) {
             const pA = this._particles[a];
             const paX = this._positions[a * 3 + 0];
             const paY = this._positions[a * 3 + 1];
@@ -196,8 +185,8 @@ export class FluidSimulator {
     protected _updatePositions(deltaTime: number): void {
         const elastic = 0.4;
         const fx = 0.25;
-        const fz = 0.5;
-        for (let a = 0; a < this._particles.length; ++a) {
+        const fz = 0.65;
+        for (let a = 0; a < this.currentNumParticles; ++a) {
             const pA = this._particles[a];
 
             pA.velocityX += pA.accelX * deltaTime;

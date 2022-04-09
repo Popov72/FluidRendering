@@ -123,7 +123,9 @@ export abstract class FluidRenderingObject {
     }
 
     public renderDepthTexture(): void {
-        if (!this._depthEffectWrapper) {
+        const numParticles = this.numParticles();
+
+        if (!this._depthEffectWrapper || numParticles === 0) {
             return;
         }
 
@@ -142,8 +144,6 @@ export abstract class FluidRenderingObject {
             depthEffect.setFloat("cameraFar", this._scene.activeCamera?.maxZ ?? 10000);
         }
 
-        const numParticles = this.numParticles();
-
         if (this.useInstancing) {
             this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);
         } else {
@@ -152,7 +152,9 @@ export abstract class FluidRenderingObject {
     }
 
     public renderThicknessTexture(): void {
-        if (!this._thicknessEffectWrapper) {
+        const numParticles = this.numParticles();
+
+        if (!this._thicknessEffectWrapper || numParticles === 0) {
             return;
         }
 
@@ -171,8 +173,6 @@ export abstract class FluidRenderingObject {
         if (this._particleSize !== null) {
             thicknessEffect.setFloat2("size", this._particleSize, this._particleSize);
         }
-
-        const numParticles = this.numParticles();
 
         if (this.useInstancing) {
             this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);

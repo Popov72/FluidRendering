@@ -59,8 +59,14 @@ export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
         return this._numParticles;
     }
 
+    public setNumParticles(num: number) {
+        this._numParticles = num;
+    }
+
     public renderDiffuseTexture(): void {
-        if (!this._diffuseEffectWrapper) {
+        const numParticles = this.numParticles();
+
+        if (!this._diffuseEffectWrapper || numParticles === 0) {
             return;
         }
 
@@ -75,8 +81,6 @@ export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
         if (this._particleSize !== null) {
             diffuseEffect.setFloat2("size", this._particleSize, this._particleSize);
         }
-
-        const numParticles = this.numParticles();
 
         if (this.useInstancing) {
             this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);
