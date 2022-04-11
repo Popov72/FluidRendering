@@ -12,6 +12,7 @@
 // Water to air
 #define ETA_REVERSE IOR
 
+uniform sampler2D textureSampler;
 uniform sampler2D depthSampler;
 #ifdef FLUIDRENDERING_CHECK_NONBLURREDDEPTH
     uniform sampler2D nonBlurredDepthSampler;
@@ -48,7 +49,7 @@ const vec3 lightColour = vec3(2.0);
 const float CLARITY = 0.75;
 
 // Modifiers for light attenuation
-const float DENSITY = 3.5;
+const float DENSITY = 10.0;
 
 vec3 uvToEye(vec2 texCoord, float depth) {
     vec4 ndc;
@@ -79,7 +80,7 @@ vec3 getEyePos(vec2 texCoord) {
 }
 
 // Minimum dot product value
-const float minDot = 1e-3;
+const float minDot = 1e-5;
 
 // Clamped dot product
 float dot_c(vec3 a, vec3 b) {
@@ -92,48 +93,14 @@ vec3 inv_gamma(vec3 col) {
     return pow(col, vec3(GAMMA));
 }
 
-// Trowbridge-Reitz
-float distribution(vec3 n, vec3 h, float roughness){
-    float a_2 = roughness*roughness;
-    return a_2/(PI*pow(pow(dot_c(n, h),2.0) * (a_2 - 1.0) + 1.0, 2.0));
-}
-
-// GGX and Schlick-Beckmann
-float geometry(float cosTheta, float k){
-    return (cosTheta)/(cosTheta*(1.0-k)+k);
-}
-
-float smiths(vec3 n, vec3 viewDir, vec3 lightDir, float roughness){
-    float k = pow(roughness + 1.0, 2.0)/8.0; 
-    return geometry(dot_c(n, lightDir), k) * geometry(dot_c(n, viewDir), k);
-}
-
 // Fresnel-Schlick
 vec3 fresnel(float cosTheta, vec3 F0){
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 } 
 
-// Specular part of Cook-Torrance BRDF
-vec3 BRDF(vec3 p, vec3 n, vec3 viewDir, vec3 lightDir, vec3 F0, float roughness){
-    vec3 h = normalize(viewDir + lightDir);
-    float cosTheta = dot_c(h, viewDir);
-    float D = distribution(n, h, roughness);
-    vec3 F = fresnel(cosTheta, F0);
-    float G = smiths(n, viewDir, lightDir, roughness);
-    
-    vec3 specular =  D * F * G / max(0.0001, (4.0 * dot_c(lightDir, n) * dot_c(viewDir, n)));
-    
-    return specular;
-}
-
-vec3 getSkyColour(vec3 rayDir){
-    //return 0.5*(0.5+0.5*rayDir);
-    return inv_gamma(textureCube(reflectionSampler, rayDir).rgb);
-}
-
-vec3 getEnvironment(vec3 rayDir, vec3 geoNormalFar, float thickness, vec3 waterColour, out vec3 transmittance){
-    vec3 refractedDir = normalize(refract(rayDir, geoNormalFar, ETA_REVERSE));
-    vec3 transmitted = getSkyColour(refractedDir);
+vec3 getEnvironment(vec3 rayDir, vec3 geoNormalFar, float thickness, vec3 waterColour, vec2 texCoord, out vec3 transmittance){
+    vec3 refractedDir = normalize(refract(rayDir, geoNormalFar, ETA));
+    vec3 transmitted = inv_gamma(texture2D(textureSampler, vec2(texCoord + refractedDir.xy * thickness * 0.02)).rgb);
     
     // View depth
     float d = DENSITY*thickness;
@@ -145,20 +112,13 @@ vec3 getEnvironment(vec3 rayDir, vec3 geoNormalFar, float thickness, vec3 waterC
     return result;
 }
 
-float HenyeyGreenstein(float g, float costh){
-    return (1.0/(FOUR_PI))  * ((1.0 - g * g) / pow(1.0 + g*g - 2.0*g*costh, 1.5));
-}
-
-vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness, vec3 diffuseColor){
+vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness, vec3 diffuseColor, vec2 texCoord){
     vec3 I = vec3(0);
 
     vec3 F0 = vec3(0.02);
     float roughness = 0.1;
 
     vec3 lightDir = -dirLight;
-    I +=  BRDF(p, n, -rayDir, lightDir, F0, roughness) 
-        * lightColour 
-        * dot_c(n, lightDir);
 
     vec3 transmittance;
     
@@ -168,24 +128,19 @@ vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness, ve
                                 -n,
                                 thickness,
                                 diffuseColor,
+                                texCoord,
                                 transmittance);
 
-    float mu = dot(refract(rayDir, n, ETA), lightDir);
-    //float phase = mix(HenyeyGreenstein(-0.3, mu), HenyeyGreenstein(0.85, mu), 0.5);
-    float phase = HenyeyGreenstein(-0.83, mu);
-    
-    result += CLARITY * lightColour * transmittance * phase;
-    
     // Reflection of the environment.
     vec3 reflectedDir = normalize(reflect(rayDir, n));
-    vec3 reflectedCol = getSkyColour(reflectedDir);
+    vec3 reflectedCol = inv_gamma(textureCube(reflectionSampler, reflectedDir).rgb);
     
     float cosTheta = dot_c(n, -rayDir);
-    vec3 F = fresnel(cosTheta, F0);
+    vec3 F = clamp(fresnel(cosTheta, F0), 0., 1.);
     
     result = mix(result, reflectedCol, F);
     
-    return result + I;
+    return result;
 }
 
 vec3 ACESFilm(vec3 x){
@@ -244,6 +199,13 @@ void main(void) {
 
     // calculate normal
     vec3 normal = cross(ddy, ddx);
+#ifndef WEBGPU
+    if(isnan(normal.x) || isnan(normal.y) || isnan(normal.z) ||
+       isinf(normal.x) || isinf(normal.y) || isinf(normal.z)) {
+        normal = vec3(0., 0., -1.);
+    }
+#endif
+
     normal = normalize((invView * vec4(normal, 0.)).xyz);
 
 #if defined(FLUIDRENDERING_DEBUG) && defined(FLUIDRENDERING_DEBUG_SHOWNORMAL)
@@ -263,7 +225,7 @@ void main(void) {
     #endif
 #endif
 
-    vec3 col = shadingPBR(camPos, posWorld, normal, rayDir, thickness, diffuseColor);
+    vec3 col = shadingPBR(camPos, posWorld, normal, rayDir, thickness, diffuseColor, texCoord);
 
     //Tonemapping.
     col = ACESFilm(col);

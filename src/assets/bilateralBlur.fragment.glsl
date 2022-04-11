@@ -10,6 +10,11 @@ varying vec2 vUV;
 void main(void) {
     float depth = texture2D(textureSampler, vUV).x;
 
+    if (depth == 1.) {
+        glFragColor = vec4(vec3(depth), 0.);
+        return;
+    }
+
     float sum = 0.;
     float wsum = 0.;
 

@@ -10,5 +10,5 @@ void main(void) {
     if (r2 > 1.0) discard;
     float thickness = sqrt(1.0 - r2);
 
-    glFragColor = vec4(1., 1., 1., particleAlpha * thickness);
+    glFragColor = vec4(vec3(particleAlpha * thickness), 1.0);
 }
