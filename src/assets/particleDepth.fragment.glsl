@@ -20,6 +20,10 @@ void main(void) {
 
     float glFragDepth = clipSpacePos.z / clipSpacePos.w;
 
+#if !defined(IS_NDC_HALF_ZRANGE)
+    glFragDepth = glFragDepth * 0.5 + 0.5;
+#endif
+
 #ifdef FLUIDRENDERING_USE_LINEARZ
     float depth = clamp(realViewPos.z / cameraFar, 0., 1.);
 #else
