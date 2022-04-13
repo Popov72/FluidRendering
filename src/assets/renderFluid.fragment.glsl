@@ -31,16 +31,10 @@ uniform float texelSize;
 uniform vec3 dirLight;
 uniform vec3 camPos;
 uniform float cameraFar;
+uniform float clarity;
+uniform float density;
 
 varying vec2 vUV;
-
-const vec3 lightColour = vec3(2.0);
-
-// Amount of the background visible through the water
-const float CLARITY = 0.75;
-
-// Modifiers for light attenuation
-const float DENSITY = 0.5;
 
 vec3 uvToEye(vec2 texCoord, float depth) {
     vec4 ndc;
@@ -81,15 +75,15 @@ vec3 fresnel(float cosTheta, vec3 F0){
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 } 
 
-vec3 getEnvironment(vec3 rayDir, vec3 geoNormalFar, float thickness, vec3 waterColour, vec2 texCoord, out vec3 transmittance){
+vec3 getEnvironment(vec3 rayDir, vec3 geoNormalFar, float thickness, vec3 waterColour, vec2 texCoord){
     vec3 refractedDir = normalize(refract(rayDir, geoNormalFar, ETA));
     vec3 transmitted = inv_gamma(texture2D(textureSampler, vec2(texCoord + refractedDir.xy * thickness * 0.02)).rgb);
     
     // View depth
-    float d = DENSITY*thickness;
+    float d = density * thickness;
     
     // Beer's law depending on the water colour
-    transmittance = exp( -d * (1.0 - waterColour));
+    vec3 transmittance = exp( -d * (1.0 - waterColour));
     
     vec3 result = transmitted * transmittance;
     return result;
@@ -98,18 +92,13 @@ vec3 getEnvironment(vec3 rayDir, vec3 geoNormalFar, float thickness, vec3 waterC
 vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness, vec3 diffuseColor, vec2 texCoord){
     vec3 F0 = vec3(0.02);
 
-    vec3 lightDir = -dirLight;
-
-    vec3 transmittance;
-    
     vec3 result = vec3(0);
     
-    result += CLARITY * getEnvironment(refract(rayDir, n, ETA), 
+    result += clarity * getEnvironment(refract(rayDir, n, ETA), 
                                 -n,
                                 thickness,
                                 diffuseColor,
-                                texCoord,
-                                transmittance);
+                                texCoord);
 
     // Reflection of the environment.
     vec3 reflectedDir = normalize(reflect(rayDir, n));
@@ -118,7 +107,7 @@ vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness, ve
     float cosTheta = dot_c(n, -rayDir);
     vec3 F = clamp(fresnel(cosTheta, F0), 0., 1.);
     
-    result = mix(result, reflectedCol, F);
+    result = mix(result, reflectedCol, 0.02);
     
     return result;
 }
@@ -183,7 +172,11 @@ void main(void) {
 #endif
 
     // shading
-    float thickness = clamp(texture2D(thicknessSampler, texCoord).x, 0., 1.);
+    float thickness = texture2D(thicknessSampler, texCoord).x;
+    if (thickness == 0.) {
+        glFragColor = vec4(backColor, 1.);
+        return;
+    }
     vec3 posWorld = (invView * vec4(posEye, 1.)).xyz;
     vec3 rayDir = normalize(posWorld - camPos);
 

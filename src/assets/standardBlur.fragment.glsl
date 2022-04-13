@@ -11,6 +11,12 @@ void main(void) {
     vec4 sum = vec4(0.);
     float wsum = 0.;
 
+    vec4 s = texture2D(textureSampler, vUV);
+    if (s.r == 0.) {
+        glFragColor = vec4(0.);
+        return;
+    }
+
     for (float x = -filterRadius; x <= filterRadius; x += 1.0) {
         vec4 sampl = texture2D(textureSampler, vUV + x * blurDir);
 

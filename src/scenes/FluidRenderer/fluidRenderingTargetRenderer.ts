@@ -71,6 +71,10 @@ export class FluidRenderingTargetRenderer {
 
     public fluidColor = new BABYLON.Color3(0.085, 0.6375, 0.765);
 
+    public clarity = 0.8;
+
+    public density = 0.5;
+
     public dirLight: BABYLON.Vector3 = new BABYLON.Vector3(-2, -1, 1).normalize();
 
     private _debugFeature: FluidRenderingDebug = FluidRenderingDebug.DepthBlurredTexture;
@@ -148,7 +152,7 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
-    private _blurKernel = 60;
+    private _blurKernel = 50;
 
     public get blurKernel() {
         return this._blurKernel;
@@ -178,7 +182,7 @@ export class FluidRenderingTargetRenderer {
         this._setBlurParametersForAllTargets();
     }
 
-    private _blurDepthScale = 0.1;
+    private _blurDepthScale = 10;
 
     public get blurDepthScale() {
         return this._blurDepthScale;
@@ -302,7 +306,7 @@ export class FluidRenderingTargetRenderer {
         const engine = this._scene.getEngine();
         const targetSize = Math.floor(this.mapSize / this.blurSizeDivisor);
 
-        const uniformNames = ["projection", "invProjection", "invView", "texelSize", "dirLight", "camPos", "cameraFar"];
+        const uniformNames = ["projection", "invProjection", "invView", "texelSize", "dirLight", "camPos", "cameraFar", "clarity", "density"];
         const samplerNames = ["nonBlurredDepthSampler", "depthSampler", "thicknessSampler", "reflectionSampler"];
         const defines = [];
 
@@ -370,6 +374,8 @@ export class FluidRenderingTargetRenderer {
             effect.setMatrix("invView", this._invViewMatrix);
             effect.setFloat("texelSize", texelSize);
             effect.setTexture("reflectionSampler", this._scene.environmentTexture);
+            effect.setFloat("clarity", this.clarity);
+            effect.setFloat("density", this.density);
 
             effect.setVector3("dirLight", this.dirLight);
             effect.setVector3("camPos", this._camera!.globalPosition);
@@ -416,10 +422,6 @@ export class FluidRenderingTargetRenderer {
                 if (this._thicknessRenderTarget?.renderTarget) {
                     this._renderPostProcess!.inputTexture._shareDepth(this._thicknessRenderTarget.renderTarget);
                 }
-            });
-
-            this._renderPostProcess.onActivateObservable.add((/*effect*/) => {
-                this._engine.clear(this._scene.clearColor, true, true, true);
             });
         } else {
             const firstPP = this._camera._getFirstPostProcess()!;

@@ -64,7 +64,7 @@ export class FluidRendering implements CreateSceneClass {
         const numParticlesEmitRate = 1500*4;
         const animate = true;
         const liquidRendering = true;
-        const showObstacle = false;
+        const showObstacle = true;
         const showParticleSystem = true;
 
         // Setup environment
@@ -99,7 +99,7 @@ export class FluidRendering implements CreateSceneClass {
         }
 
         // Create a particle system
-        let particleSystem: BABYLON.ParticleSystem;
+        let particleSystem: BABYLON.Nullable<BABYLON.ParticleSystem> = null;
 
         if (showParticleSystem) {
             particleSystem = new BABYLON.ParticleSystem("particles", numParticles, scene);
@@ -154,6 +154,20 @@ export class FluidRendering implements CreateSceneClass {
         if (liquidRendering) {
             const fluidRenderer = scene.enableFluidRenderer();
 
+            if (particleSystem) {
+                const entity = fluidRenderer!.getRenderObjectFromParticleSystem(particleSystem)!;
+
+                entity.object.particleSize = 2;
+                entity.object.particleThicknessAlpha = 0.02;
+                entity.targetRenderer.blurKernel = 50;
+                entity.targetRenderer.blurScale = 0.05;
+                entity.targetRenderer.blurDepthScale = 3;
+                entity.targetRenderer.clarity = 0.7;
+                entity.targetRenderer.density = 20;
+                entity.targetRenderer.fluidColor = new BABYLON.Color3(219/255, 228/255, 1);
+                entity.targetRenderer.generateDiffuseTexture = false;
+            }
+
             const loadModel = async () => {
                 await BABYLON.SceneLoader.AppendAsync("https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", scene);
             };
@@ -195,7 +209,7 @@ export class FluidRendering implements CreateSceneClass {
                     entity.object.particleThicknessAlpha = 0.1;
                     entity.targetRenderer.blurKernel = 10;
                     entity.targetRenderer.blurScale = 0.1;
-                    entity.targetRenderer.blurDepthScale = 3.3;
+                    entity.targetRenderer.blurDepthScale = 10;
                 }
 
                 mesh.setEnabled(false);
