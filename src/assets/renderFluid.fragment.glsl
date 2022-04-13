@@ -113,10 +113,7 @@ vec3 getEnvironment(vec3 rayDir, vec3 geoNormalFar, float thickness, vec3 waterC
 }
 
 vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness, vec3 diffuseColor, vec2 texCoord){
-    vec3 I = vec3(0);
-
     vec3 F0 = vec3(0.02);
-    float roughness = 0.1;
 
     vec3 lightDir = -dirLight;
 
@@ -170,6 +167,11 @@ void main(void) {
 #endif
 
     float depth = texture2D(depthSampler, texCoord).x;
+
+    if (depth == 1.) {
+        glFragColor = vec4(1., 1., 1., 0.);
+        return;
+    }
 
     // calculate eye-space position from depth
     vec3 posEye = uvToEye(texCoord, depth);
