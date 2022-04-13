@@ -21,10 +21,6 @@ export class FluidRenderingTargetRenderer {
     protected _engine: BABYLON.Engine;
     protected _id: number = FluidRenderingTargetRenderer._Id++;
 
-    protected _sourceCopy: BABYLON.Nullable<BABYLON.InternalTexture>;
-    protected _opaqueObjectsTexture: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
-    protected _copyPostProcess: BABYLON.Nullable<BABYLON.PostProcess>;
-
     protected _depthRenderTarget: BABYLON.Nullable<FluidRenderingRenderTarget>;
     protected _diffuseRenderTarget: BABYLON.Nullable<FluidRenderingRenderTarget>;
     protected _thicknessRenderTarget: BABYLON.Nullable<FluidRenderingRenderTarget>;
@@ -227,21 +223,6 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
-    private _needPostProcessChaining = false;
-
-    public get needPostProcessChaining() {
-        return this._needPostProcessChaining;
-    }
-
-    public set needPostProcessChaining(needChaining: boolean) {
-        if (this._needPostProcessChaining === needChaining) {
-            return;
-        }
-
-        this._needPostProcessChaining = needChaining;
-        this._needInitialization = true;
-    }
-
     constructor(scene: BABYLON.Scene, camera?: BABYLON.Camera) {
         this._scene = scene;
         this._engine = scene.getEngine();
@@ -259,30 +240,6 @@ export class FluidRenderingTargetRenderer {
 
         this._renderPostProcess = null;
         this._passPostProcess = null;
-
-        this._opaqueObjectsTexture = this._engine.createRenderTargetTexture({ width: this._engine.getRenderWidth(), height: this._engine.getRenderHeight() }, {
-            generateMipMaps: true,
-            type: BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE,
-            format: BABYLON.Constants.TEXTUREFORMAT_RGBA,
-            samplingMode: BABYLON.Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
-            generateDepthBuffer: false,
-            generateStencilBuffer: false,
-            samples: 1,
-        });
-        this._sourceCopy = null;
-
-        this._copyPostProcess = new BABYLON.PassPostProcess(
-            "copyTexture",
-            1,
-            null,
-            BABYLON.Texture.NEAREST_SAMPLINGMODE,
-            this._engine,
-        );
-
-        this._copyPostProcess.externalTextureSamplerBinding = true;
-        this._copyPostProcess.onApply = (effect) => {
-            effect._bindTexture("textureSampler", this._sourceCopy);
-        };
     }
 
     public initialize(): void {
@@ -378,8 +335,6 @@ export class FluidRenderingTargetRenderer {
 
         this._renderPostProcess = new BABYLON.PostProcess("FluidRendering", "renderFluid", uniformNames, samplerNames, 1, null, BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE, engine, false, defines.join("\n"), BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
         this._camera.attachPostProcess(this._renderPostProcess, this._positionOrder);
-        this._renderPostProcess.alphaMode = BABYLON.Constants.ALPHA_COMBINE;
-        this._renderPostProcess.externalTextureSamplerBinding = true;
         this._renderPostProcess.onApplyObservable.add((effect) => {
             this._invProjectionMatrix.copyFrom(this._scene.getProjectionMatrix());
             this._invProjectionMatrix.invert();
@@ -388,8 +343,6 @@ export class FluidRenderingTargetRenderer {
             this._invViewMatrix.invert();
 
             let texelSize = 1 / targetSize;
-
-            effect._bindTexture("textureSampler", this._opaqueObjectsTexture!.texture!);
 
             if (!this._depthRenderTarget!.enableBlur) {
                 effect.setTexture("depthSampler", this._depthRenderTarget!.texture);
@@ -475,49 +428,9 @@ export class FluidRenderingTargetRenderer {
                     firstPP.inputTexture._shareDepth(this._thicknessRenderTarget.renderTarget);
                 }
             });
-
-            this._renderPostProcess.shareOutputWith(firstPP);
-        }
-
-        if (this.needPostProcessChaining) {
-            const firstPP = this._camera._getFirstPostProcess()!;
-            let nextPostProcess = this._findNextPostProcess(this._positionOrder);
-            if (!nextPostProcess) {
-                this._passPostProcess = nextPostProcess = new BABYLON.PassPostProcess("fluidRenderingPass", 1, null, undefined, engine);
-                this._camera.attachPostProcess(this._passPostProcess, this._positionOrder + 1);
-            }
-            nextPostProcess.autoClear = false;
-            nextPostProcess.shareOutputWith(firstPP);
         }
     }
 
-    private _findNextPostProcess(index: number): BABYLON.Nullable<BABYLON.PostProcess>  {
-        const postProcesses = this._camera?._postProcesses;
-        if (!postProcesses) {
-            return null;
-        }
-        for (let i = index + 1; i < postProcesses.length; ++i) {
-            if (postProcesses[i]) {
-                return postProcesses[i];
-            }
-        }
-        return null;
-    }
-
-    private _copyTexture(textureDest: BABYLON.RenderTargetWrapper): void {
-        const engine = this._engine;
-    
-        const currentRenderTarget = engine._currentRenderTarget;
-
-        this._scene.postProcessManager.directRender([this._copyPostProcess!], textureDest);
-
-        engine.unBindFramebuffer(textureDest);
-
-        engine._currentRenderTarget = currentRenderTarget;
-
-        textureDest.texture!.isReady = true;
-    }
-    
     public clearTargets(): void {
         if (this._depthRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._depthRenderTarget.renderTarget);
@@ -545,11 +458,6 @@ export class FluidRenderingTargetRenderer {
         }
 
         const currentRenderTarget = this._engine._currentRenderTarget;
-
-        this._sourceCopy = this._renderPostProcess!.inputTexture?.texture;
-        if (this._sourceCopy) {
-            this._copyTexture(this._opaqueObjectsTexture!);
-        }
 
         // Render the particles in the depth texture
         if (this._depthRenderTarget?.renderTarget) {
@@ -599,19 +507,6 @@ export class FluidRenderingTargetRenderer {
 
             this._thicknessRenderTarget?.dispose();
             this._thicknessRenderTarget = null;
-
-            /*this._copyPostProcess?.dispose();
-            this._copyPostProcess = null;
-
-            this._opaqueObjectsTexture?.dispose();
-            this._opaqueObjectsTexture = null;*/
-        }
-
-        if (this.needPostProcessChaining) {
-            const nextPostProcess = this._findNextPostProcess(this._positionOrder);
-            if (nextPostProcess && nextPostProcess !== this._passPostProcess) {
-                nextPostProcess.useOwnOutput();
-            }
         }
 
         if (this._renderPostProcess && this._camera) {

@@ -225,7 +225,6 @@ export class FluidRenderer {
             const targetRenderer = this._targetRenderers[i];
 
             targetRenderer.positionOrder = i;
-            targetRenderer.needPostProcessChaining = i === this._targetRenderers.length - 1;
             targetRenderer.initialize();
         }
     }

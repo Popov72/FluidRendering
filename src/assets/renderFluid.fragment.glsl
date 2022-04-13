@@ -142,10 +142,10 @@ void main(void) {
 #endif
 
     float depth = texture2D(depthSampler, texCoord).x;
-    //vec3 backColor = texture2D(textureSampler, texCoord).rgb;
+    vec3 backColor = texture2D(textureSampler, texCoord).rgb;
 
     if (depth == 1.) {
-        glFragColor = vec4(1., 1., 1., 0.);
+        glFragColor = vec4(backColor, 1.);
         return;
     }
 
@@ -204,7 +204,7 @@ void main(void) {
 
     //Output to screen.
     //glFragColor = vec4(normal*0.5+0.5, 1./*thickness*/);
-    glFragColor = vec4(col, thickness);
+    glFragColor = vec4(col, 1.);
     
     //glFragColor = vec4(clamp(abs(posEye/10.), 0., 1.), 1.);
     //glFragColor = vec4(depth, depth, depth, 1.);
