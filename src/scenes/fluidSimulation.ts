@@ -120,10 +120,6 @@ export class FluidRendering implements CreateSceneClass {
 
             if (entity) {
                 entity.targetRenderer.enableBlur = true;
-                entity.targetRenderer.checkMaxLengthThreshold = false;
-                entity.targetRenderer.useMinZDiff = true;
-                entity.targetRenderer.checkNonBlurredDepth = false;
-                entity.targetRenderer.useLinearZ = true;
                 entity.targetRenderer.blurKernel = 40;
                 entity.targetRenderer.blurScale = 0.1;
                 entity.targetRenderer.blurDepthScale = 1.575;

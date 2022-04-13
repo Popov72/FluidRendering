@@ -1,7 +1,5 @@
 uniform mat4 projection;
-#ifdef FLUIDRENDERING_USE_LINEARZ
-    uniform float cameraFar;
-#endif
+uniform float cameraFar;
 
 varying vec2 uv;
 varying vec3 viewPos;
@@ -24,11 +22,7 @@ void main(void) {
     glFragDepth = glFragDepth * 0.5 + 0.5;
 #endif
 
-#ifdef FLUIDRENDERING_USE_LINEARZ
     float depth = clamp(realViewPos.z / cameraFar, 0., 1.);
-#else
-    float depth = glFragDepth;
-#endif
 
     gl_FragDepth = glFragDepth;
 

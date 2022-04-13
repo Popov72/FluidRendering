@@ -196,7 +196,6 @@ export class FluidRendering implements CreateSceneClass {
                     entity.targetRenderer.blurKernel = 10;
                     entity.targetRenderer.blurScale = 0.1;
                     entity.targetRenderer.blurDepthScale = 3.3;
-                    entity.targetRenderer.useLinearZ = true;
                 }
 
                 mesh.setEnabled(false);

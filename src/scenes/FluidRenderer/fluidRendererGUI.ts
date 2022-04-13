@@ -146,11 +146,6 @@ export class FluidRendererGUI {
             targets_fluidColor: this._parameterRead("targets_fluidColor"),
             targets_debug: this._parameterRead("targets_debug"),
             targets_debugFeature: this._parameterRead("targets_debugFeature"),
-            targets_checkMaxLengthThreshold: this._parameterRead("targets_checkMaxLengthThreshold"),
-            targets_maxLengthThreshold: this._parameterRead("targets_maxLengthThreshold"),
-            targets_useMinZDiff: this._parameterRead("targets_useMinZDiff"),
-            targets_checkNonBlurredDepth: this._parameterRead("targets_checkNonBlurredDepth"),
-            targets_useLinearZ: this._parameterRead("targets_useLinearZ"),
             targets_enableBlur: this._parameterRead("targets_enableBlur"),
             targets_blurSizeDivisor: this._parameterRead("targets_blurSizeDivisor"),
             targets_blurKernel: this._parameterRead("targets_blurKernel"),
@@ -169,7 +164,6 @@ export class FluidRendererGUI {
             }
         }
 
-
         this._addList(targetRenderers, params, "targets_index", "Index", targetList);
         this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_mapSize", "Map size", [64, 128, 256, 512, 1024, 2048, 4096]));
 
@@ -179,15 +173,6 @@ export class FluidRendererGUI {
         this._targetRenderersGUIElements.push(this._addCheckbox(menuColor, params, "targets_generateDiffuseTexture", "Generate diffuse texture"));
         this._targetRenderersGUIElements.push(this._addCheckbox(menuColor, params, "targets_diffuseTextureInGammaSpace", "Diffuse texture is in gamma space"));
         this._targetRenderersGUIElements.push(this._addColor(menuColor, params, "targets_fluidColor", "Fluid color"));
-
-        const menuSilhouette = targetRenderers.addFolder("Edges");
-        menuSilhouette.$title.style.fontStyle = "italic";
-
-        this._targetRenderersGUIElements.push(this._addCheckbox(menuSilhouette, params, "targets_checkMaxLengthThreshold", "Check max length threshold"));
-        this._targetRenderersGUIElements.push(this._addSlider(menuSilhouette, params, "targets_maxLengthThreshold", "Max length threshold", 0, 1, 0.001));
-        this._targetRenderersGUIElements.push(this._addCheckbox(menuSilhouette, params, "targets_useMinZDiff", "Use min Z-diff"));
-        this._targetRenderersGUIElements.push(this._addCheckbox(menuSilhouette, params, "targets_checkNonBlurredDepth", "Check non-blurred depth"));
-        this._targetRenderersGUIElements.push(this._addCheckbox(menuSilhouette, params, "targets_useLinearZ", "Use linear Z"));
 
         const menuBlur = targetRenderers.addFolder("Blur");
         menuBlur.$title.style.fontStyle = "italic";

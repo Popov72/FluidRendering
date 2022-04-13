@@ -21,6 +21,10 @@ export class FluidRenderingTargetRenderer {
     protected _engine: BABYLON.Engine;
     protected _id: number = FluidRenderingTargetRenderer._Id++;
 
+    protected _sourceCopy: BABYLON.Nullable<BABYLON.InternalTexture>;
+    protected _opaqueObjectsTexture: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
+    protected _copyPostProcess: BABYLON.Nullable<BABYLON.PostProcess>;
+
     protected _depthRenderTarget: BABYLON.Nullable<FluidRenderingRenderTarget>;
     protected _diffuseRenderTarget: BABYLON.Nullable<FluidRenderingRenderTarget>;
     protected _thicknessRenderTarget: BABYLON.Nullable<FluidRenderingRenderTarget>;
@@ -101,65 +105,6 @@ export class FluidRenderingTargetRenderer {
 
         this._debug = debug;
         this._needInitialization = true;
-    }
-
-    private _checkMaxLengthThreshold = false;
-
-    public get checkMaxLengthThreshold() {
-        return this._checkMaxLengthThreshold;
-    }
-
-    public set checkMaxLengthThreshold(useThreshold: boolean) {
-        if (this._checkMaxLengthThreshold === useThreshold) {
-            return;
-        }
-
-        this._needInitialization = this._needInitialization || (useThreshold && !this._checkMaxLengthThreshold || !useThreshold && this._checkMaxLengthThreshold);
-        this._checkMaxLengthThreshold = useThreshold;
-    }
-
-    private _maxLengthThreshold = 0.7;
-
-    public get maxLengthThreshold() {
-        return this._maxLengthThreshold;
-    }
-
-    public set maxLengthThreshold(threshold: number) {
-        if (this._maxLengthThreshold === threshold) {
-            return;
-        }
-
-        this._maxLengthThreshold = threshold;
-    }
-
-    private _useMinZDiff = true;
-
-    public get useMinZDiff() {
-        return this._useMinZDiff;
-    }
-
-    public set useMinZDiff(useMinZDiff: boolean) {
-        if (this._useMinZDiff === useMinZDiff) {
-            return;
-        }
-
-        this._needInitialization = this._needInitialization || (useMinZDiff && !this._useMinZDiff || !useMinZDiff && this._useMinZDiff);
-        this._useMinZDiff = useMinZDiff;
-    }
-
-    private _checkNonBlurredDepth = false;
-
-    public get checkNonBlurredDepth() {
-        return this._checkNonBlurredDepth;
-    }
-
-    public set checkNonBlurredDepth(check: boolean) {
-        if (this._checkNonBlurredDepth === check) {
-            return;
-        }
-
-        this._needInitialization = this._needInitialization || (check && !this._checkNonBlurredDepth || !check && this._checkNonBlurredDepth);
-        this._checkNonBlurredDepth = check;
     }
 
     private _showTexturesInInspector = true;
@@ -297,21 +242,6 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
-    private _useLinearZ = false;
-
-    public get useLinearZ() {
-        return this._useLinearZ;
-    }
-
-    public set useLinearZ(useLinearZ: boolean) {
-        if (this._useLinearZ === useLinearZ) {
-            return;
-        }
-
-        this._useLinearZ = useLinearZ;
-        this._needInitialization = true;
-    }
-
     constructor(scene: BABYLON.Scene, camera?: BABYLON.Camera) {
         this._scene = scene;
         this._engine = scene.getEngine();
@@ -329,6 +259,30 @@ export class FluidRenderingTargetRenderer {
 
         this._renderPostProcess = null;
         this._passPostProcess = null;
+
+        this._opaqueObjectsTexture = this._engine.createRenderTargetTexture({ width: this._engine.getRenderWidth(), height: this._engine.getRenderHeight() }, {
+            generateMipMaps: true,
+            type: BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE,
+            format: BABYLON.Constants.TEXTUREFORMAT_RGBA,
+            samplingMode: BABYLON.Constants.TEXTURE_TRILINEAR_SAMPLINGMODE,
+            generateDepthBuffer: false,
+            generateStencilBuffer: false,
+            samples: 1,
+        });
+        this._sourceCopy = null;
+
+        this._copyPostProcess = new BABYLON.PassPostProcess(
+            "copyTexture",
+            1,
+            null,
+            BABYLON.Texture.NEAREST_SAMPLINGMODE,
+            this._engine,
+        );
+
+        this._copyPostProcess.externalTextureSamplerBinding = true;
+        this._copyPostProcess.onApply = (effect) => {
+            effect._bindTexture("textureSampler", this._sourceCopy);
+        };
     }
 
     public initialize(): void {
@@ -344,14 +298,14 @@ export class FluidRenderingTargetRenderer {
 
         if (this.generateDiffuseTexture) {
             this._diffuseRenderTarget = new FluidRenderingRenderTarget("Diffuse", this._scene, this.mapSize, this.mapSize, this.mapSize,
-                BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RGBA, BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE,
+                BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RGBA, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
                 BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RGBA, true);
 
             this._initializeRenderTarget(this._diffuseRenderTarget);
         }
 
         this._thicknessRenderTarget = new FluidRenderingRenderTarget("Thickness", this._scene, this._engine.getRenderWidth(), this._engine.getRenderHeight(), this.mapSize,
-            BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE, BABYLON.Constants.TEXTUREFORMAT_R, BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE,
+            BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
             BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, true);
 
         this._initializeRenderTarget(this._thicknessRenderTarget);
@@ -391,7 +345,7 @@ export class FluidRenderingTargetRenderer {
         const engine = this._scene.getEngine();
         const targetSize = Math.floor(this.mapSize / this.blurSizeDivisor);
 
-        const uniformNames = ["projection", "invProjection", "invView", "texelSize", "dirLight", "camPos"];
+        const uniformNames = ["projection", "invProjection", "invView", "texelSize", "dirLight", "camPos", "cameraFar"];
         const samplerNames = ["nonBlurredDepthSampler", "depthSampler", "thicknessSampler", "reflectionSampler"];
         const defines = [];
 
@@ -412,20 +366,6 @@ export class FluidRenderingTargetRenderer {
             uniformNames.push("diffuseColor");
         }
 
-        if (this._useMinZDiff) {
-            defines.push("#define FLUIDRENDERING_USE_MINZ_DIFF");
-        }
-
-        if (this._checkMaxLengthThreshold) {
-            defines.push("#define FLUIDRENDERING_CHECK_MAXLENGTH");
-            uniformNames.push("maxLengthThreshold");
-        }
-
-        if (this._checkNonBlurredDepth) {
-            defines.push("#define FLUIDRENDERING_CHECK_NONBLURREDDEPTH");
-            samplerNames.push("nonBlurredDepthSampler");
-        }
-
         if (this._debug) {
             defines.push("#define FLUIDRENDERING_DEBUG");
             if (this._debugFeature !== FluidRenderingDebug.Normals) {
@@ -434,11 +374,6 @@ export class FluidRenderingTargetRenderer {
             } else {
                 defines.push("#define FLUIDRENDERING_DEBUG_SHOWNORMAL");
             }
-        }
-
-        if (this._useLinearZ) {
-            defines.push("#define FLUIDRENDERING_USE_LINEARZ");
-            uniformNames.push("cameraFar");
         }
 
         this._renderPostProcess = new BABYLON.PostProcess("FluidRendering", "renderFluid", uniformNames, samplerNames, 1, null, BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE, engine, false, defines.join("\n"), BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
@@ -454,9 +389,7 @@ export class FluidRenderingTargetRenderer {
 
             let texelSize = 1 / targetSize;
 
-            if (this._checkNonBlurredDepth) {
-                effect.setTexture("nonBlurredDepthSampler", this._depthRenderTarget!.texture);
-            }
+            effect._bindTexture("textureSampler", this._opaqueObjectsTexture!.texture!);
 
             if (!this._depthRenderTarget!.enableBlur) {
                 effect.setTexture("depthSampler", this._depthRenderTarget!.texture);
@@ -488,13 +421,7 @@ export class FluidRenderingTargetRenderer {
             effect.setVector3("dirLight", this.dirLight);
             effect.setVector3("camPos", this._camera!.globalPosition);
 
-            if (this._checkMaxLengthThreshold) {
-                effect.setFloat("maxLengthThreshold", this._maxLengthThreshold);
-            }
-
-            if (this._useLinearZ) {
-                effect.setFloat("cameraFar", this._camera!.maxZ);
-            }
+            effect.setFloat("cameraFar", this._camera!.maxZ);
 
             if (this._debug) {
                 let texture: BABYLON.Nullable<BABYLON.ThinTexture> = null;
@@ -524,8 +451,6 @@ export class FluidRenderingTargetRenderer {
                 }
                 if (this._debugFeature !== FluidRenderingDebug.Normals) {
                     effect.setTexture("debugSampler", texture);
-                } else {
-                    effect.setFloat("maxLengthThreshold", this._maxLengthThreshold);
                 }
             }
         });
@@ -579,6 +504,20 @@ export class FluidRenderingTargetRenderer {
         return null;
     }
 
+    private _copyTexture(textureDest: BABYLON.RenderTargetWrapper): void {
+        const engine = this._engine;
+    
+        const currentRenderTarget = engine._currentRenderTarget;
+
+        this._scene.postProcessManager.directRender([this._copyPostProcess!], textureDest);
+
+        engine.unBindFramebuffer(textureDest);
+
+        engine._currentRenderTarget = currentRenderTarget;
+
+        textureDest.texture!.isReady = true;
+    }
+    
     public clearTargets(): void {
         if (this._depthRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._depthRenderTarget.renderTarget);
@@ -605,9 +544,12 @@ export class FluidRenderingTargetRenderer {
             return;
         }
 
-        fluidObject.useLinearZ = this._useLinearZ;
-
         const currentRenderTarget = this._engine._currentRenderTarget;
+
+        this._sourceCopy = this._renderPostProcess!.inputTexture?.texture;
+        if (this._sourceCopy) {
+            this._copyTexture(this._opaqueObjectsTexture!);
+        }
 
         // Render the particles in the depth texture
         if (this._depthRenderTarget?.renderTarget) {
@@ -657,6 +599,12 @@ export class FluidRenderingTargetRenderer {
 
             this._thicknessRenderTarget?.dispose();
             this._thicknessRenderTarget = null;
+
+            /*this._copyPostProcess?.dispose();
+            this._copyPostProcess = null;
+
+            this._opaqueObjectsTexture?.dispose();
+            this._opaqueObjectsTexture = null;*/
         }
 
         if (this.needPostProcessChaining) {

@@ -1,5 +1,4 @@
 #define PI 3.14159265
-#define FOUR_PI 4.0 * PI
 #define GAMMA 2.2
 #define INV_GAMMA (1.0/GAMMA)
 
@@ -14,9 +13,6 @@
 
 uniform sampler2D textureSampler;
 uniform sampler2D depthSampler;
-#ifdef FLUIDRENDERING_CHECK_NONBLURREDDEPTH
-    uniform sampler2D nonBlurredDepthSampler;
-#endif
 #ifdef FLUIDRENDERING_DIFFUSETEXTURE
     uniform sampler2D diffuseSampler;
 #else
@@ -34,12 +30,7 @@ uniform mat4 invView;
 uniform float texelSize;
 uniform vec3 dirLight;
 uniform vec3 camPos;
-#ifdef FLUIDRENDERING_CHECK_MAXLENGTH
-    uniform float maxLengthThreshold;
-#endif
-#ifdef FLUIDRENDERING_USE_LINEARZ
-    uniform float cameraFar;
-#endif
+uniform float cameraFar;
 
 varying vec2 vUV;
 
@@ -49,23 +40,15 @@ const vec3 lightColour = vec3(2.0);
 const float CLARITY = 0.75;
 
 // Modifiers for light attenuation
-const float DENSITY = 10.0;
+const float DENSITY = 0.5;
 
 vec3 uvToEye(vec2 texCoord, float depth) {
     vec4 ndc;
     
-#ifdef FLUIDRENDERING_USE_LINEARZ
     depth = depth * cameraFar;
-#endif
 
     ndc.xy = texCoord * 2.0 - 1.0;
-#ifdef FLUIDRENDERING_USE_LINEARZ
     ndc.z = projection[2].z - projection[2].w / depth;
-#elif defined(IS_NDC_HALF_ZRANGE)
-    ndc.z = depth;
-#else
-    ndc.z = depth * 2.0 - 1.0;
-#endif
     ndc.w = 1.0;
 
     vec4 eyePos = invProjection * ndc;
@@ -158,15 +141,8 @@ void main(void) {
     return;
 #endif
 
-#ifdef FLUIDRENDERING_CHECK_NONBLURREDDEPTH
-    float nonBlurredDepth = texture2D(nonBlurredDepthSampler, texCoord).x;
-    if (nonBlurredDepth == 1.) {
-        glFragColor = vec4(1., 1., 1., 0.);
-        return;
-    }
-#endif
-
     float depth = texture2D(depthSampler, texCoord).x;
+    //vec3 backColor = texture2D(textureSampler, texCoord).rgb;
 
     if (depth == 1.) {
         glFragColor = vec4(1., 1., 1., 0.);
@@ -180,7 +156,6 @@ void main(void) {
     vec3 ddx = getEyePos(texCoord + vec2(texelSize, 0.)) - posEye;
     vec3 ddy = getEyePos(texCoord + vec2(0., texelSize)) - posEye;
 
-#ifdef FLUIDRENDERING_USE_MINZ_DIFF
     vec3 ddx2 = posEye - getEyePos(texCoord + vec2(-texelSize, 0.));
     if (abs(ddx.z) > abs(ddx2.z)) {
         ddx = ddx2;
@@ -190,14 +165,6 @@ void main(void) {
     if (abs(ddy.z) > abs(ddy2.z)) {
         ddy = ddy2;
     }
-#endif
-
-#ifdef FLUIDRENDERING_CHECK_MAXLENGTH
-    if (max(length(ddx), length(ddy)) > maxLengthThreshold) {
-        glFragColor = vec4(1., 1., 1., 0.);
-        return;
-    }
-#endif
 
     // calculate normal
     vec3 normal = cross(ddy, ddx);

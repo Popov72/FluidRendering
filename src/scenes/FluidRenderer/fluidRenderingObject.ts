@@ -32,21 +32,6 @@ export abstract class FluidRenderingObject {
         return !this.indexBuffer;
     }
 
-    protected _useLinearZ = false;
-
-    public get useLinearZ() {
-        return this._useLinearZ;
-    }
-
-    public set useLinearZ(useLinearZ: boolean) {
-        if (this._useLinearZ === useLinearZ) {
-            return;
-        }
-
-        this._useLinearZ = useLinearZ;
-        this._effectsAreDirty = true;
-    }
-
     public getClassName(): string {
         return "FluidRenderingObject";
     }
@@ -60,7 +45,7 @@ export abstract class FluidRenderingObject {
     }
 
     protected _createEffects(): void {
-        const uniformNames = ["view", "projection"];
+        const uniformNames = ["view", "projection", "cameraFar"];
         const attributeNames = ["position", "offset"];
         const defines = [];
 
@@ -71,11 +56,6 @@ export abstract class FluidRenderingObject {
             defines.push("#define FLUIDRENDERING_PARTICLESIZE_FROM_ATTRIBUTE");
         } else {
             uniformNames.push("size");
-        }
-
-        if (this._useLinearZ) {
-            defines.push("#define FLUIDRENDERING_USE_LINEARZ");
-            uniformNames.push("cameraFar");
         }
 
         this._depthEffectWrapper = new BABYLON.EffectWrapper({
@@ -140,9 +120,7 @@ export abstract class FluidRenderingObject {
         if (this._particleSize !== null) {
             depthEffect.setFloat2("size", this._particleSize, this._particleSize);
         }
-        if (this._useLinearZ) {
-            depthEffect.setFloat("cameraFar", this._scene.activeCamera?.maxZ ?? 10000);
-        }
+        depthEffect.setFloat("cameraFar", this._scene.activeCamera?.maxZ ?? 10000);
 
         if (this.useInstancing) {
             this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);
