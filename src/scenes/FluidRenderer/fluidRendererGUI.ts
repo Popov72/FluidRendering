@@ -146,6 +146,7 @@ export class FluidRendererGUI {
             targets_fluidColor: this._parameterRead("targets_fluidColor"),
             targets_clarity: this._parameterRead("targets_clarity"),
             targets_density: this._parameterRead("targets_density"),
+            targets_refractionStrength: this._parameterRead("targets_refractionStrength"),
             targets_debug: this._parameterRead("targets_debug"),
             targets_debugFeature: this._parameterRead("targets_debugFeature"),
             targets_enableBlur: this._parameterRead("targets_enableBlur"),
@@ -177,6 +178,7 @@ export class FluidRendererGUI {
         this._targetRenderersGUIElements.push(this._addColor(menuColor, params, "targets_fluidColor", "Fluid color"));
         this._targetRenderersGUIElements.push(this._addSlider(menuColor, params, "targets_clarity", "Clarity", 0, 1, 0.001));
         this._targetRenderersGUIElements.push(this._addSlider(menuColor, params, "targets_density", "Density", 0, 20, 0.01));
+        this._targetRenderersGUIElements.push(this._addSlider(menuColor, params, "targets_refractionStrength", "Refraction strength", 0, 0.3, 0.005));
 
         const menuBlur = targetRenderers.addFolder("Blur");
         menuBlur.$title.style.fontStyle = "italic";

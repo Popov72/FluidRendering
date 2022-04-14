@@ -30,6 +30,7 @@ uniform vec3 dirLight;
 uniform float cameraFar;
 uniform float clarity;
 uniform float density;
+uniform float refractionStrength;
 
 varying vec2 vUV;
 
@@ -65,7 +66,7 @@ vec3 fresnel(float cosTheta, vec3 F0){
 
 vec3 getEnvironment(vec3 rayDir, vec3 n, float thickness, vec3 fluidColour, vec2 texCoord){
     vec3 refractedDir = normalize(refract(rayDir, n, ETA));
-    vec3 transmitted = inv_gamma(texture2D(textureSampler, vec2(texCoord + refractedDir.xy * thickness * 0.02)).rgb);
+    vec3 transmitted = inv_gamma(texture2D(textureSampler, vec2(texCoord + refractedDir.xy * thickness * refractionStrength)).rgb);
     
     // Beer's law depending on the fluid colour
     vec3 transmittance = exp(-density * thickness * (1.0 - fluidColour));

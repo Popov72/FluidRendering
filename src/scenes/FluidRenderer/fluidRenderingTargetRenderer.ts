@@ -70,6 +70,8 @@ export class FluidRenderingTargetRenderer {
 
     public density = 0.5;
 
+    public refractionStrength = 0.02;
+
     public dirLight: BABYLON.Vector3 = new BABYLON.Vector3(-2, -1, 1).normalize();
 
     private _debugFeature: FluidRenderingDebug = FluidRenderingDebug.DepthBlurredTexture;
@@ -282,7 +284,7 @@ export class FluidRenderingTargetRenderer {
         const engine = this._scene.getEngine();
         const targetSize = Math.floor(this.mapSize / this.blurSizeDivisor);
 
-        const uniformNames = ["projection", "invProjection", "texelSize", "dirLight", "cameraFar", "clarity", "density"];
+        const uniformNames = ["projection", "invProjection", "texelSize", "dirLight", "cameraFar", "clarity", "density", "refractionStrength"];
         const samplerNames = ["depthSampler", "thicknessSampler", "reflectionSampler"];
         const defines = [];
 
@@ -347,6 +349,7 @@ export class FluidRenderingTargetRenderer {
             effect.setTexture("reflectionSampler", this._scene.environmentTexture);
             effect.setFloat("clarity", this.clarity);
             effect.setFloat("density", this.density);
+            effect.setFloat("refractionStrength", this.refractionStrength);
 
             effect.setVector3("dirLight", this.dirLight);
 
