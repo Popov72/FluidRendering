@@ -25,10 +25,8 @@ uniform samplerCube reflectionSampler;
 
 uniform mat4 projection;
 uniform mat4 invProjection;
-uniform mat4 invView;
 uniform float texelSize;
 uniform vec3 dirLight;
-uniform vec3 camPos;
 uniform float cameraFar;
 uniform float clarity;
 uniform float density;
