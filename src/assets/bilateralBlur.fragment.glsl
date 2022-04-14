@@ -10,7 +10,7 @@ varying vec2 vUV;
 void main(void) {
     float depth = texture2D(textureSampler, vUV).x;
 
-    if (depth == 1.) {
+    if (depth >= 1e10 || depth <= 0.) {
         glFragColor = vec4(vec3(depth), 0.);
         return;
     }

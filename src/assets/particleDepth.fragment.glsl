@@ -22,7 +22,7 @@ void main(void) {
     glFragDepth = glFragDepth * 0.5 + 0.5;
 #endif
 
-    float depth = clamp(realViewPos.z / cameraFar, 0., 1.);
+    float depth = realViewPos.z;
 
     gl_FragDepth = glFragDepth;
 

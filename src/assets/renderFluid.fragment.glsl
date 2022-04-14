@@ -1,4 +1,3 @@
-#define PI 3.14159265
 #define GAMMA 2.2
 #define INV_GAMMA (1.0/GAMMA)
 
@@ -36,13 +35,11 @@ uniform float density;
 
 varying vec2 vUV;
 
-vec3 uvToEye(vec2 texCoord, float depth) {
+vec3 computeViewPosFromUVDepth(vec2 texCoord, float depth) {
     vec4 ndc;
     
-    depth = depth * cameraFar;
-
     ndc.xy = texCoord * 2.0 - 1.0;
-    ndc.z = projection[2].z - projection[2].w / depth;
+    ndc.z = projection[2].z + projection[3].z / depth;
     ndc.w = 1.0;
 
     vec4 eyePos = invProjection * ndc;
@@ -51,18 +48,11 @@ vec3 uvToEye(vec2 texCoord, float depth) {
     return eyePos.xyz;
 }
 
-vec3 getEyePos(vec2 texCoord) {
+vec3 getViewPosFromTexCoord(vec2 texCoord) {
     float depth = texture2D(depthSampler, texCoord).x;
-    return uvToEye(texCoord, depth);
+    return computeViewPosFromUVDepth(texCoord, depth);
 }
 
-// Minimum dot product value
-const float minDot = 1e-5;
-
-// Clamped dot product
-float dot_c(vec3 a, vec3 b) {
-    return max(dot(a, b), minDot);
-}
 vec3 gamma(vec3 col) {
     return pow(col, vec3(INV_GAMMA));
 }
@@ -75,21 +65,18 @@ vec3 fresnel(float cosTheta, vec3 F0){
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 } 
 
-vec3 getEnvironment(vec3 rayDir, vec3 geoNormalFar, float thickness, vec3 waterColour, vec2 texCoord){
-    vec3 refractedDir = normalize(refract(rayDir, geoNormalFar, ETA));
+vec3 getEnvironment(vec3 rayDir, vec3 n, float thickness, vec3 fluidColour, vec2 texCoord){
+    vec3 refractedDir = normalize(refract(rayDir, n, ETA));
     vec3 transmitted = inv_gamma(texture2D(textureSampler, vec2(texCoord + refractedDir.xy * thickness * 0.02)).rgb);
     
-    // View depth
-    float d = density * thickness;
+    // Beer's law depending on the fluid colour
+    vec3 transmittance = exp(-density * thickness * (1.0 - fluidColour));
     
-    // Beer's law depending on the water colour
-    vec3 transmittance = exp( -d * (1.0 - waterColour));
-    
-    vec3 result = transmitted * transmittance;
-    return result;
+    vec3 refractionColor = transmitted * transmittance;
+    return refractionColor;
 }
 
-vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness, vec3 diffuseColor, vec2 texCoord){
+vec3 shading(vec3 p, vec3 n, vec3 rayDir, float thickness, vec3 diffuseColor, vec2 texCoord){
     vec3 F0 = vec3(0.02);
 
     vec3 result = vec3(0);
@@ -104,10 +91,10 @@ vec3 shadingPBR(vec3 cameraPos, vec3 p, vec3 n, vec3 rayDir, float thickness, ve
     vec3 reflectedDir = normalize(reflect(rayDir, n));
     vec3 reflectedCol = inv_gamma(textureCube(reflectionSampler, reflectedDir).rgb);
     
-    float cosTheta = dot_c(n, -rayDir);
+    float cosTheta = dot(n, -rayDir);
     vec3 F = clamp(fresnel(cosTheta, F0), 0., 1.);
     
-    result = mix(result, reflectedCol, 0.02);
+    result = mix(result, reflectedCol, F);
     
     return result;
 }
@@ -126,36 +113,36 @@ void main(void) {
 
 #if defined(FLUIDRENDERING_DEBUG) && defined(FLUIDRENDERING_DEBUG_TEXTURE)
     vec4 color = texture2D(debugSampler, texCoord);
-    glFragColor = color;
+    glFragColor = vec4(color.rgb / vec3(cameraFar), 1.);
     return;
 #endif
 
     float depth = texture2D(depthSampler, texCoord).x;
-    vec3 backColor = texture2D(textureSampler, texCoord).rgb;
+    float thickness = texture2D(thicknessSampler, texCoord).x;
 
-    if (depth == 1.) {
+    if (depth >= cameraFar || depth <= 0. || thickness == 0.) {
+        vec3 backColor = texture2D(textureSampler, texCoord).rgb;
         glFragColor = vec4(backColor, 1.);
         return;
     }
 
-    // calculate eye-space position from depth
-    vec3 posEye = uvToEye(texCoord, depth);
+    // calculate view-space position from depth
+    vec3 viewPos = computeViewPosFromUVDepth(texCoord, depth);
 
-    // calculate differences
-    vec3 ddx = getEyePos(texCoord + vec2(texelSize, 0.)) - posEye;
-    vec3 ddy = getEyePos(texCoord + vec2(0., texelSize)) - posEye;
+    // calculate normal
+    vec3 ddx = getViewPosFromTexCoord(texCoord + vec2(texelSize, 0.)) - viewPos;
+    vec3 ddy = getViewPosFromTexCoord(texCoord + vec2(0., texelSize)) - viewPos;
 
-    vec3 ddx2 = posEye - getEyePos(texCoord + vec2(-texelSize, 0.));
+    vec3 ddx2 = viewPos - getViewPosFromTexCoord(texCoord + vec2(-texelSize, 0.));
     if (abs(ddx.z) > abs(ddx2.z)) {
         ddx = ddx2;
     }
 
-    vec3 ddy2 = posEye - getEyePos(texCoord + vec2(0., -texelSize));
+    vec3 ddy2 = viewPos - getViewPosFromTexCoord(texCoord + vec2(0., -texelSize));
     if (abs(ddy.z) > abs(ddy2.z)) {
         ddy = ddy2;
     }
 
-    // calculate normal
     vec3 normal = cross(ddy, ddx);
 #ifndef WEBGPU
     if(isnan(normal.x) || isnan(normal.y) || isnan(normal.z) ||
@@ -164,7 +151,7 @@ void main(void) {
     }
 #endif
 
-    normal = normalize((invView * vec4(normal, 0.)).xyz);
+    normal = normalize(normal);
 
 #if defined(FLUIDRENDERING_DEBUG) && defined(FLUIDRENDERING_DEBUG_SHOWNORMAL)
     glFragColor = vec4(normal * 0.5 + 0.5, 1.0);
@@ -172,13 +159,7 @@ void main(void) {
 #endif
 
     // shading
-    float thickness = texture2D(thicknessSampler, texCoord).x;
-    if (thickness == 0.) {
-        glFragColor = vec4(backColor, 1.);
-        return;
-    }
-    vec3 posWorld = (invView * vec4(posEye, 1.)).xyz;
-    vec3 rayDir = normalize(posWorld - camPos);
+    vec3 rayDir = normalize(viewPos);
 
 #ifdef FLUIDRENDERING_DIFFUSETEXTURE
     vec3 diffuseColor = texture2D(diffuseSampler, texCoord).rgb;
@@ -187,7 +168,7 @@ void main(void) {
     #endif
 #endif
 
-    vec3 col = shadingPBR(camPos, posWorld, normal, rayDir, thickness, diffuseColor, texCoord);
+    vec3 col = shading(viewPos, normal, rayDir, thickness, diffuseColor, texCoord);
 
     //Tonemapping.
     col = ACESFilm(col);
@@ -196,10 +177,5 @@ void main(void) {
     col = pow(col, vec3(INV_GAMMA));
 
     //Output to screen.
-    //glFragColor = vec4(normal*0.5+0.5, 1./*thickness*/);
     glFragColor = vec4(col, 1.);
-    
-    //glFragColor = vec4(clamp(abs(posEye/10.), 0., 1.), 1.);
-    //glFragColor = vec4(depth, depth, depth, 1.);
-    //glFragColor = vec4(normal * 0.5 + 0.5, 1.);
 }
