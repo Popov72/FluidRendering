@@ -77,11 +77,11 @@ export class FluidRenderer {
         return index !== -1 ? this._renderObjects[index] : null;
     }
 
-    public addParticleSystem(ps: BABYLON.ParticleSystem, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer): IFluidRenderingRenderObject {
+    public addParticleSystem(ps: BABYLON.ParticleSystem, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer, camera?: BABYLON.Camera): IFluidRenderingRenderObject {
         const object = new FluidRenderingObjectParticleSystem(this._scene, ps);
 
         if (!targetRenderer) {
-            targetRenderer = new FluidRenderingTargetRenderer(this._scene);
+            targetRenderer = new FluidRenderingTargetRenderer(this._scene, camera);
             this._targetRenderers.push(targetRenderer);
         }
 
@@ -98,11 +98,11 @@ export class FluidRenderer {
         return renderObject;
     }
 
-    public addVertexBuffer(vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer): IFluidRenderingRenderObject {
+    public addVertexBuffer(vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer, camera?: BABYLON.Camera): IFluidRenderingRenderObject {
         const object = new FluidRenderingObjectVertexBuffer(this._scene, vertexBuffers, numParticles);
 
         if (!targetRenderer) {
-            targetRenderer = new FluidRenderingTargetRenderer(this._scene);
+            targetRenderer = new FluidRenderingTargetRenderer(this._scene, camera);
             this._targetRenderers.push(targetRenderer);
         }
 
@@ -221,11 +221,37 @@ export class FluidRenderer {
             this._targetRenderers[i].dispose();
         }
 
+        const cameras = new Map<BABYLON.Camera, Array<FluidRenderingTargetRenderer>>();
         for (let i = 0; i < this._targetRenderers.length; ++i) {
             const targetRenderer = this._targetRenderers[i];
 
-            targetRenderer.positionOrder = i;
             targetRenderer.initialize();
+
+            if (targetRenderer.camera && targetRenderer.renderPostProcess) {
+                let list = cameras.get(targetRenderer.camera);
+                if (!list) {
+                    list = [];
+                    cameras.set(targetRenderer.camera, list);
+                }
+                list.push(targetRenderer);
+                targetRenderer.camera.attachPostProcess(targetRenderer.renderPostProcess, i);
+            }
+        }
+
+        for (const [camera, list] of cameras) {
+            const firstPostProcess = camera._getFirstPostProcess();
+            if (firstPostProcess) {
+                firstPostProcess.onSizeChangedObservable.add(() => {
+                    if (!firstPostProcess.inputTexture.depthStencilTexture) {
+                        firstPostProcess.inputTexture.createDepthStencilTexture(0, true, this._engine.isStencilEnable, 1);
+                    }
+                    for (const targetRenderer of list) {
+                        if (targetRenderer.thicknessRenderTarget?.renderTarget) {
+                            firstPostProcess.inputTexture._shareDepth(targetRenderer.thicknessRenderTarget.renderTarget);
+                        }
+                    }
+                });
+            }
         }
     }
 

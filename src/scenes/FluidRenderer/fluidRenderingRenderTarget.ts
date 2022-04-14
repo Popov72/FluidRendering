@@ -6,6 +6,7 @@ export class FluidRenderingRenderTarget {
     protected _engine: BABYLON.Engine;
     protected _width: number;
     protected _height: number;
+    protected _isInGammaSpace: boolean;
     protected _blurTextureSize: number;
     protected _textureType: number;
     protected _textureFormat: number;
@@ -15,12 +16,10 @@ export class FluidRenderingRenderTarget {
     protected _useStandardBlur: boolean;
 
     protected _rt: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
-    protected _texture: BABYLON.Nullable<BABYLON.ThinTexture>;
+    protected _texture: BABYLON.Nullable<BABYLON.Texture>;
     protected _rtBlur: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
-    protected _textureBlurred: BABYLON.Nullable<BABYLON.ThinTexture>;
+    protected _textureBlurred: BABYLON.Nullable<BABYLON.Texture>;
     protected _blurPostProcesses: BABYLON.Nullable<BABYLON.PostProcess[]>;
-
-    public showTexturesInInspector = true;
 
     public enableBlur = true;
 
@@ -50,7 +49,7 @@ export class FluidRenderingRenderTarget {
         return this._textureBlurred;
     }
 
-    constructor(name: string, scene: BABYLON.Scene, width: number, height: number, blurTextureSize: number,
+    constructor(name: string, scene: BABYLON.Scene, width: number, height: number, isInGammeSpace: boolean, blurTextureSize: number,
         textureType: number = BABYLON.Constants.TEXTURETYPE_FLOAT, textureFormat: number = BABYLON.Constants.TEXTUREFORMAT_R, textureSamplingMode: number = BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
         blurTextureType: number = BABYLON.Constants.TEXTURETYPE_FLOAT, blurTextureFormat: number = BABYLON.Constants.TEXTUREFORMAT_R, useStandardBlur = false)
     {
@@ -59,6 +58,7 @@ export class FluidRenderingRenderTarget {
         this._engine = scene.getEngine();
         this._width = width;
         this._height = height;
+        this._isInGammaSpace =isInGammeSpace;
         this._blurTextureSize = blurTextureSize;
         this._textureType = textureType;
         this._textureFormat = textureFormat;
@@ -107,23 +107,15 @@ export class FluidRenderingRenderTarget {
 
         const renderTexture = this._rt.texture!;
 
-        this._texture = new BABYLON.ThinTexture(renderTexture);
-
+        this._texture = new BABYLON.Texture(null, this._scene);
+        this._texture.name = "rtt" + this._name;
+        this._texture._texture = renderTexture;
         this._texture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
         this._texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-
-        if (this.showTexturesInInspector) {
-            const texture = new BABYLON.Texture(null, this._scene);
-            texture.name = "rtt" + this._name;
-            texture._texture = renderTexture;
-            texture._texture.incrementReferences();
-            this.onDisposeObservable.add(() => {
-                texture.dispose();
-            });
-        }
+        this._texture.gammaSpace = this._isInGammaSpace;
     }
 
-    protected _createBlurPostProcesses(textureBlurSource: BABYLON.ThinTexture, textureType: number, textureFormat: number, blurSizeDivisor: number, debugName: string, useStandardBlur = false): [BABYLON.RenderTargetWrapper, BABYLON.ThinTexture, BABYLON.PostProcess[]] {
+    protected _createBlurPostProcesses(textureBlurSource: BABYLON.ThinTexture, textureType: number, textureFormat: number, blurSizeDivisor: number, debugName: string, useStandardBlur = false): [BABYLON.RenderTargetWrapper, BABYLON.Texture, BABYLON.PostProcess[]] {
         const engine = this._scene.getEngine();
         const targetSize = Math.floor(this._blurTextureSize / blurSizeDivisor);
         const supportFloatLinearFiltering = engine.getCaps().textureFloatLinearFiltering;
@@ -140,18 +132,12 @@ export class FluidRenderingRenderTarget {
 
         const renderTexture = rtBlur.texture!;
 
-        renderTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-        renderTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-
-        if (this.showTexturesInInspector) {
-            const texture = new BABYLON.Texture(null, this._scene);
-            texture.name = "rttBlurred" + debugName;
-            texture._texture = renderTexture;
-            texture._texture.incrementReferences();
-            this.onDisposeObservable.add(() => {
-                texture.dispose();
-            });
-        }
+        const texture = new BABYLON.Texture(null, this._scene);
+        texture.name = "rttBlurred" + debugName;
+        texture._texture = renderTexture;
+        texture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+        texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+        texture.gammaSpace = this._isInGammaSpace;
 
         const kernelBlurXPostprocess = new BABYLON.PostProcess("BilateralBlurX", useStandardBlur ? "standardBlur" : "bilateralBlur", ["filterRadius", "blurScale", "blurDir", "blurDepthFalloff"],
             null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
@@ -192,7 +178,7 @@ export class FluidRenderingRenderTarget {
         kernelBlurXPostprocess.autoClear = false;
         kernelBlurYPostprocess.autoClear = false;
 
-        return [rtBlur, new BABYLON.ThinTexture(renderTexture), [kernelBlurXPostprocess, kernelBlurYPostprocess]];
+        return [rtBlur, texture, [kernelBlurXPostprocess, kernelBlurYPostprocess]];
     }
 
     public dispose(): void {

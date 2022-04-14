@@ -14,22 +14,17 @@ export enum FluidRenderingDebug {
 
 export class FluidRenderingTargetRenderer {
 
-    private static _Id = 1;
-
     protected _scene: BABYLON.Scene;
     protected _camera: BABYLON.Nullable<BABYLON.Camera>;
     protected _engine: BABYLON.Engine;
-    protected _id: number = FluidRenderingTargetRenderer._Id++;
 
     protected _depthRenderTarget: BABYLON.Nullable<FluidRenderingRenderTarget>;
     protected _diffuseRenderTarget: BABYLON.Nullable<FluidRenderingRenderTarget>;
     protected _thicknessRenderTarget: BABYLON.Nullable<FluidRenderingRenderTarget>;
 
     protected _renderPostProcess: BABYLON.Nullable<BABYLON.PostProcess>;
-    protected _passPostProcess: BABYLON.Nullable<BABYLON.PostProcess>;
 
     protected _invProjectionMatrix: BABYLON.Matrix;
-    protected _invViewMatrix: BABYLON.Matrix;
     protected _depthClearColor: BABYLON.Color4;
     protected _thicknessClearColor: BABYLON.Color4;
 
@@ -104,21 +99,6 @@ export class FluidRenderingTargetRenderer {
         }
 
         this._debug = debug;
-        this._needInitialization = true;
-    }
-
-    private _showTexturesInInspector = true;
-
-    public get showTexturesInInspector() {
-        return this._showTexturesInInspector;
-    }
-
-    public set showTexturesInInspector(showInInspector: boolean) {
-        if (this._showTexturesInInspector === showInInspector) {
-            return;
-        }
-
-        this._showTexturesInInspector = showInInspector;
         this._needInitialization = true;
     }
 
@@ -212,19 +192,18 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
-    private _positionOrder = 0;
-
-    public get positionOrder() {
-        return this._positionOrder;
+    public get camera() {
+        return this._camera;
     }
 
-    public set positionOrder(order: number) {
-        if (this._positionOrder === order) {
-            return;
-        }
+    /** @hidden */
+    public get renderPostProcess() {
+        return this._renderPostProcess;
+    }
 
-        this._positionOrder = order;
-        this._needInitialization = true;
+    /** @hidden */
+    public get thicknessRenderTarget() {
+        return this._thicknessRenderTarget;
     }
 
     constructor(scene: BABYLON.Scene, camera?: BABYLON.Camera) {
@@ -234,8 +213,7 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     
         this._invProjectionMatrix = new BABYLON.Matrix();
-        this._invViewMatrix = new BABYLON.Matrix();
-        this._depthClearColor = new BABYLON.Color4(1, 1, 1, 1);
+        this._depthClearColor = new BABYLON.Color4(1e10, 1e10, 1e10, 1);
         this._thicknessClearColor = new BABYLON.Color4(0, 0, 0, 1);
 
         this._depthRenderTarget = null;
@@ -243,7 +221,6 @@ export class FluidRenderingTargetRenderer {
         this._thicknessRenderTarget = null;
 
         this._renderPostProcess = null;
-        this._passPostProcess = null;
     }
 
     public initialize(): void {
@@ -251,21 +228,21 @@ export class FluidRenderingTargetRenderer {
 
         this._needInitialization = false;
 
-        this._depthRenderTarget = new FluidRenderingRenderTarget("Depth", this._scene, this.mapSize, this.mapSize, this.mapSize,
+        this._depthRenderTarget = new FluidRenderingRenderTarget("Depth", this._scene, this._mapSize, this._mapSize, false, this._mapSize,
             BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
             BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, false);
 
         this._initializeRenderTarget(this._depthRenderTarget);
 
         if (this.generateDiffuseTexture) {
-            this._diffuseRenderTarget = new FluidRenderingRenderTarget("Diffuse", this._scene, this.mapSize, this.mapSize, this.mapSize,
+            this._diffuseRenderTarget = new FluidRenderingRenderTarget("Diffuse", this._scene, this._mapSize, this._mapSize, this._diffuseTextureInGammaSpace, this._mapSize,
                 BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RGBA, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
                 BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RGBA, true);
 
             this._initializeRenderTarget(this._diffuseRenderTarget);
         }
 
-        this._thicknessRenderTarget = new FluidRenderingRenderTarget("Thickness", this._scene, this._engine.getRenderWidth(), this._engine.getRenderHeight(), this.mapSize,
+        this._thicknessRenderTarget = new FluidRenderingRenderTarget("Thickness", this._scene, this._engine.getRenderWidth(), this._engine.getRenderHeight(), false, this._mapSize,
             BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
             BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, true);
 
@@ -293,7 +270,6 @@ export class FluidRenderingTargetRenderer {
     }
 
     protected _initializeRenderTarget(renderTarget: FluidRenderingRenderTarget): void {
-        renderTarget.showTexturesInInspector = this.showTexturesInInspector;
         renderTarget.enableBlur = this.enableBlur;
         renderTarget.blurSizeDivisor = this.blurSizeDivisor;
 
@@ -306,8 +282,8 @@ export class FluidRenderingTargetRenderer {
         const engine = this._scene.getEngine();
         const targetSize = Math.floor(this.mapSize / this.blurSizeDivisor);
 
-        const uniformNames = ["projection", "invProjection", "invView", "texelSize", "dirLight", "camPos", "cameraFar", "clarity", "density"];
-        const samplerNames = ["nonBlurredDepthSampler", "depthSampler", "thicknessSampler", "reflectionSampler"];
+        const uniformNames = ["projection", "invProjection", "texelSize", "dirLight", "cameraFar", "clarity", "density"];
+        const samplerNames = ["depthSampler", "thicknessSampler", "reflectionSampler"];
         const defines = [];
 
         this.dispose(true);
@@ -316,11 +292,11 @@ export class FluidRenderingTargetRenderer {
             return;
         }
 
-        if (this._generateDiffuseTexture) {
+        if (this._diffuseRenderTarget) {
             samplerNames.push("diffuseSampler");
             defines.push("#define FLUIDRENDERING_DIFFUSETEXTURE");
 
-            if (this._diffuseTextureInGammaSpace) {
+            if (this._diffuseRenderTarget.texture?.gammaSpace) {
                 defines.push("#define FLUIDRENDERING_DIFFUSETEXTURE_GAMMASPACE");
             }
         } else {
@@ -338,13 +314,9 @@ export class FluidRenderingTargetRenderer {
         }
 
         this._renderPostProcess = new BABYLON.PostProcess("FluidRendering", "renderFluid", uniformNames, samplerNames, 1, null, BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE, engine, false, defines.join("\n"), BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
-        this._camera.attachPostProcess(this._renderPostProcess, this._positionOrder);
         this._renderPostProcess.onApplyObservable.add((effect) => {
             this._invProjectionMatrix.copyFrom(this._scene.getProjectionMatrix());
             this._invProjectionMatrix.invert();
-
-            this._invViewMatrix.copyFrom(this._scene.getViewMatrix());
-            this._invViewMatrix.invert();
 
             let texelSize = 1 / targetSize;
 
@@ -371,14 +343,12 @@ export class FluidRenderingTargetRenderer {
 
             effect.setMatrix("invProjection", this._invProjectionMatrix);
             effect.setMatrix("projection", this._scene.getProjectionMatrix());
-            effect.setMatrix("invView", this._invViewMatrix);
             effect.setFloat("texelSize", texelSize);
             effect.setTexture("reflectionSampler", this._scene.environmentTexture);
             effect.setFloat("clarity", this.clarity);
             effect.setFloat("density", this.density);
 
             effect.setVector3("dirLight", this.dirLight);
-            effect.setVector3("camPos", this._camera!.globalPosition);
 
             effect.setFloat("cameraFar", this._camera!.maxZ);
 
@@ -413,24 +383,6 @@ export class FluidRenderingTargetRenderer {
                 }
             }
         });
-
-        if (this._positionOrder === 0) {
-            this._renderPostProcess.onSizeChangedObservable.add(() => {
-                if (!this._renderPostProcess!.inputTexture.depthStencilTexture) {
-                    this._renderPostProcess!.inputTexture.createDepthStencilTexture(0, true, engine.isStencilEnable, 1);
-                }
-                if (this._thicknessRenderTarget?.renderTarget) {
-                    this._renderPostProcess!.inputTexture._shareDepth(this._thicknessRenderTarget.renderTarget);
-                }
-            });
-        } else {
-            const firstPP = this._camera._getFirstPostProcess()!;
-            firstPP.onSizeChangedObservable.add(() => {
-                if (this._thicknessRenderTarget?.renderTarget) {
-                    firstPP.inputTexture._shareDepth(this._thicknessRenderTarget.renderTarget);
-                }
-            });
-        }
     }
 
     public clearTargets(): void {
@@ -516,12 +468,6 @@ export class FluidRenderingTargetRenderer {
         }
         this._renderPostProcess?.dispose();
         this._renderPostProcess = null;
-
-        if (this._passPostProcess && this._camera) {
-            this._camera.detachPostProcess(this._passPostProcess);
-        }
-        this._passPostProcess?.dispose();
-        this._passPostProcess = null;
 
         this._needInitialization = false;
     }
