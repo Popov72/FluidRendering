@@ -7,8 +7,9 @@
 // Ratios of air and water IOR for refraction
 // Air to water
 #define ETA 1.0/IOR
-// Water to air
-#define ETA_REVERSE IOR
+
+// Fresnel at 0°
+#define F0 vec3(0.02)
 
 uniform sampler2D textureSampler;
 uniform sampler2D depthSampler;
@@ -23,9 +24,10 @@ uniform samplerCube reflectionSampler;
     uniform sampler2D debugSampler;
 #endif
 
-uniform mat4 projection;
-uniform mat4 invProjection;
-uniform float texelSize;
+uniform mat4 viewMatrix;
+uniform mat4 projectionMatrix;
+uniform mat4 invProjectionMatrix;
+uniform vec2 texelSize;
 uniform vec3 dirLight;
 uniform float cameraFar;
 uniform float clarity;
@@ -38,10 +40,10 @@ vec3 computeViewPosFromUVDepth(vec2 texCoord, float depth) {
     vec4 ndc;
     
     ndc.xy = texCoord * 2.0 - 1.0;
-    ndc.z = projection[2].z + projection[3].z / depth;
+    ndc.z = projectionMatrix[2].z + projectionMatrix[3].z / depth;
     ndc.w = 1.0;
 
-    vec4 eyePos = invProjection * ndc;
+    vec4 eyePos = invProjectionMatrix * ndc;
     eyePos.xyz /= eyePos.w;
 
     return eyePos.xyz;
@@ -55,47 +57,9 @@ vec3 getViewPosFromTexCoord(vec2 texCoord) {
 vec3 gamma(vec3 col) {
     return pow(col, vec3(INV_GAMMA));
 }
+
 vec3 inv_gamma(vec3 col) {
     return pow(col, vec3(GAMMA));
-}
-
-// Fresnel-Schlick
-vec3 fresnel(float cosTheta, vec3 F0){
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-} 
-
-vec3 getEnvironment(vec3 rayDir, vec3 n, float thickness, vec3 fluidColour, vec2 texCoord){
-    vec3 refractedDir = normalize(refract(rayDir, n, ETA));
-    vec3 transmitted = inv_gamma(texture2D(textureSampler, vec2(texCoord + refractedDir.xy * thickness * refractionStrength)).rgb);
-    
-    // Beer's law depending on the fluid colour
-    vec3 transmittance = exp(-density * thickness * (1.0 - fluidColour));
-    
-    vec3 refractionColor = transmitted * transmittance;
-    return refractionColor;
-}
-
-vec3 shading(vec3 p, vec3 n, vec3 rayDir, float thickness, vec3 diffuseColor, vec2 texCoord){
-    vec3 F0 = vec3(0.02);
-
-    vec3 result = vec3(0);
-    
-    result += clarity * getEnvironment(refract(rayDir, n, ETA), 
-                                -n,
-                                thickness,
-                                diffuseColor,
-                                texCoord);
-
-    // Reflection of the environment.
-    vec3 reflectedDir = normalize(reflect(rayDir, n));
-    vec3 reflectedCol = inv_gamma(textureCube(reflectionSampler, reflectedDir).rgb);
-    
-    float cosTheta = dot(n, -rayDir);
-    vec3 F = clamp(fresnel(cosTheta, F0), 0., 1.);
-    
-    result = mix(result, reflectedCol, F);
-    
-    return result;
 }
 
 vec3 ACESFilm(vec3 x){
@@ -112,7 +76,11 @@ void main(void) {
 
 #if defined(FLUIDRENDERING_DEBUG) && defined(FLUIDRENDERING_DEBUG_TEXTURE)
     vec4 color = texture2D(debugSampler, texCoord);
-    glFragColor = vec4(color.rgb / vec3(cameraFar), 1.);
+    #ifdef FLUIDRENDERING_DEBUG_DEPTH
+        glFragColor = vec4(color.rgb / vec3(cameraFar), 1.);
+    #else
+        glFragColor = vec4(color.rgb, 1.);
+    #endif
     return;
 #endif
 
@@ -129,15 +97,15 @@ void main(void) {
     vec3 viewPos = computeViewPosFromUVDepth(texCoord, depth);
 
     // calculate normal
-    vec3 ddx = getViewPosFromTexCoord(texCoord + vec2(texelSize, 0.)) - viewPos;
-    vec3 ddy = getViewPosFromTexCoord(texCoord + vec2(0., texelSize)) - viewPos;
+    vec3 ddx = getViewPosFromTexCoord(texCoord + vec2(texelSize.x, 0.)) - viewPos;
+    vec3 ddy = getViewPosFromTexCoord(texCoord + vec2(0., texelSize.y)) - viewPos;
 
-    vec3 ddx2 = viewPos - getViewPosFromTexCoord(texCoord + vec2(-texelSize, 0.));
+    vec3 ddx2 = viewPos - getViewPosFromTexCoord(texCoord + vec2(-texelSize.x, 0.));
     if (abs(ddx.z) > abs(ddx2.z)) {
         ddx = ddx2;
     }
 
-    vec3 ddy2 = viewPos - getViewPosFromTexCoord(texCoord + vec2(0., -texelSize));
+    vec3 ddy2 = viewPos - getViewPosFromTexCoord(texCoord + vec2(0., -texelSize.y));
     if (abs(ddy.z) > abs(ddy2.z)) {
         ddy = ddy2;
     }
@@ -158,7 +126,7 @@ void main(void) {
 #endif
 
     // shading
-    vec3 rayDir = normalize(viewPos);
+    vec3 rayDir = normalize(viewPos); // direction from camera position to view position
 
 #ifdef FLUIDRENDERING_DIFFUSETEXTURE
     vec3 diffuseColor = texture2D(diffuseSampler, texCoord).rgb;
@@ -167,14 +135,39 @@ void main(void) {
     #endif
 #endif
 
-    vec3 col = shading(viewPos, normal, rayDir, thickness, diffuseColor, texCoord);
+    vec3  lightDir = normalize(vec3(viewMatrix * vec4(-dirLight, 0.)));
+    vec3  H        = normalize(lightDir - rayDir);
+    float specular = pow(max(0.0, dot(H, normal)), 250.);
+    float diffuse  = max(0.0, dot(lightDir, normal)) * 1.0;
 
-    //Tonemapping.
-    col = ACESFilm(col);
+#ifdef FLUIDRENDERING_DEBUG_DIFFUSERENDERING
+    glFragColor = vec4(vec3(0.1) /*ambient*/ + vec3(0.42, 0.50, 1.00) * diffuse + vec3(0, 0, 0.2) + specular, 1.);
+    return;
+#endif
 
-    //Gamma correction
-    col = pow(col, vec3(INV_GAMMA));
+    // Refraction color
+    vec3 refractionDir = refract(rayDir, normal, ETA);
 
-    //Output to screen.
-    glFragColor = vec4(col, 1.);
+    vec3 transmitted = inv_gamma(texture2D(textureSampler, vec2(texCoord + refractionDir.xy * thickness * refractionStrength)).rgb);
+    vec3 transmittance = exp(-density * thickness * (1.0 - diffuseColor)); // Beer law
+   
+    vec3 refractionColor = clarity * transmitted * transmittance;
+
+    // Reflection of the environment.
+    vec3 reflectionDir = reflect(rayDir, normal);
+    vec3 reflectionColor = inv_gamma(textureCube(reflectionSampler, reflectionDir).rgb);
+
+    // Combine refraction and reflection    
+    vec3 fresnel = clamp(F0 + (1.0 - F0) * pow(1.0 - dot(normal, -rayDir), 5.0), 0., 1.);
+    
+    vec3 finalColor = mix(refractionColor, reflectionColor, fresnel) + specular;
+
+    // Tonemapping
+    finalColor = ACESFilm(finalColor);
+
+    // Gamma correction
+    finalColor = gamma(finalColor);
+
+    // Output to screen
+    glFragColor = vec4(finalColor, 1.);
 }
