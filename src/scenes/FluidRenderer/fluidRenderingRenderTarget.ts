@@ -7,7 +7,8 @@ export class FluidRenderingRenderTarget {
     protected _width: number;
     protected _height: number;
     protected _isInGammaSpace: boolean;
-    protected _blurTextureSize: number;
+    protected _blurTextureSizeX: number;
+    protected _blurTextureSizeY: number;
     protected _textureType: number;
     protected _textureFormat: number;
     protected _textureSamplingMode: number;
@@ -49,7 +50,7 @@ export class FluidRenderingRenderTarget {
         return this._textureBlurred;
     }
 
-    constructor(name: string, scene: BABYLON.Scene, width: number, height: number, isInGammeSpace: boolean, blurTextureSize: number,
+    constructor(name: string, scene: BABYLON.Scene, width: number, height: number, isInGammeSpace: boolean, blurTextureSizeX: number, blurTextureSizeY: number,
         textureType: number = BABYLON.Constants.TEXTURETYPE_FLOAT, textureFormat: number = BABYLON.Constants.TEXTUREFORMAT_R, textureSamplingMode: number = BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
         blurTextureType: number = BABYLON.Constants.TEXTURETYPE_FLOAT, blurTextureFormat: number = BABYLON.Constants.TEXTUREFORMAT_R, useStandardBlur = false)
     {
@@ -59,7 +60,8 @@ export class FluidRenderingRenderTarget {
         this._width = width;
         this._height = height;
         this._isInGammaSpace =isInGammeSpace;
-        this._blurTextureSize = blurTextureSize;
+        this._blurTextureSizeX = blurTextureSizeX;
+        this._blurTextureSizeY = blurTextureSizeY;
         this._textureType = textureType;
         this._textureFormat = textureFormat;
         this._textureSamplingMode = textureSamplingMode;
@@ -117,10 +119,10 @@ export class FluidRenderingRenderTarget {
 
     protected _createBlurPostProcesses(textureBlurSource: BABYLON.ThinTexture, textureType: number, textureFormat: number, blurSizeDivisor: number, debugName: string, useStandardBlur = false): [BABYLON.RenderTargetWrapper, BABYLON.Texture, BABYLON.PostProcess[]] {
         const engine = this._scene.getEngine();
-        const targetSize = Math.floor(this._blurTextureSize / blurSizeDivisor);
+        const targetSize = new BABYLON.Vector2(Math.floor(this._blurTextureSizeX / blurSizeDivisor), Math.floor(this._blurTextureSizeY / blurSizeDivisor));
         const supportFloatLinearFiltering = engine.getCaps().textureFloatLinearFiltering;
 
-        const rtBlur = this._engine.createRenderTargetTexture(targetSize, {
+        const rtBlur = this._engine.createRenderTargetTexture({ width: targetSize.x, height: targetSize.y }, {
             generateMipMaps: false,
             type: textureType,
             format: textureFormat,
@@ -142,13 +144,13 @@ export class FluidRenderingRenderTarget {
         const kernelBlurXPostprocess = new BABYLON.PostProcess("BilateralBlurX", useStandardBlur ? "standardBlur" : "bilateralBlur", ["filterRadius", "blurScale", "blurDir", "blurDepthFalloff"],
             null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
             engine, false, null, textureType, undefined, undefined, undefined, textureFormat);
-        kernelBlurXPostprocess.width = targetSize;
-        kernelBlurXPostprocess.height = targetSize;
+        kernelBlurXPostprocess.width = targetSize.x;
+        kernelBlurXPostprocess.height = targetSize.y;
         kernelBlurXPostprocess.externalTextureSamplerBinding = true;
         kernelBlurXPostprocess.onApplyObservable.add((effect) => {
             effect.setTexture("textureSampler", textureBlurSource);
             effect.setFloat("filterRadius", this.blurKernel >> 1);
-            effect.setFloat2("blurDir", 1 / this._blurTextureSize, 0);
+            effect.setFloat2("blurDir", 1 / this._blurTextureSizeX, 0);
             effect.setFloat("blurScale", this.blurScale);
             effect.setFloat("blurDepthFalloff", this.blurDepthScale);
         });
@@ -164,7 +166,7 @@ export class FluidRenderingRenderTarget {
             engine, false, null, textureType, undefined, undefined, undefined, textureFormat);
         kernelBlurYPostprocess.onApplyObservable.add((effect) => {
             effect.setFloat("filterRadius", this.blurKernel >> 1);
-            effect.setFloat2("blurDir", 0, 1 / this._blurTextureSize);
+            effect.setFloat2("blurDir", 0, 1 / this._blurTextureSizeY);
             effect.setFloat("blurScale", this.blurScale);
             effect.setFloat("blurDepthFalloff", this.blurDepthScale);
         });

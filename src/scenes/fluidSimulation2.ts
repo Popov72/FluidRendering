@@ -7,7 +7,7 @@ import { FluidRendererGUI } from "./FluidRenderer/fluidRendererGUI";
 import { FluidSimulator, IFluidParticle } from "./FluidSimulator2/fluidSimulator";
 import { FluidRenderingObjectVertexBuffer } from "./FluidRenderer/fluidRenderingObjectVertexBuffer";
 
-const cameraMin = 0.2;
+const cameraMin = 0.1;
 const cameraMax = 100;
 
 declare module "@babylonjs/core/Particles/IParticleSystem" {
@@ -77,6 +77,7 @@ export class FluidRendering implements CreateSceneClass {
         camera.attachControl(canvas, true);
         camera.minZ = cameraMin;
         camera.maxZ = cameraMax;
+        camera.wheelPrecision = 50;
 
         if (showObstacle) {
             const plane = BABYLON.MeshBuilder.CreatePlane("plane", { size: 15 }, scene);

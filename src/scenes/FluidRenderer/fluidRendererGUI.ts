@@ -168,7 +168,7 @@ export class FluidRendererGUI {
         }
 
         this._addList(targetRenderers, params, "targets_index", "Index", targetList);
-        this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_mapSize", "Map size", [64, 128, 256, 512, 1024, 2048, 4096]));
+        this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_mapSize", "Map size", [0, 64, 128, 256, 512, 1024, 2048, 4096]));
 
         const menuColor = targetRenderers.addFolder("Color");
         menuColor.$title.style.fontStyle = "italic";
@@ -240,6 +240,10 @@ export class FluidRendererGUI {
             if (part === "debugFeature") {
                 obj = FluidRenderingDebug[obj];
             }
+
+            if (part === "mapSize" && obj === null) {
+                obj = 0;
+            }
         }
 
         return obj;
@@ -250,6 +254,13 @@ export class FluidRendererGUI {
 
         for (let i = 0; i < parts.length - 1; ++i) {
             obj = obj[parts[i]];
+            if (parts[i] === "mapSize" && value === 0) {
+                value = null;
+            }
+        }
+
+        if (parts[parts.length - 1] === "mapSize" && value === 0) {
+            value = null;
         }
 
         obj[parts[parts.length - 1]] = value;
