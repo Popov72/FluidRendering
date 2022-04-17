@@ -112,9 +112,8 @@ export class FluidRendering implements CreateSceneClass {
             particleSystem.createConeEmitter(4, Math.PI / 2);
 
             // Colors of all particles
-            particleSystem.color1 = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
-            particleSystem.color2 = new BABYLON.Color4(0.2, 0.5, 1.0, 1.0);
-            particleSystem.color2 = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
+            particleSystem.color1 = new BABYLON.Color4(0.4, 1.5, 0.3, 1.0);
+            particleSystem.color2 = new BABYLON.Color4(0.4, 1.5, 0.3, 1.0);
             particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
             particleSystem.colorDead = new BABYLON.Color4(0.4, 1.0, 0.3, 1.0);
 
@@ -157,15 +156,15 @@ export class FluidRendering implements CreateSceneClass {
             if (particleSystem) {
                 const entity = fluidRenderer!.getRenderObjectFromParticleSystem(particleSystem)!;
 
-                entity.object.particleSize = 2;
                 entity.object.particleThicknessAlpha = 0.02;
+                entity.object.particleSize = 1.2;
                 entity.targetRenderer.blurKernel = 50;
                 entity.targetRenderer.blurScale = 0.05;
                 entity.targetRenderer.blurDepthScale = 0.1;
                 entity.targetRenderer.clarity = 0.7;
-                entity.targetRenderer.density = 20;
+                entity.targetRenderer.density = 2;
                 entity.targetRenderer.fluidColor = new BABYLON.Color3(219/255, 228/255, 1);
-                entity.targetRenderer.generateDiffuseTexture = false;
+                //entity.targetRenderer.generateDiffuseTexture = false;
             }
 
             const loadModel = async () => {
@@ -186,7 +185,7 @@ export class FluidRendering implements CreateSceneClass {
                 m.position.z += ofsZ;
                 //pcs.addVolumePoints(m as BABYLON.Mesh, 5000, BABYLON.PointColor.Color, 0);
                 //pcs.addSurfacePoints(m as BABYLON.Mesh, 20000, BABYLON.PointColor.Color, 0);
-                pcs.addSurfacePoints(m as BABYLON.Mesh, 20000, BABYLON.PointColor.Color, 0);
+                pcs.addSurfacePoints(m as BABYLON.Mesh, 5000, BABYLON.PointColor.Color, 0);
             });
     
             scene.activeCamera = camera;
@@ -205,11 +204,12 @@ export class FluidRendering implements CreateSceneClass {
                 const entity = fluidRenderer?.addVertexBuffer(vertexBuffers, numParticles, true);
 
                 if (entity) {
-                    entity.object.particleSize = 0.12;
+                    entity.object.particleSize = 0.2;
                     entity.object.particleThicknessAlpha = 0.1;
                     entity.targetRenderer.blurKernel = 10;
                     entity.targetRenderer.blurScale = 0.1;
                     entity.targetRenderer.blurDepthScale = 10;
+                    entity.targetRenderer.density = 0.5;
                 }
 
                 mesh.setEnabled(false);

@@ -41,7 +41,7 @@ export class FluidSimulator {
 
     public pressureConstant = 20;
 
-    public viscosity = 0.02;
+    public viscosity = 0.007;
 
     public gravity = new BABYLON.Vector3(0, -9.8, 0);
 

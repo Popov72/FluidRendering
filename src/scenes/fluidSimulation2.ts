@@ -70,6 +70,8 @@ export class FluidRendering implements CreateSceneClass {
         //scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
         //scene.environmentTexture = new BABYLON.HDRCubeTexture("temp/uffizi_probe.hdr", scene, 512, false, true, false, true);
 
+        (window as any).BABYLON = BABYLON;
+
         scene.createDefaultSkybox(scene.environmentTexture);
 
         const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 0, Math.PI/2.4, 30/20, new BABYLON.Vector3(0, 0, 0), scene);
@@ -114,7 +116,7 @@ export class FluidRendering implements CreateSceneClass {
                             accelZ: 0,
                             velocityX: (Math.random() - 0.5) * 0.03,
                             velocityY: (Math.random() - 0.5) * 0.03,
-                            velocityZ: (Math.random() - 1.0) * 0.03 - 4,
+                            velocityZ: (Math.random() - 1.0) * 0.03 - 1.4,
                             mass: 1,
                         });
                     }
@@ -140,7 +142,8 @@ export class FluidRendering implements CreateSceneClass {
                 entity.targetRenderer.blurDepthScale = 0.5;
                 entity.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 0.09868919754109445*5*3);
                 entity.targetRenderer.density = 3.5;
-                entity.object.particleSize = particleRadius * 2.0;
+                entity.targetRenderer.refractionStrength = 0.1;
+                entity.object.particleSize = particleRadius * 2.0 * 1.5;
                 entity.object.particleThicknessAlpha = 0.1;//0.05;
             }
 
@@ -148,7 +151,7 @@ export class FluidRendering implements CreateSceneClass {
 
             (window as any).doit = () => {
                 scene.onBeforeRenderObservable.add(() => {
-                    if (currNumParticles < numParticles / 2 && (t++ % 4) === 0) {
+                    if (currNumParticles < numParticles && (t++ % 8) === 0) {
                         currNumParticles += 100;
                     }
                     fluidSim.currentNumParticles = currNumParticles;

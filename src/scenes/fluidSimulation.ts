@@ -6,8 +6,8 @@ import "./FluidRenderer/fluidRendererSceneComponent";
 import { FluidRendererGUI } from "./FluidRenderer/fluidRendererGUI";
 import { FluidSimulator } from "./FluidSimulator/fluidSimulator";
 
-const cameraMin = 0.2;
-const cameraMax = 2.1;
+const cameraMin = 0.1;
+const cameraMax = 100;
 
 declare module "@babylonjs/core/Particles/IParticleSystem" {
     export interface IParticleSystem {
@@ -76,6 +76,7 @@ export class FluidRendering implements CreateSceneClass {
         camera.attachControl(canvas, true);
         camera.minZ = cameraMin;
         camera.maxZ = cameraMax;
+        camera.wheelPrecision = 50;
 
         if (showObstacle) {
             const plane = BABYLON.MeshBuilder.CreatePlane("plane", { size: 15 }, scene);
@@ -123,14 +124,16 @@ export class FluidRendering implements CreateSceneClass {
                 entity.targetRenderer.blurKernel = 40;
                 entity.targetRenderer.blurScale = 0.1;
                 entity.targetRenderer.blurDepthScale = 1.575;
-                entity.object.particleSize = particleRadius * 2.3;
-                entity.object.particleThicknessAlpha = 0.3;//0.066;
+                entity.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 0.09868919754109445*5*3);
+                entity.targetRenderer.density = 6.4;
+                entity.object.particleSize = particleRadius * 2.0 * 1.5;
+                entity.object.particleThicknessAlpha = 0.1;
             }
 
             (window as any).doit = () => {
                 scene.onBeforeRenderObservable.add(() => {
                     const numIter = 1;
-                    const delta = 2.5 / 1000;
+                    const delta = 3.5 / 1000;
                     for (let i = 0; i < numIter; ++i) {
                         fluidSim.update(delta);
                     }
