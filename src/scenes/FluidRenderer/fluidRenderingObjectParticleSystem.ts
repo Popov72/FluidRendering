@@ -28,6 +28,8 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
         ps.render = () => 0;
         ps.blendMode = -1;
 
+        this.particleSize = (ps.minSize + ps.maxSize) / 2;
+
         this._onBeforeDrawParticleObserver = ps.onBeforeDrawParticlesObservable.add(() => {
             this._engine.setAlphaMode(BABYLON.Constants.ALPHA_COMBINE);
         });

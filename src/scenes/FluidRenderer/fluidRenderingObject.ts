@@ -10,20 +10,21 @@ export abstract class FluidRenderingObject {
 
     public priority = 0;
 
-    protected _particleSize: BABYLON.Nullable<number> = null;
+    protected _particleSize = 0.1;
+
+    public onParticleSizeChanged = new BABYLON.Observable<FluidRenderingObject>();
 
     public get particleSize() {
         return this._particleSize;
     }
 
-    public set particleSize(size: BABYLON.Nullable<number>) {
+    public set particleSize(size: number) {
         if (size === this._particleSize) {
             return;
         }
 
-        this._effectsAreDirty = this._effectsAreDirty || (size === null && this._particleSize !== null || size !== null && this._particleSize === null);
-
         this._particleSize = size;
+        this.onParticleSizeChanged.notifyObservers(this);
     }
 
     public particleThicknessAlpha = 0.05;
@@ -45,18 +46,10 @@ export abstract class FluidRenderingObject {
     }
 
     protected _createEffects(): void {
-        const uniformNames = ["view", "projection", "cameraFar"];
+        const uniformNames = ["view", "projection", "cameraFar", "size"];
         const attributeNames = ["position", "offset"];
-        const defines = [];
 
         this._effectsAreDirty = false;
-
-        if (this._particleSize === null) {
-            attributeNames.push("size");
-            defines.push("#define FLUIDRENDERING_PARTICLESIZE_FROM_ATTRIBUTE");
-        } else {
-            uniformNames.push("size");
-        }
 
         this._depthEffectWrapper = new BABYLON.EffectWrapper({
             engine: this._engine,
@@ -66,7 +59,6 @@ export abstract class FluidRenderingObject {
             attributeNames,
             uniformNames,
             samplerNames: [],
-            defines,
         });
 
         uniformNames.push("particleAlpha");
@@ -79,7 +71,6 @@ export abstract class FluidRenderingObject {
             attributeNames,
             uniformNames,
             samplerNames: [],
-            defines,
         });
     }
 

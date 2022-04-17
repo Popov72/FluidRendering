@@ -28,16 +28,8 @@ export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
     protected _createEffects(): void {
         super._createEffects();
 
-        const uniformNames = ["view", "projection"];
+        const uniformNames = ["view", "projection", "size"];
         const attributeNames = ["position", "offset", "color"];
-        const defines = [];
-
-        if (this._particleSize === null) {
-            attributeNames.push("size");
-            defines.push("#define FLUIDRENDERING_PARTICLESIZE_FROM_ATTRIBUTE");
-        } else {
-            uniformNames.push("size");
-        }
 
         this._diffuseEffectWrapper = new BABYLON.EffectWrapper({
             engine: this._engine,
@@ -47,7 +39,6 @@ export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
             attributeNames,
             uniformNames,
             samplerNames: [],
-            defines,
         });
     }
 

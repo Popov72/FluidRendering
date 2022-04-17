@@ -1,13 +1,9 @@
 attribute vec3 position;
-#ifdef FLUIDRENDERING_PARTICLESIZE_FROM_ATTRIBUTE
-    attribute vec2 size;
-#else
-    uniform vec2 size;
-#endif
 attribute vec2 offset;
 
 uniform mat4 view;
 uniform mat4 projection;
+uniform vec2 size;
 
 varying vec2 uv;
 varying vec3 viewPos;

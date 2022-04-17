@@ -80,6 +80,8 @@ export class FluidRenderer {
     public addParticleSystem(ps: BABYLON.ParticleSystem, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer, camera?: BABYLON.Camera): IFluidRenderingRenderObject {
         const object = new FluidRenderingObjectParticleSystem(this._scene, ps);
 
+        object.onParticleSizeChanged.add(this._setParticleSizeForRenderTargets.bind(this));
+
         if (!targetRenderer) {
             targetRenderer = new FluidRenderingTargetRenderer(this._scene, camera);
             this._targetRenderers.push(targetRenderer);
@@ -94,6 +96,8 @@ export class FluidRenderer {
         this._renderObjects.push(renderObject);
 
         this._sortRenderingObjects();
+
+        this._setParticleSizeForRenderTargets();
 
         return renderObject;
     }
@@ -101,6 +105,8 @@ export class FluidRenderer {
     public addVertexBuffer(vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer, camera?: BABYLON.Camera): IFluidRenderingRenderObject {
         const object = new FluidRenderingObjectVertexBuffer(this._scene, vertexBuffers, numParticles);
 
+        object.onParticleSizeChanged.add(this._setParticleSizeForRenderTargets.bind(this));
+
         if (!targetRenderer) {
             targetRenderer = new FluidRenderingTargetRenderer(this._scene, camera);
             this._targetRenderers.push(targetRenderer);
@@ -115,6 +121,8 @@ export class FluidRenderer {
         this._renderObjects.push(renderObject);
 
         this._sortRenderingObjects();
+
+        this._setParticleSizeForRenderTargets();
 
         return renderObject;
     }
@@ -131,6 +139,8 @@ export class FluidRenderer {
 
         if (this._removeUnusedTargetRenderers()) {
             this._initialize();
+        } else {
+            this._setParticleSizeForRenderTargets();
         }
 
         return true;
@@ -251,6 +261,27 @@ export class FluidRenderer {
                         }
                     }
                 });
+            }
+        }
+
+        this._setParticleSizeForRenderTargets();
+    }
+
+    private _setParticleSizeForRenderTargets(): void {
+        const particleSizes = new Map<FluidRenderingTargetRenderer, number>();
+
+        for (let i = 0; i < this._renderObjects.length; ++i) {
+            const renderingObject = this._renderObjects[i];
+            let curSize = particleSizes.get(renderingObject.targetRenderer);
+            if (curSize === undefined) {
+                curSize = 0;
+            }
+            particleSizes.set(renderingObject.targetRenderer, Math.max(curSize, renderingObject.object.particleSize));
+        }
+
+        for (const [targetRenderer, particuleSize] of particleSizes) {
+            if (targetRenderer.depthRenderTarget) {
+                targetRenderer.depthRenderTarget.particuleSize = particuleSize;
             }
         }
     }

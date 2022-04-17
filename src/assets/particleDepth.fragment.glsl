@@ -16,15 +16,7 @@ void main(void) {
     vec4 realViewPos = vec4(viewPos + normal * sphereRadius, 1.0);
     vec4 clipSpacePos = projection * realViewPos;
 
-    float glFragDepth = clipSpacePos.z / clipSpacePos.w;
+    gl_FragDepth = clipSpacePos.z / clipSpacePos.w;
 
-#if !defined(IS_NDC_HALF_ZRANGE)
-    glFragDepth = glFragDepth * 0.5 + 0.5;
-#endif
-
-    float depth = realViewPos.z;
-
-    gl_FragDepth = glFragDepth;
-
-    glFragColor = vec4(vec3(depth), 1.);
+    glFragColor = vec4(vec3(realViewPos.z), 1.);
 }

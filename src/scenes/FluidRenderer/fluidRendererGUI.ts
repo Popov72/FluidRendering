@@ -205,8 +205,7 @@ export class FluidRendererGUI {
 
         const params = {
             objects_index: this._parameterRead("objects_index"),
-            objects_particleUseFixedSize: this._parameterRead("objects_particleUseFixedSize"),
-            objects_particleSize: this._parameterRead("objects_particleSize") ?? 0.5,
+            objects_particleSize: this._parameterRead("objects_particleSize"),
             objects_particleThicknessAlpha: this._parameterRead("objects_particleThicknessAlpha"),
         };
 
@@ -221,7 +220,6 @@ export class FluidRendererGUI {
         }
 
         this._addList(renderObjects, params, "objects_index", "Index", objectList);
-        this._renderObjectsGUIElements.push(this._addCheckbox(renderObjects, params, "objects_particleUseFixedSize", "Use fixed particle size"));
         this._renderObjectsGUIElements.push(this._addSlider(renderObjects, params, "objects_particleSize", "Particle size", 0, 2, 0.001));
         this._renderObjectsGUIElements.push(this._addSlider(renderObjects, params, "objects_particleThicknessAlpha", "Particle alpha", 0, 1, 0.001));
     }
@@ -271,8 +269,6 @@ export class FluidRendererGUI {
         switch (name) {
             case "enable":
                 return !!this._scene.fluidRenderer;
-            case "objects_particleUseFixedSize":
-                return fluidRenderer?.renderObjects[this._renderObjectIndex].object.particleSize !== null;
         }
 
         if (name.startsWith("targets_")) {
@@ -330,19 +326,6 @@ export class FluidRendererGUI {
                 }
                 return;
             }
-            case "objects_particleUseFixedSize":
-                if (fluidRenderer && fluidRenderer.renderObjects.length > this._renderObjectIndex) {
-                    const particleSizeCtrl = this._renderObjectsGUIElements[1];
-                    fluidRenderer.renderObjects[this._renderObjectIndex].object.particleSize = value ? (particleSizeCtrl.object as any).objects_particleSize : null;
-                }
-                return;
-            case "objects_particleSize":
-                if (fluidRenderer && fluidRenderer.renderObjects.length > this._renderObjectIndex) {
-                    const particleUseFixedParticleSizeCtrl = this._renderObjectsGUIElements[0];
-                    if (!(particleUseFixedParticleSizeCtrl.object as any).objects_particleUseFixedSize) {
-                        return;
-                    }
-                }
         }
 
         if (name.startsWith("targets_")) {
@@ -365,14 +348,6 @@ export class FluidRendererGUI {
                 this._renderObjectIndex = value || 0;
                 if (fluidRenderer) {
                     this._fillValues(this._renderObjectsGUIElements, fluidRenderer.renderObjects[this._renderObjectIndex].object);
-                    const particleUseFixedParticleSizeCtrl = this._renderObjectsGUIElements[0];
-                    (particleUseFixedParticleSizeCtrl.object as any).objects_particleUseFixedSize = fluidRenderer.renderObjects[this._renderObjectIndex].object.particleSize !== null;
-                    particleUseFixedParticleSizeCtrl.updateDisplay();
-                    if (fluidRenderer.renderObjects[this._renderObjectIndex].object.particleSize === null) {
-                        const particleSizeCtrl = this._renderObjectsGUIElements[1];
-                        (particleSizeCtrl.object as any).objects_particleSize = 0.5;
-                        particleSizeCtrl.updateDisplay();
-                    }
                 }
             } else {
                 if (fluidRenderer) {
