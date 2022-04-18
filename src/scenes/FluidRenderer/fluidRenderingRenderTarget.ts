@@ -32,6 +32,8 @@ export class FluidRenderingRenderTarget {
 
     public blurDepthScale = 50;
 
+    public particleSize = 1;
+
     public onDisposeObservable: BABYLON.Observable<FluidRenderingRenderTarget> = new BABYLON.Observable<FluidRenderingRenderTarget>();
 
     public get renderTarget() {

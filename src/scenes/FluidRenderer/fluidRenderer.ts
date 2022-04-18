@@ -279,9 +279,9 @@ export class FluidRenderer {
             particleSizes.set(renderingObject.targetRenderer, Math.max(curSize, renderingObject.object.particleSize));
         }
 
-        for (const [targetRenderer, particuleSize] of particleSizes) {
+        for (const [targetRenderer, particleSize] of particleSizes) {
             if (targetRenderer.depthRenderTarget) {
-                targetRenderer.depthRenderTarget.particuleSize = particuleSize;
+                targetRenderer.depthRenderTarget.particleSize = particleSize;
             }
         }
     }
