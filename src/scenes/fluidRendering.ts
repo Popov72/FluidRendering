@@ -156,15 +156,14 @@ export class FluidRendering implements CreateSceneClass {
             if (particleSystem) {
                 const entity = fluidRenderer!.getRenderObjectFromParticleSystem(particleSystem)!;
 
-                entity.object.particleThicknessAlpha = 0.02;
-                entity.object.particleSize = 1.2;
-                entity.targetRenderer.blurKernel = 50;
-                entity.targetRenderer.blurScale = 0.05;
-                entity.targetRenderer.blurDepthScale = 0.1;
-                entity.targetRenderer.clarity = 0.7;
-                entity.targetRenderer.density = 2;
+                entity.object.particleThicknessAlpha = 0.0075;
+                entity.object.particleSize = 0.75;
+                entity.targetRenderer.blurFilterSize = 10;
+                entity.targetRenderer.blurDepthScale = 10;
+                entity.targetRenderer.density = 8;
+                entity.targetRenderer.fresnelClamp = 0.04;
                 entity.targetRenderer.fluidColor = new BABYLON.Color3(219/255, 228/255, 1);
-                //entity.targetRenderer.generateDiffuseTexture = false;
+                entity.targetRenderer.generateDiffuseTexture = false;
             }
 
             const loadModel = async () => {
@@ -204,12 +203,11 @@ export class FluidRendering implements CreateSceneClass {
                 const entity = fluidRenderer?.addVertexBuffer(vertexBuffers, numParticles, true);
 
                 if (entity) {
-                    entity.object.particleSize = 0.2;
-                    entity.object.particleThicknessAlpha = 0.1;
-                    entity.targetRenderer.blurKernel = 10;
-                    entity.targetRenderer.blurScale = 0.1;
+                    entity.object.particleSize = 0.1;
+                    entity.object.particleThicknessAlpha = 0.025;
+                    entity.targetRenderer.blurFilterSize = 7;
                     entity.targetRenderer.blurDepthScale = 10;
-                    entity.targetRenderer.density = 0.5;
+                    entity.targetRenderer.density = 0.63;
                 }
 
                 mesh.setEnabled(false);

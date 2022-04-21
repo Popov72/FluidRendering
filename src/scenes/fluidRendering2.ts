@@ -4,10 +4,10 @@ import * as BABYLON from "@babylonjs/core";
 
 import "./FluidRenderer/fluidRendererSceneComponent";
 import { FluidRendererGUI } from "./FluidRenderer/fluidRendererGUI";
-import { FluidSimulator } from "./FluidSimulator/fluidSimulator";
+import { FluidRenderingObjectVertexBuffer } from "./FluidRenderer/fluidRenderingObjectVertexBuffer";
 
 const cameraMin = 0.1;
-const cameraMax = 100;
+const cameraMax = 1000;
 
 declare module "@babylonjs/core/Particles/IParticleSystem" {
     export interface IParticleSystem {
@@ -58,6 +58,8 @@ export class FluidRendering implements CreateSceneClass {
         this._engine = engine;
         this._scene = scene;
 
+        scene.clearColor = new BABYLON.Color4(0.8, 0.8, 0.8, 1.0);
+
         const liquidRendering = true;
         const showObstacle = false;
 
@@ -69,10 +71,14 @@ export class FluidRendering implements CreateSceneClass {
         //scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
         //scene.environmentTexture = new BABYLON.HDRCubeTexture("temp/uffizi_probe.hdr", scene, 512, false, true, false, true);
 
+        (window as any).BABYLON = BABYLON;
+
         scene.createDefaultSkybox(scene.environmentTexture);
 
-        const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 0, Math.PI/2.4, 30/20, new BABYLON.Vector3(0, 0, 0), scene);
-        camera.fov = 60 * Math.PI/180;
+        const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 0, Math.PI/2.4, 2, new BABYLON.Vector3(0, 0, 0), scene);
+        //const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0.93, 0.47, -1.51), scene);
+        //const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 0, Math.PI/2.4, 30/20, new BABYLON.Vector3(0, 0, 0), scene);
+        camera.fov = 58.31 * Math.PI/180;
         camera.attachControl(canvas, true);
         camera.minZ = cameraMin;
         camera.maxZ = cameraMax;
@@ -88,63 +94,66 @@ export class FluidRendering implements CreateSceneClass {
 
             scene.activeCamera = camera;
 
-            new BABYLON.FxaaPostProcess("Fxaa", 1, camera);
+            (scene.activeCamera as BABYLON.ArcRotateCamera).setTarget(new BABYLON.Vector3(0.42, 0.07, -0.54));
 
-            const numX = 7, numY = 8 * 5, numZ = 7;
+            const numFrames = 160;
+            const positionBuffers: Array<Float32Array> = [];
+            
+            let numParticles = 0;
+            let particleRadius = 0;
 
-            const numParticles = numX * numY * numZ;
-            const positions = new Float32Array(numParticles * 3);
+            for (let i = 0; i < numFrames; ++i) {
+                const num = "000" + (i + 1);
+                const buffer = await (await fetch("assets/particles/SphereDropGround/frame." + num.substring(num.length - 4) + ".pos")).arrayBuffer();
+                const buffer32 = new Uint32Array(buffer);
+                const bufferFloat = new Float32Array(buffer);
 
-            const particleRadius = 0.02;
-            let idx = 0;
-            for (let x = 0; x < numX; ++x) {
-                for (let y = 0; y < numY; ++y) {
-                    for (let z = 0; z < numZ; ++z) {
-                        //positions[idx * 3 + 0] = (Math.random() - 0.5) * numX * particleRadius * 2;
-                        //positions[idx * 3 + 1] = Math.random() * numY * particleRadius * 2;
-                        //positions[idx * 3 + 2] = (Math.random() - 0.5) * numZ * particleRadius * 2 + ofsZ;
-                        positions[idx * 3 + 0] = (x - numX / 2) * particleRadius * 2;
-                        positions[idx * 3 + 1] = y * particleRadius * 2;
-                        positions[idx * 3 + 2] = (z - numZ / 2) * particleRadius * 2;
-                        idx++;
-                    }
+                numParticles = buffer32[0];
+                particleRadius = bufferFloat[1];
+
+                const positions = new Float32Array(numParticles * 3);
+
+                for (let i = 0; i < numParticles; ++i) {
+                    const x = bufferFloat[2 + i * 3 + 0];
+                    const y = bufferFloat[2 + i * 3 + 1];
+                    const z = bufferFloat[2 + i * 3 + 2];
+
+                    positions[i * 3 + 0] = x;
+                    positions[i * 3 + 1] = y;
+                    positions[i * 3 + 2] = -z;
                 }
+
+                positionBuffers.push(positions);
             }
 
-            const fluidSim = new FluidSimulator(numParticles, engine, positions);
+            const vertexBuffers: { [key: string]: BABYLON.VertexBuffer } = {};
+            const isInstanced = true;
 
-            fluidSim.smoothingRadius = particleRadius * 2;
+            vertexBuffers["position"] = new BABYLON.VertexBuffer(this._engine, positionBuffers[0], "position", true, false, 3, isInstanced);
 
-            (window as any).fsim = fluidSim;
-
-            const entity = fluidRenderer?.addVertexBuffer({ position: fluidSim.positionVertexBuffer }, numParticles, false);
+            const entity = fluidRenderer?.addVertexBuffer(vertexBuffers, numParticles, false);
 
             if (entity) {
+                entity.object.particleSize = 0.03;
+                entity.object.particleThicknessAlpha = 0.003;
                 entity.targetRenderer.enableBlur = true;
-                entity.targetRenderer.blurFilterSize = 8;
-                entity.targetRenderer.blurDepthScale = 5;
-                entity.targetRenderer.fresnelClamp = 0.2;
-                entity.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 0.09868919754109445*5*3);
                 entity.targetRenderer.fluidColor = new BABYLON.Color3(1 - 0.5, 1 - 0.2, 1 - 0.05);
-                entity.targetRenderer.density = 2;
-                entity.targetRenderer.specularPower = 200;
-                entity.object.particleSize = particleRadius * 2.0 * 2;
-                entity.object.particleThicknessAlpha = particleRadius;
+                entity.targetRenderer.blurFilterSize = 10;
+                entity.targetRenderer.blurDepthScale = 10;
+                entity.targetRenderer.density = 3;
             }
-
-            (window as any).doit = () => {
-                scene.onBeforeRenderObservable.add(() => {
-                    const numIter = 1;
-                    const delta = 3.5 / 1000 / 1;
-                    for (let i = 0; i < numIter; ++i) {
-                        fluidSim.update(delta);
-                    }
-                });
-            };
 
             new FluidRendererGUI(this._scene, false);
 
-            scene.activeCamera = camera;
+            let t = 0;
+
+            scene.onBeforeRenderObservable.add(() => {
+                vertexBuffers["position"].updateDirectly(positionBuffers[Math.floor(t)], 0);
+                t += 0.5;
+                if (t >= numFrames) {
+                    t = 0;
+                }
+            });
         }
 
         return scene;

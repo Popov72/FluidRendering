@@ -26,17 +26,19 @@ void main(void) {
     float wsum = 0.;
 
     for (int x = -filterSize; x <= filterSize; ++x) {
-        vec2 coords = vec2(x);
-        float sampleDepth = texture2D(textureSampler, vUV + coords * blurDir).x;
+        for (int y = -filterSize; y <= filterSize; ++y) {
+            vec2 coords = vec2(x, y);
+            float sampleDepth = texture(textureSampler, vUV + coords * blurDir).r;
 
-        float r = dot(coords, coords);
-        float w = exp(-r / two_sigma2);
+            float r = dot(coords, coords);
+            float w = exp(-r / two_sigma2);
+            
+            float rDepth = sampleDepth - depth;
+            float wd = exp(-rDepth * rDepth / two_sigmaDepth2);
 
-        float rDepth = sampleDepth - depth;
-        float wd = exp(-rDepth * rDepth / two_sigmaDepth2);
-
-        sum += sampleDepth * w * wd;
-        wsum += w * wd;
+            sum += sampleDepth * w * wd;
+            wsum += w * wd;
+        }
     }
 
     glFragColor = vec4(vec3(sum / wsum), 1.);

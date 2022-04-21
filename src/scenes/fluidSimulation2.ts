@@ -137,14 +137,13 @@ export class FluidRendering implements CreateSceneClass {
 
             if (entity) {
                 entity.targetRenderer.enableBlur = true;
-                entity.targetRenderer.blurKernel = 40;
-                entity.targetRenderer.blurScale = 0.1;
-                entity.targetRenderer.blurDepthScale = 0.5;
-                entity.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 0.09868919754109445*5*3);
-                entity.targetRenderer.density = 3.5;
-                entity.targetRenderer.refractionStrength = 0.1;
-                entity.object.particleSize = particleRadius * 2.0 * 1.5;
-                entity.object.particleThicknessAlpha = 0.1;//0.05;
+                entity.targetRenderer.blurFilterSize = 10;
+                entity.targetRenderer.blurDepthScale = 5;
+                //entity.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 1);
+                entity.targetRenderer.fluidColor = new BABYLON.Color3(1 - 0.5, 1 - 0.2, 1 - 0.05);
+                entity.targetRenderer.density = 2;
+                entity.object.particleSize = particleRadius * 2.0 * 2;
+                entity.object.particleThicknessAlpha = particleRadius;
             }
 
             let t = 0;
@@ -166,7 +165,7 @@ export class FluidRendering implements CreateSceneClass {
 
             (window as any).doit2 = () => {
                 scene.onBeforeRenderObservable.add(() => {
-                    if (currNumParticles < numParticles && (t++ % 4) === 0) {
+                    if (currNumParticles < numParticles && (t++ % 8) === 0) {
                         currNumParticles += 100;
                     }
                     fluidSim.currentNumParticles = currNumParticles;
@@ -174,7 +173,7 @@ export class FluidRendering implements CreateSceneClass {
                 });
             };
 
-            new FluidRendererGUI(this._scene);
+            new FluidRendererGUI(this._scene, false);
 
             scene.activeCamera = camera;
         }

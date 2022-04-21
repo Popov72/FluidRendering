@@ -1,6 +1,3 @@
-#define GAMMA 2.2
-#define INV_GAMMA (1.0/GAMMA)
-
 // Index of refraction for water
 #define IOR 1.333
 
@@ -9,7 +6,7 @@
 #define ETA 1.0/IOR
 
 // Fresnel at 0°
-#define F0 vec3(0.02)
+#define F0 0.02
 
 uniform sampler2D textureSampler;
 uniform sampler2D depthSampler;
@@ -30,9 +27,10 @@ uniform mat4 invProjectionMatrix;
 uniform vec2 texelSize;
 uniform vec3 dirLight;
 uniform float cameraFar;
-uniform float clarity;
 uniform float density;
 uniform float refractionStrength;
+uniform float fresnelClamp;
+uniform float specularPower;
 
 varying vec2 vUV;
 
@@ -54,30 +52,13 @@ vec3 getViewPosFromTexCoord(vec2 texCoord) {
     return computeViewPosFromUVDepth(texCoord, depth);
 }
 
-vec3 gamma(vec3 col) {
-    return pow(col, vec3(INV_GAMMA));
-}
-
-vec3 inv_gamma(vec3 col) {
-    return pow(col, vec3(GAMMA));
-}
-
-vec3 ACESFilm(vec3 x){
-    float a = 2.51;
-    float b = 0.03;
-    float c = 2.43;
-    float d = 0.59;
-    float e = 0.14;
-    return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);
-}
-
 void main(void) {
     vec2 texCoord = vUV;
 
 #if defined(FLUIDRENDERING_DEBUG) && defined(FLUIDRENDERING_DEBUG_TEXTURE)
     vec4 color = texture2D(debugSampler, texCoord);
     #ifdef FLUIDRENDERING_DEBUG_DEPTH
-        glFragColor = vec4(color.rgb / vec3(cameraFar), 1.);
+        glFragColor = vec4(color.rgb / vec3(2.0), 1.);
     #else
         glFragColor = vec4(color.rgb, 1.);
     #endif
@@ -110,15 +91,13 @@ void main(void) {
         ddy = ddy2;
     }
 
-    vec3 normal = cross(ddy, ddx);
+    vec3 normal = normalize(cross(ddy, ddx));
 #ifndef WEBGPU
     if(isnan(normal.x) || isnan(normal.y) || isnan(normal.z) ||
-       isinf(normal.x) || isinf(normal.y) || isinf(normal.z)) {
+    isinf(normal.x) || isinf(normal.y) || isinf(normal.z)) {
         normal = vec3(0., 0., -1.);
     }
 #endif
-
-    normal = normalize(normal);
 
 #if defined(FLUIDRENDERING_DEBUG) && defined(FLUIDRENDERING_DEBUG_SHOWNORMAL)
     glFragColor = vec4(normal * 0.5 + 0.5, 1.0);
@@ -130,17 +109,15 @@ void main(void) {
 
 #ifdef FLUIDRENDERING_DIFFUSETEXTURE
     vec3 diffuseColor = texture2D(diffuseSampler, texCoord).rgb;
-    #ifdef FLUIDRENDERING_DIFFUSETEXTURE_GAMMASPACE
-        diffuseColor = pow(diffuseColor, vec3(GAMMA));
-    #endif
 #endif
 
     vec3  lightDir = normalize(vec3(viewMatrix * vec4(-dirLight, 0.)));
     vec3  H        = normalize(lightDir - rayDir);
-    float specular = pow(max(0.0, dot(H, normal)), 250.);
-    float diffuse  = max(0.0, dot(lightDir, normal)) * 1.0;
+    float specular = pow(max(0.0, dot(H, normal)), specularPower);
 
 #ifdef FLUIDRENDERING_DEBUG_DIFFUSERENDERING
+    float diffuse  = max(0.0, dot(lightDir, normal)) * 1.0;
+
     glFragColor = vec4(vec3(0.1) /*ambient*/ + vec3(0.42, 0.50, 1.00) * diffuse + vec3(0, 0, 0.2) + specular, 1.);
     return;
 #endif
@@ -148,26 +125,19 @@ void main(void) {
     // Refraction color
     vec3 refractionDir = refract(rayDir, normal, ETA);
 
-    vec3 transmitted = inv_gamma(texture2D(textureSampler, vec2(texCoord + refractionDir.xy * thickness * refractionStrength)).rgb);
+    vec3 transmitted = (texture2D(textureSampler, vec2(texCoord + refractionDir.xy * thickness * refractionStrength)).rgb);
     vec3 transmittance = exp(-density * thickness * (1.0 - diffuseColor)); // Beer law
    
-    vec3 refractionColor = clarity * transmitted * transmittance;
+    vec3 refractionColor = transmitted * transmittance;
 
     // Reflection of the environment.
     vec3 reflectionDir = reflect(rayDir, normal);
-    vec3 reflectionColor = inv_gamma(textureCube(reflectionSampler, reflectionDir).rgb);
+    vec3 reflectionColor = (textureCube(reflectionSampler, reflectionDir).rgb);
 
     // Combine refraction and reflection    
-    vec3 fresnel = clamp(F0 + (1.0 - F0) * pow(1.0 - dot(normal, -rayDir), 5.0), 0., 1.);
+    float fresnel = clamp(F0 + (1.0 - F0) * pow(1.0 - dot(normal, -rayDir), 5.0), 0., fresnelClamp);
     
     vec3 finalColor = mix(refractionColor, reflectionColor, fresnel) + specular;
 
-    // Tonemapping
-    finalColor = ACESFilm(finalColor);
-
-    // Gamma correction
-    finalColor = gamma(finalColor);
-
-    // Output to screen
     glFragColor = vec4(finalColor, 1.);
 }

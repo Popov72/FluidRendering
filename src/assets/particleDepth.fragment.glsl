@@ -1,5 +1,4 @@
 uniform mat4 projection;
-uniform float cameraFar;
 
 varying vec2 uv;
 varying vec3 viewPos;

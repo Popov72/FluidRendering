@@ -46,7 +46,7 @@ export abstract class FluidRenderingObject {
     }
 
     protected _createEffects(): void {
-        const uniformNames = ["view", "projection", "cameraFar", "size"];
+        const uniformNames = ["view", "projection", "particleRadius", "size"];
         const attributeNames = ["position", "offset"];
 
         this._effectsAreDirty = false;
@@ -108,10 +108,8 @@ export abstract class FluidRenderingObject {
 
         depthEffect.setMatrix("view", this._scene.getViewMatrix());
         depthEffect.setMatrix("projection", this._scene.getProjectionMatrix());
-        if (this._particleSize !== null) {
-            depthEffect.setFloat2("size", this._particleSize, this._particleSize);
-        }
-        depthEffect.setFloat("cameraFar", this._scene.activeCamera?.maxZ ?? 10000);
+        depthEffect.setFloat2("size", this._particleSize, this._particleSize);
+        depthEffect.setFloat("particleRadius", this._particleSize / 2);
 
         if (this.useInstancing) {
             this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);
@@ -130,7 +128,7 @@ export abstract class FluidRenderingObject {
         const thicknessDrawWrapper = this._thicknessEffectWrapper._drawWrapper;
         const thicknessEffect = thicknessDrawWrapper.effect!;
 
-        this._engine.setAlphaMode(BABYLON.Constants.ALPHA_ADD);
+        this._engine.setAlphaMode(BABYLON.Constants.ALPHA_ONEONE);
         this._engine.depthCullingState.depthMask = false;
 
         this._engine.enableEffect(thicknessDrawWrapper);
@@ -139,9 +137,7 @@ export abstract class FluidRenderingObject {
         thicknessEffect.setMatrix("view", this._scene.getViewMatrix());
         thicknessEffect.setMatrix("projection", this._scene.getProjectionMatrix());
         thicknessEffect.setFloat("particleAlpha", this.particleThicknessAlpha);
-        if (this._particleSize !== null) {
-            thicknessEffect.setFloat2("size", this._particleSize, this._particleSize);
-        }
+        thicknessEffect.setFloat2("size", this._particleSize * 2, this._particleSize * 2);
 
         if (this.useInstancing) {
             this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);

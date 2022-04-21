@@ -13,6 +13,7 @@ import particleDiffuseVertex from "../../assets/particleDiffuse.vertex.glsl";
 import particleDiffuseFragment from "../../assets/particleDiffuse.fragment.glsl";
 
 import bilateralBlurFragment from "../../assets/bilateralBlur.fragment.glsl";
+import bilateralBlur2Fragment from "../../assets/bilateralBlur2.fragment.glsl";
 import standardBlurFragment from "../../assets/standardBlur.fragment.glsl";
 
 import renderFluidFragment from "../../assets/renderFluid.fragment.glsl";
@@ -336,6 +337,7 @@ BABYLON.Effect.ShadersStore["fluidParticleDiffuseVertexShader"] = particleDiffus
 BABYLON.Effect.ShadersStore["fluidParticleDiffuseFragmentShader"] = particleDiffuseFragment;
 
 BABYLON.Effect.ShadersStore["bilateralBlurFragmentShader"] = bilateralBlurFragment;
+BABYLON.Effect.ShadersStore["bilateralBlur2FragmentShader"] = bilateralBlur2Fragment;
 
 BABYLON.Effect.ShadersStore["standardBlurFragmentShader"] = standardBlurFragment;
 

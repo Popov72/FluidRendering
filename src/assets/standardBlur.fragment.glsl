@@ -1,36 +1,34 @@
 uniform sampler2D textureSampler;
 
-uniform float filterRadius;
+uniform int filterSize;
 uniform vec2 blurDir;
-uniform float blurScale;
-uniform float blurDepthFalloff;
 
 varying vec2 vUV;
 
 void main(void) {
-    vec4 sum = vec4(0.);
-    float wsum = 0.;
-
     vec4 s = texture2D(textureSampler, vUV);
     if (s.r == 0.) {
-        glFragColor = vec4(0.);
+        glFragColor = vec4(0., 0., 0., 1.);
         return;
     }
 
-    for (float x = -filterRadius; x <= filterRadius; x += 1.0) {
-        vec4 sampl = texture2D(textureSampler, vUV + x * blurDir);
+    float sigma = float(filterSize) / 3.0;
+    float twoSigma2 = 2.0 * sigma * sigma;
 
-        // spatial domain
-        float r = x * blurScale;
-        float w = exp(-r * r);
+    vec4 sum = vec4(0.);
+    float wsum = 0.;
+
+    for (int x = -filterSize; x <= filterSize; ++x) {
+        vec2 coords = vec2(x);
+        vec4 sampl = texture2D(textureSampler, vUV + coords * blurDir);
+
+        float w = exp(-coords.x * coords.x / twoSigma2);
 
         sum += sampl * w;
         wsum += w;
     }
 
-    if (wsum > 0.0) {
-        sum /= wsum;
-    }
+    sum /= wsum;
 
     glFragColor = vec4(sum.rgb, 1.);
 }

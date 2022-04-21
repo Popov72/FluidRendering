@@ -12,6 +12,7 @@ export class FluidRendererGUI {
     private _gui: BABYLON.Nullable<LiLGUI.GUI>;
     private _visible: boolean;
     private _scene: BABYLON.Scene;
+    private _showGeneralMenu: boolean;
     private _onKeyObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.KeyboardInfo>>;
     private _targetRendererIndex: number;
     private _targetRenderersGUIElements: LiLGUI.Controller[];
@@ -28,8 +29,9 @@ export class FluidRendererGUI {
         }
     }
 
-    constructor(scene: BABYLON.Scene) {
+    constructor(scene: BABYLON.Scene, showGeneralMenu = true) {
         this._scene = scene;
+        this._showGeneralMenu = showGeneralMenu;
         this._visible = true;
         this._onKeyObserver = null;
         this._targetRendererIndex = 0;
@@ -79,7 +81,9 @@ export class FluidRendererGUI {
 
         this._setupKeyboard();
 
-        this._makeMenuGeneral();
+        if (this._showGeneralMenu) {
+            this._makeMenuGeneral();
+        }
         this._makeMenuTargetRenderers();
         this._makeMenuRenderObjects()
     }
@@ -142,18 +146,18 @@ export class FluidRendererGUI {
         const params = {
             targets_index: this._parameterRead("targets_index"),
             targets_generateDiffuseTexture: this._parameterRead("targets_generateDiffuseTexture"),
-            targets_diffuseTextureInGammaSpace: this._parameterRead("targets_diffuseTextureInGammaSpace"),
             targets_fluidColor: this._parameterRead("targets_fluidColor"),
-            targets_clarity: this._parameterRead("targets_clarity"),
             targets_density: this._parameterRead("targets_density"),
             targets_refractionStrength: this._parameterRead("targets_refractionStrength"),
+            targets_fresnelClamp: this._parameterRead("targets_fresnelClamp"),
+            targets_specularPower: this._parameterRead("targets_specularPower"),
             targets_debug: this._parameterRead("targets_debug"),
             targets_debugFeature: this._parameterRead("targets_debugFeature"),
             targets_enableBlur: this._parameterRead("targets_enableBlur"),
             targets_blurSizeDivisor: this._parameterRead("targets_blurSizeDivisor"),
-            targets_blurKernel: this._parameterRead("targets_blurKernel"),
-            targets_blurScale: this._parameterRead("targets_blurScale"),
+            targets_blurFilterSize: this._parameterRead("targets_blurFilterSize"),
             targets_blurDepthScale: this._parameterRead("targets_blurDepthScale"),
+            targets_blurUseSeparateFilters: this._parameterRead("targets_blurUseSeparateFilters"),
             targets_mapSize: this._parameterRead("targets_mapSize"),
         };
         
@@ -168,26 +172,26 @@ export class FluidRendererGUI {
         }
 
         this._addList(targetRenderers, params, "targets_index", "Index", targetList);
-        this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_mapSize", "Map size", [0, 64, 128, 256, 512, 1024, 2048, 4096]));
+        this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_mapSize", "Map size", ["Screen size", 256, 512, 1024, 2048, 4096]));
 
         const menuColor = targetRenderers.addFolder("Color");
         menuColor.$title.style.fontStyle = "italic";
 
         this._targetRenderersGUIElements.push(this._addCheckbox(menuColor, params, "targets_generateDiffuseTexture", "Generate diffuse texture"));
-        this._targetRenderersGUIElements.push(this._addCheckbox(menuColor, params, "targets_diffuseTextureInGammaSpace", "Diffuse texture is in gamma space"));
         this._targetRenderersGUIElements.push(this._addColor(menuColor, params, "targets_fluidColor", "Fluid color"));
-        this._targetRenderersGUIElements.push(this._addSlider(menuColor, params, "targets_clarity", "Clarity", 0, 1, 0.001));
         this._targetRenderersGUIElements.push(this._addSlider(menuColor, params, "targets_density", "Density", 0, 20, 0.01));
         this._targetRenderersGUIElements.push(this._addSlider(menuColor, params, "targets_refractionStrength", "Refraction strength", 0, 0.3, 0.005));
+        this._targetRenderersGUIElements.push(this._addSlider(menuColor, params, "targets_fresnelClamp", "Fresnel clamp", 0, 1.0, 0.005));
+        this._targetRenderersGUIElements.push(this._addSlider(menuColor, params, "targets_specularPower", "Specular power", 1, 5000, 5));
 
         const menuBlur = targetRenderers.addFolder("Blur");
         menuBlur.$title.style.fontStyle = "italic";
 
         this._targetRenderersGUIElements.push(this._addCheckbox(menuBlur, params, "targets_enableBlur", "Enable"));
         this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurSizeDivisor", "Size divisor", 1, 10, 1));
-        this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurKernel", "Kernel", 0, 100, 1));
-        this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurScale", "Scale", 0, 1, 0.001));
-        this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurDepthScale", "Depth scale", 0, 50, 0.001));
+        this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurFilterSize", "Filter size", 1, 20, 1));
+        this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurDepthScale", "Depth scale", 0, 100, 0.01));
+        this._targetRenderersGUIElements.push(this._addCheckbox(menuBlur, params, "targets_blurUseSeparateFilters", "Use separate filters"));
 
         const menuDebug = targetRenderers.addFolder("Debug");
         menuDebug.$title.style.fontStyle = "italic";
@@ -240,7 +244,7 @@ export class FluidRendererGUI {
             }
 
             if (part === "mapSize" && obj === null) {
-                obj = 0;
+                obj = "Screen size";
             }
         }
 
@@ -252,12 +256,12 @@ export class FluidRendererGUI {
 
         for (let i = 0; i < parts.length - 1; ++i) {
             obj = obj[parts[i]];
-            if (parts[i] === "mapSize" && value === 0) {
+            if (parts[i] === "mapSize" && value === "Screen size") {
                 value = null;
             }
         }
 
-        if (parts[parts.length - 1] === "mapSize" && value === 0) {
+        if (parts[parts.length - 1] === "mapSize" && value === "Screen size") {
             value = null;
         }
 
@@ -337,7 +341,7 @@ export class FluidRendererGUI {
                 }
             } else {
                 if (fluidRenderer) {
-                    this._setValue(fluidRenderer.targetRenderers[this._targetRendererIndex], name, value === false ? false : value === true ? true : parseFloat(value));
+                    this._setValue(fluidRenderer.targetRenderers[this._targetRendererIndex], name, value === false ? false : value === true ? true : isNaN(value) ? value : parseFloat(value));
                 }
             }
         }
@@ -351,7 +355,7 @@ export class FluidRendererGUI {
                 }
             } else {
                 if (fluidRenderer) {
-                    this._setValue(fluidRenderer.renderObjects[this._renderObjectIndex].object, name, value === false ? false : value === true ? true : parseFloat(value));
+                    this._setValue(fluidRenderer.renderObjects[this._renderObjectIndex].object, name, value === false ? false : value === true ? true : isNaN(value) ? value : parseFloat(value));
                 }
             }
         }
