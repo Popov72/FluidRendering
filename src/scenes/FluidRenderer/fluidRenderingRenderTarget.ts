@@ -14,6 +14,7 @@ export class FluidRenderingRenderTarget {
     protected _blurTextureType: number;
     protected _blurTextureFormat: number;
     protected _useStandardBlur: boolean;
+    protected _generateDepthBuffer: boolean;
     protected _postProcessRunningIndex: number;
 
     protected _rt: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
@@ -74,7 +75,7 @@ export class FluidRenderingRenderTarget {
 
     constructor(name: string, scene: BABYLON.Scene, width: number, height: number, blurTextureSizeX: number, blurTextureSizeY: number,
         textureType: number = BABYLON.Constants.TEXTURETYPE_FLOAT, textureFormat: number = BABYLON.Constants.TEXTUREFORMAT_R,
-        blurTextureType: number = BABYLON.Constants.TEXTURETYPE_FLOAT, blurTextureFormat: number = BABYLON.Constants.TEXTUREFORMAT_R, useStandardBlur = false, camera: BABYLON.Nullable<BABYLON.Camera> = null)
+        blurTextureType: number = BABYLON.Constants.TEXTURETYPE_FLOAT, blurTextureFormat: number = BABYLON.Constants.TEXTUREFORMAT_R, useStandardBlur = false, camera: BABYLON.Nullable<BABYLON.Camera> = null, generateDepthBuffer = true)
     {
         this._name = name;
         this._scene = scene;
@@ -89,6 +90,7 @@ export class FluidRenderingRenderTarget {
         this._blurTextureType = blurTextureType;
         this._blurTextureFormat = blurTextureFormat;
         this._useStandardBlur = useStandardBlur;
+        this._generateDepthBuffer = generateDepthBuffer;
         this._postProcessRunningIndex = 0;
         this.enableBlur = blurTextureSizeX !== 0 && blurTextureSizeY !== 0;
     
@@ -126,7 +128,7 @@ export class FluidRenderingRenderTarget {
             type: this._textureType,
             format: this._textureFormat,
             samplingMode: BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
-            generateDepthBuffer: true,
+            generateDepthBuffer: this._generateDepthBuffer,
             generateStencilBuffer: false,
             samples: 1,
         });

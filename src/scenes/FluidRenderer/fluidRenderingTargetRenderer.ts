@@ -262,7 +262,7 @@ export class FluidRenderingTargetRenderer {
 
         this._thicknessRenderTarget = new FluidRenderingRenderTarget("Thickness", this._scene, this._engine.getRenderWidth(), this._engine.getRenderHeight(), textureWidth, textureHeight,
             BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R,
-            BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, true, this._camera);
+            BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, true, this._camera, false);
 
         this._initializeRenderTarget(this._thicknessRenderTarget);
 
@@ -424,6 +424,7 @@ export class FluidRenderingTargetRenderer {
 
         if (this._thicknessRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._thicknessRenderTarget.renderTarget);
+            // we don't clear the depth buffer because it is the depth buffer that is coming from the scene and that we reuse in the thickness rendering pass
             this._engine.clear(this._thicknessClearColor, true, false, false);
             this._engine.unBindFramebuffer(this._thicknessRenderTarget.renderTarget);
         }
