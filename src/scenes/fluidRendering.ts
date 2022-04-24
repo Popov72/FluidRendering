@@ -189,7 +189,8 @@ export class FluidRendering implements CreateSceneClass {
     
             scene.activeCamera = camera;
 
-            new BABYLON.FxaaPostProcess("Fxaa", 1, camera);
+            const ppFXAA = new BABYLON.FxaaPostProcess("Fxaa", 1, camera);
+            ppFXAA.autoClear = false;
 
             pcs.buildMeshAsync().then((mesh) => {
                 const vertexBuffers: { [key: string]: BABYLON.VertexBuffer } = {};

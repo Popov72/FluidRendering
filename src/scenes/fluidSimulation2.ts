@@ -93,7 +93,8 @@ export class FluidRendering implements CreateSceneClass {
 
             scene.activeCamera = camera;
 
-            new BABYLON.FxaaPostProcess("Fxaa", 1, camera);
+            const ppFXAA = new BABYLON.FxaaPostProcess("Fxaa", 1, camera);
+            ppFXAA.autoClear = false;
 
             const numX = 10, numY = 10, numZ = 10 * 5;
 
