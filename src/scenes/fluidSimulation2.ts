@@ -157,7 +157,8 @@ export class FluidRendering implements CreateSceneClass {
 
                 if (fluidRenderObject) {
                     fluidRenderObject.targetRenderer.enableBlur = true;
-                    fluidRenderObject.targetRenderer.blurFilterSize = 10;
+                    fluidRenderObject.targetRenderer.blurFilterSize = 8;
+                    fluidRenderObject.targetRenderer.blurNumIterations = 3;
                     fluidRenderObject.targetRenderer.blurDepthScale = 5;
                     //fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 1);
                     fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(1 - 0.5, 1 - 0.2, 1 - 0.05);

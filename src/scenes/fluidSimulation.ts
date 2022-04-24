@@ -71,7 +71,7 @@ export class FluidRendering implements CreateSceneClass {
 
         scene.createDefaultSkybox(scene.environmentTexture);
 
-        const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 0, Math.PI/2.4, 30/20, new BABYLON.Vector3(0, 0, 0), scene);
+        const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 0, Math.PI/2.4, 2.5, new BABYLON.Vector3(0, 0, 0), scene);
         camera.fov = 60 * Math.PI/180;
         camera.attachControl(canvas, true);
         camera.minZ = cameraMin;
@@ -104,7 +104,7 @@ export class FluidRendering implements CreateSceneClass {
                         //positions[idx * 3 + 1] = Math.random() * numY * particleRadius * 2;
                         //positions[idx * 3 + 2] = (Math.random() - 0.5) * numZ * particleRadius * 2 + ofsZ;
                         positions[idx * 3 + 0] = (x - numX / 2) * particleRadius * 2;
-                        positions[idx * 3 + 1] = y * particleRadius * 2;
+                        positions[idx * 3 + 1] = y * particleRadius * 2 + 1;
                         positions[idx * 3 + 2] = (z - numZ / 2) * particleRadius * 2;
                         idx++;
                     }

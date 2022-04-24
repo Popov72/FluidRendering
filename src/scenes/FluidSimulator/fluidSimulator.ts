@@ -183,8 +183,8 @@ export class FluidSimulator {
 
     protected _updatePositions(deltaTime: number): void {
         const elastic = 0.4;
-        const fx = 0.25;
-        const fz = 0.5;
+        const fx = 0.25 * 1.5;
+        const fz = 0.5 * 1.5;
         for (let a = 0; a < this._particles.length; ++a) {
             const pA = this._particles[a];
 
