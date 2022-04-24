@@ -18,7 +18,7 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
     }
 
     constructor(scene: BABYLON.Scene, ps: BABYLON.ParticleSystem) {
-        super(scene, (ps as any)._vertexBuffers, (ps as any)._indexBuffer);
+        super(scene, ps.vertexBuffers as { [key: string]: BABYLON.VertexBuffer }, ps.indexBuffer);
 
         this._particleSystem = ps;
 
