@@ -32,8 +32,6 @@ export class FluidRenderingRenderTarget {
 
     public blurDepthScale = 10;
 
-    public blurUseSeparateFilters = true;
-
     public particleSize = 0.02;
 
     public onDisposeObservable: BABYLON.Observable<FluidRenderingRenderTarget> = new BABYLON.Observable<FluidRenderingRenderTarget>();
@@ -190,8 +188,10 @@ export class FluidRenderingRenderTarget {
             kernelBlurYPostprocess.autoClear = false;
 
             return [rtBlur, texture, [kernelBlurXPostprocess, kernelBlurYPostprocess]];
-        } else if (this.blurUseSeparateFilters) {
-            const kernelBlurXPostprocess = new BABYLON.PostProcess("BilateralBlurX", "bilateralBlur", ["maxFilterSize", "blurDir", "projectedParticleConstant", "depthThreshold"],
+        } else {
+            const uniforms: string[] = ["maxFilterSize", "blurDir", "projectedParticleConstant", "depthThreshold"];
+
+            const kernelBlurXPostprocess = new BABYLON.PostProcess("BilateralBlurX", "bilateralBlur", uniforms,
                 null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
                 engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
             kernelBlurXPostprocess.externalTextureSamplerBinding = true;
@@ -214,7 +214,7 @@ export class FluidRenderingRenderTarget {
                 });
             });
 
-            const kernelBlurYPostprocess = new BABYLON.PostProcess("BilateralBlurY", "bilateralBlur", ["maxFilterSize", "blurDir", "projectedParticleConstant", "depthThreshold"],
+            const kernelBlurYPostprocess = new BABYLON.PostProcess("BilateralBlurY", "bilateralBlur", uniforms,
                 null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
                 engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
             kernelBlurYPostprocess.onApplyObservable.add((effect) => {
@@ -235,33 +235,6 @@ export class FluidRenderingRenderTarget {
             kernelBlurYPostprocess.autoClear = false;
 
             return [rtBlur, texture, [kernelBlurXPostprocess, kernelBlurYPostprocess, kernelBlurXPostprocess, kernelBlurYPostprocess, kernelBlurXPostprocess, kernelBlurYPostprocess]];
-        } else {
-            const kernelBlurPostprocess = new BABYLON.PostProcess("BilateralBlur", "bilateralBlur2", ["maxFilterSize", "blurDir", "projectedParticleConstant", "depthThreshold"],
-                null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
-                engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
-            kernelBlurPostprocess.externalTextureSamplerBinding = true;
-            kernelBlurPostprocess.onApplyObservable.add((effect) => {
-                if (this._postProcessRunningIndex === 0) {
-                    effect.setTexture("textureSampler", textureBlurSource);
-                } else {
-                    effect._bindTexture("textureSampler", kernelBlurPostprocess.inputTexture.texture);
-                }
-                effect.setInt("maxFilterSize", this.blurMaxFilterSize);
-                effect.setFloat2("blurDir", 1 / this._blurTextureSizeX, 1 / this._blurTextureSizeY);
-                effect.setFloat("projectedParticleConstant", this._getProjectedParticleConstant());
-                effect.setFloat("depthThreshold", this._getDepthThreshold());
-                this._postProcessRunningIndex++;
-            });
-            kernelBlurPostprocess.onSizeChangedObservable.add(() => {
-                kernelBlurPostprocess._textures.forEach((rt) => {
-                    rt.texture!.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-                    rt.texture!.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-                });
-            });
-
-            kernelBlurPostprocess.autoClear = false;
-
-            return [rtBlur, texture, [kernelBlurPostprocess, kernelBlurPostprocess, kernelBlurPostprocess]];
         }
     }
 

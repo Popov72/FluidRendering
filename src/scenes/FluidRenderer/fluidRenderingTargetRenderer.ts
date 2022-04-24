@@ -128,12 +128,27 @@ export class FluidRenderingTargetRenderer {
         return this._blurFilterSize;
     }
 
-    public set blurFilterSize(kernel: number) {
-        if (this._blurFilterSize === kernel) {
+    public set blurFilterSize(filterSize: number) {
+        if (this._blurFilterSize === filterSize) {
             return;
         }
 
-        this._blurFilterSize = kernel;
+        this._blurFilterSize = filterSize;
+        this._setBlurParametersForAllTargets();
+    }
+
+    private _blurMaxFilterSize = 100;
+
+    public get blurMaxFilterSize() {
+        return this._blurMaxFilterSize;
+    }
+
+    public set blurMaxFilterSize(maxFilterSize: number) {
+        if (this._blurMaxFilterSize === maxFilterSize) {
+            return;
+        }
+
+        this._blurMaxFilterSize = maxFilterSize;
         this._setBlurParametersForAllTargets();
     }
 
@@ -150,21 +165,6 @@ export class FluidRenderingTargetRenderer {
 
         this._blurDepthScale = scale;
         this._setBlurParametersForAllTargets();
-    }
-
-    private _blurUseSeparateFilters = true;
-
-    public get blurUseSeparateFilters() {
-        return this._blurUseSeparateFilters;
-    }
-
-    public set blurUseSeparateFilters(useSeparateFilers: boolean) {
-        if (this._blurUseSeparateFilters === useSeparateFilers) {
-            return;
-        }
-
-        this._blurUseSeparateFilters = useSeparateFilers;
-        this._needInitialization = true;
     }
 
     private _mapSize: BABYLON.Nullable<number> = null;
@@ -276,7 +276,6 @@ export class FluidRenderingTargetRenderer {
             renderTarget.enableBlur = this.enableBlur;
         }
         renderTarget.blurSizeDivisor = this.blurSizeDivisor;
-        renderTarget.blurUseSeparateFilters = this.blurUseSeparateFilters;
 
         this._setBlurParameters(renderTarget);
 
