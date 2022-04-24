@@ -4,7 +4,6 @@ import * as BABYLON from "@babylonjs/core";
 
 import "./FluidRenderer/fluidRendererSceneComponent";
 import { FluidRendererGUI } from "./FluidRenderer/fluidRendererGUI";
-import { FluidRenderingObjectVertexBuffer } from "./FluidRenderer/fluidRenderingObjectVertexBuffer";
 
 const cameraMin = 0.1;
 const cameraMax = 1000;
@@ -100,7 +99,7 @@ export class FluidRendering implements CreateSceneClass {
             const positionBuffers: Array<Float32Array> = [];
             
             let numParticles = 0;
-            let particleRadius = 0;
+            //let particleRadius = 0;
 
             for (let i = 0; i < numFrames; ++i) {
                 const num = "000" + (i + 1);
@@ -109,7 +108,7 @@ export class FluidRendering implements CreateSceneClass {
                 const bufferFloat = new Float32Array(buffer);
 
                 numParticles = buffer32[0];
-                particleRadius = bufferFloat[1];
+                //particleRadius = bufferFloat[1];
 
                 const positions = new Float32Array(numParticles * 3);
 
