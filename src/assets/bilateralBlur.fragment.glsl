@@ -15,8 +15,12 @@ void main(void) {
         return;
     }
 
+#ifdef FLUIDRENDERING_USE_DYNAMIC_FILTERSIZE
     int filterSize = min(maxFilterSize, int(ceil(projectedParticleConstant / depth)));
     float sigma = float(filterSize) / 3.0;
+#else
+    float sigma = float(maxFilterSize) / 3.0;
+#endif
     float two_sigma2 = 2.0 * sigma * sigma;
 
     float sigmaDepth = depthThreshold / 3.0;
