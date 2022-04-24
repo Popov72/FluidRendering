@@ -156,6 +156,7 @@ export class FluidRendererGUI {
             targets_enableBlur: this._parameterRead("targets_enableBlur"),
             targets_blurSizeDivisor: this._parameterRead("targets_blurSizeDivisor"),
             targets_blurFilterSize: this._parameterRead("targets_blurFilterSize"),
+            targets_blurNumIterations: this._parameterRead("targets_blurNumIterations"),
             targets_blurMaxFilterSize: this._parameterRead("targets_blurMaxFilterSize"),
             targets_blurDepthScale: this._parameterRead("targets_blurDepthScale"),
             targets_mapSize: this._parameterRead("targets_mapSize"),
@@ -190,6 +191,7 @@ export class FluidRendererGUI {
         this._targetRenderersGUIElements.push(this._addCheckbox(menuBlur, params, "targets_enableBlur", "Enable"));
         this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurSizeDivisor", "Size divisor", 1, 10, 1));
         this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurFilterSize", "Filter size", 1, 20, 1));
+        this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurNumIterations", "Num iterations", 1, 10, 1));
         this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurMaxFilterSize", "Max filter size", 1, 100, 1));
         this._targetRenderersGUIElements.push(this._addSlider(menuBlur, params, "targets_blurDepthScale", "Depth scale", 0, 100, 0.01));
 

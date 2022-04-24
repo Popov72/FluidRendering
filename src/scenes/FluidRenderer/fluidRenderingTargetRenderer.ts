@@ -122,7 +122,7 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
-    private _blurFilterSize = 5;
+    private _blurFilterSize = 7;
 
     public get blurFilterSize() {
         return this._blurFilterSize;
@@ -134,6 +134,21 @@ export class FluidRenderingTargetRenderer {
         }
 
         this._blurFilterSize = filterSize;
+        this._setBlurParametersForAllTargets();
+    }
+
+    private _blurNumIterations = 3;
+
+    public get blurNumIterations() {
+        return this._blurNumIterations;
+    }
+
+    public set blurNumIterations(numIterations: number) {
+        if (this._blurNumIterations === numIterations) {
+            return;
+        }
+
+        this._blurNumIterations = numIterations;
         this._setBlurParametersForAllTargets();
     }
 
@@ -268,6 +283,7 @@ export class FluidRenderingTargetRenderer {
 
     protected _setBlurParameters(renderTarget: FluidRenderingRenderTarget): void {
         renderTarget.blurFilterSize = this.blurFilterSize;
+        renderTarget.blurNumIterations = this.blurNumIterations;
         renderTarget.blurDepthScale = this.blurDepthScale;
     }
 

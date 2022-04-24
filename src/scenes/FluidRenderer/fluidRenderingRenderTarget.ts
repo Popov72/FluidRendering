@@ -28,6 +28,26 @@ export class FluidRenderingRenderTarget {
 
     public blurFilterSize = 7;
 
+    private _blurNumIterations = 3;
+
+    public get blurNumIterations() {
+        return this._blurNumIterations;
+    }
+
+    public set blurNumIterations(numIterations: number) {
+        if (this._blurNumIterations === numIterations) {
+            return;
+        }
+
+        this._blurNumIterations = numIterations;
+        if (this._blurPostProcesses !== null) {
+            const blurX = this._blurPostProcesses[0];
+            const blurY = this._blurPostProcesses[1];
+
+            this._blurPostProcesses = [...Array(this._blurNumIterations * 2).keys()].map((elm) => elm & 1 ? blurY : blurX)
+        }
+    }
+
     public blurMaxFilterSize = 100;
 
     public blurDepthScale = 10;
@@ -149,8 +169,6 @@ export class FluidRenderingRenderTarget {
             const kernelBlurXPostprocess = new BABYLON.PostProcess("BilateralBlurX", "standardBlur", ["filterSize", "blurDir"],
                 null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
                 engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
-            //kernelBlurXPostprocess.width = targetSize.x;
-            //kernelBlurXPostprocess.height = targetSize.y;
             kernelBlurXPostprocess.externalTextureSamplerBinding = true;
             kernelBlurXPostprocess.onApplyObservable.add((effect) => {
                 if (this._postProcessRunningIndex === 0) {
@@ -168,6 +186,7 @@ export class FluidRenderingRenderTarget {
                     rt.texture!.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
                 });
             });
+            this._fixReusablePostProcess(kernelBlurXPostprocess);
 
             const kernelBlurYPostprocess = new BABYLON.PostProcess("BilateralBlurY", "standardBlur", ["filterSize", "blurDir"],
                 null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
@@ -183,6 +202,7 @@ export class FluidRenderingRenderTarget {
                     rt.texture!.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
                 });
             });
+            this._fixReusablePostProcess(kernelBlurYPostprocess);
 
             kernelBlurXPostprocess.autoClear = false;
             kernelBlurYPostprocess.autoClear = false;
@@ -213,6 +233,7 @@ export class FluidRenderingRenderTarget {
                     rt.texture!.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
                 });
             });
+            this._fixReusablePostProcess(kernelBlurXPostprocess);
 
             const kernelBlurYPostprocess = new BABYLON.PostProcess("BilateralBlurY", "bilateralBlur", uniforms,
                 null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
@@ -230,12 +251,28 @@ export class FluidRenderingRenderTarget {
                     rt.texture!.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
                 });
             });
+            this._fixReusablePostProcess(kernelBlurYPostprocess);
 
             kernelBlurXPostprocess.autoClear = false;
             kernelBlurYPostprocess.autoClear = false;
 
-            return [rtBlur, texture, [kernelBlurXPostprocess, kernelBlurYPostprocess, kernelBlurXPostprocess, kernelBlurYPostprocess, kernelBlurXPostprocess, kernelBlurYPostprocess]];
+            return [rtBlur, texture, [...Array(this._blurNumIterations * 2).keys()].map((elm) => elm & 1 ? kernelBlurYPostprocess : kernelBlurXPostprocess)];
         }
+    }
+
+    private _fixReusablePostProcess(pp: BABYLON.PostProcess) {
+        if  (!pp.isReusable()) {
+            return;
+        }
+
+        pp.onActivateObservable.add(() => {
+            // undo what calling activate() does which will make sure we will retrieve the right texture when getting the input for the post process
+            pp._currentRenderTextureInd = (pp._currentRenderTextureInd + 1) % 2;
+        });
+        pp.onApplyObservable.add(() => {
+            // now we can advance to the next texture
+            pp._currentRenderTextureInd = (pp._currentRenderTextureInd + 1) % 2;
+        });
     }
 
     private _getProjectedParticleConstant() {
@@ -256,7 +293,8 @@ export class FluidRenderingRenderTarget {
         this._rtBlur?.dispose();
         this._rtBlur = null;
         if (this._blurPostProcesses) {
-            this._blurPostProcesses.forEach((pp) => pp.dispose());
+            this._blurPostProcesses[0].dispose();
+            this._blurPostProcesses[1].dispose();
         }
         this._blurPostProcesses = null;
     }
