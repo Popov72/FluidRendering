@@ -253,7 +253,7 @@ export class FluidRenderer {
             if (firstPostProcess) {
                 firstPostProcess.onSizeChangedObservable.add(() => {
                     if (!firstPostProcess.inputTexture.depthStencilTexture) {
-                        firstPostProcess.inputTexture.createDepthStencilTexture(0, true, this._engine.isStencilEnable, 1);
+                        firstPostProcess.inputTexture.createDepthStencilTexture(0, true, this._engine.isStencilEnable, list[0].samples);
                     }
                     for (const targetRenderer of list) {
                         if (targetRenderer.thicknessRenderTarget?.renderTarget) {

@@ -15,6 +15,7 @@ export class FluidRenderingRenderTarget {
     protected _blurTextureFormat: number;
     protected _useStandardBlur: boolean;
     protected _generateDepthBuffer: boolean;
+    protected _samples: number;
     protected _postProcessRunningIndex: number;
 
     protected _rt: BABYLON.Nullable<BABYLON.RenderTargetWrapper>;
@@ -75,7 +76,7 @@ export class FluidRenderingRenderTarget {
 
     constructor(name: string, scene: BABYLON.Scene, width: number, height: number, blurTextureSizeX: number, blurTextureSizeY: number,
         textureType: number = BABYLON.Constants.TEXTURETYPE_FLOAT, textureFormat: number = BABYLON.Constants.TEXTUREFORMAT_R,
-        blurTextureType: number = BABYLON.Constants.TEXTURETYPE_FLOAT, blurTextureFormat: number = BABYLON.Constants.TEXTUREFORMAT_R, useStandardBlur = false, camera: BABYLON.Nullable<BABYLON.Camera> = null, generateDepthBuffer = true)
+        blurTextureType: number = BABYLON.Constants.TEXTURETYPE_FLOAT, blurTextureFormat: number = BABYLON.Constants.TEXTUREFORMAT_R, useStandardBlur = false, camera: BABYLON.Nullable<BABYLON.Camera> = null, generateDepthBuffer = true, samples = 1)
     {
         this._name = name;
         this._scene = scene;
@@ -91,6 +92,7 @@ export class FluidRenderingRenderTarget {
         this._blurTextureFormat = blurTextureFormat;
         this._useStandardBlur = useStandardBlur;
         this._generateDepthBuffer = generateDepthBuffer;
+        this._samples = samples;
         this._postProcessRunningIndex = 0;
         this.enableBlur = blurTextureSizeX !== 0 && blurTextureSizeY !== 0;
     
@@ -130,7 +132,7 @@ export class FluidRenderingRenderTarget {
             samplingMode: BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
             generateDepthBuffer: this._generateDepthBuffer,
             generateStencilBuffer: false,
-            samples: 1,
+            samples: this._samples,
         });
 
         const renderTexture = this._rt.texture!;
@@ -146,16 +148,15 @@ export class FluidRenderingRenderTarget {
     protected _createBlurPostProcesses(textureBlurSource: BABYLON.ThinTexture, textureType: number, textureFormat: number, blurSizeDivisor: number, debugName: string, useStandardBlur = false): [BABYLON.RenderTargetWrapper, BABYLON.Texture, BABYLON.PostProcess[]] {
         const engine = this._scene.getEngine();
         const targetSize = new BABYLON.Vector2(Math.floor(this._blurTextureSizeX / blurSizeDivisor), Math.floor(this._blurTextureSizeY / blurSizeDivisor));
-        const supportFloatLinearFiltering = engine.getCaps().textureFloatLinearFiltering;
 
         const rtBlur = this._engine.createRenderTargetTexture({ width: targetSize.x, height: targetSize.y }, {
             generateMipMaps: false,
             type: textureType,
             format: textureFormat,
-            samplingMode: supportFloatLinearFiltering ? BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE : BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
+            samplingMode: BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
             generateDepthBuffer: false,
             generateStencilBuffer: false,
-            samples: 1,
+            samples: this._samples,
         });
 
         const renderTexture = rtBlur.texture!;
@@ -171,6 +172,7 @@ export class FluidRenderingRenderTarget {
             const kernelBlurXPostprocess = new BABYLON.PostProcess("BilateralBlurX", "standardBlur", ["filterSize", "blurDir"],
                 null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
                 engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
+            kernelBlurXPostprocess.samples = this._samples;
             kernelBlurXPostprocess.externalTextureSamplerBinding = true;
             kernelBlurXPostprocess.onApplyObservable.add((effect) => {
                 if (this._postProcessRunningIndex === 0) {
@@ -193,6 +195,7 @@ export class FluidRenderingRenderTarget {
             const kernelBlurYPostprocess = new BABYLON.PostProcess("BilateralBlurY", "standardBlur", ["filterSize", "blurDir"],
                 null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
                 engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
+            kernelBlurYPostprocess.samples = this._samples;
             kernelBlurYPostprocess.onApplyObservable.add((effect) => {
                 effect.setInt("filterSize", this.blurFilterSize);
                 effect.setFloat2("blurDir", 0, 1 / this._blurTextureSizeY);
@@ -216,6 +219,7 @@ export class FluidRenderingRenderTarget {
             const kernelBlurXPostprocess = new BABYLON.PostProcess("BilateralBlurX", "bilateralBlur", uniforms,
                 null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
                 engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
+            kernelBlurXPostprocess.samples = this._samples;
             kernelBlurXPostprocess.externalTextureSamplerBinding = true;
             kernelBlurXPostprocess.onApplyObservable.add((effect) => {
                 if (this._postProcessRunningIndex === 0) {
@@ -240,6 +244,7 @@ export class FluidRenderingRenderTarget {
             const kernelBlurYPostprocess = new BABYLON.PostProcess("BilateralBlurY", "bilateralBlur", uniforms,
                 null, 1, null, BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
                 engine, true, null, textureType, undefined, undefined, undefined, textureFormat);
+            kernelBlurYPostprocess.samples = this._samples;
             kernelBlurYPostprocess.onApplyObservable.add((effect) => {
                 effect.setInt("maxFilterSize", this.blurMaxFilterSize);
                 effect.setFloat2("blurDir", 0, 1 / this._blurTextureSizeY);

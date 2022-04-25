@@ -197,6 +197,21 @@ export class FluidRenderingTargetRenderer {
         this._needInitialization = true;
     }
 
+    private _samples = 1;
+
+    public get samples() {
+        return this._samples;
+    }
+
+    public set samples(samples: number) {
+        if (this._samples === samples) {
+            return;
+        }
+
+        this._samples = samples;
+        this._needInitialization = true;
+    }
+
     public get camera() {
         return this._camera;
     }
@@ -248,21 +263,21 @@ export class FluidRenderingTargetRenderer {
         
         this._depthRenderTarget = new FluidRenderingRenderTarget("Depth", this._scene, textureWidth, textureHeight, textureWidth, textureHeight,
             BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R,
-            BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, false, this._camera);
+            BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, false, this._camera, true, this._samples);
 
         this._initializeRenderTarget(this._depthRenderTarget);
 
         if (this.generateDiffuseTexture) {
             this._diffuseRenderTarget = new FluidRenderingRenderTarget("Diffuse", this._scene, textureWidth, textureHeight, 0, 0,
                 BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RGBA,
-                BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RGBA, true, this._camera);
+                BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RGBA, true, this._camera, true, this._samples);
 
             this._initializeRenderTarget(this._diffuseRenderTarget);
         }
 
         this._thicknessRenderTarget = new FluidRenderingRenderTarget("Thickness", this._scene, this._engine.getRenderWidth(), this._engine.getRenderHeight(), textureWidth, textureHeight,
             BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R,
-            BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, true, this._camera, false);
+            BABYLON.Constants.TEXTURETYPE_HALF_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, true, this._camera, false, this._samples);
 
         this._initializeRenderTarget(this._thicknessRenderTarget);
 
@@ -337,6 +352,7 @@ export class FluidRenderingTargetRenderer {
         }
 
         this._renderPostProcess = new BABYLON.PostProcess("FluidRendering", "renderFluid", uniformNames, samplerNames, 1, null, BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE, engine, false, defines.join("\n"), BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
+        this._renderPostProcess.samples = this._samples;
         this._renderPostProcess.onApplyObservable.add((effect) => {
             this._invProjectionMatrix.copyFrom(this._scene.getProjectionMatrix());
             this._invProjectionMatrix.invert();
