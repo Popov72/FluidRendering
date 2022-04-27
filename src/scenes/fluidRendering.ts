@@ -158,8 +158,8 @@ export class FluidRendering implements CreateSceneClass {
 
                 entity.object.particleThicknessAlpha = 0.0075;
                 entity.object.particleSize = 0.75;
-                entity.targetRenderer.blurFilterSize = 10;
-                entity.targetRenderer.blurDepthScale = 10;
+                entity.targetRenderer.blurDepthFilterSize = 10;
+                entity.targetRenderer.blurDepthDepthScale = 10;
                 entity.targetRenderer.density = 8;
                 entity.targetRenderer.fresnelClamp = 0.04;
                 entity.targetRenderer.fluidColor = new BABYLON.Color3(219/255, 228/255, 1);
@@ -206,8 +206,8 @@ export class FluidRendering implements CreateSceneClass {
                 if (entity) {
                     entity.object.particleSize = 0.1;
                     entity.object.particleThicknessAlpha = 0.025;
-                    entity.targetRenderer.blurFilterSize = 7;
-                    entity.targetRenderer.blurDepthScale = 10;
+                    entity.targetRenderer.blurDepthFilterSize = 7;
+                    entity.targetRenderer.blurDepthDepthScale = 10;
                     entity.targetRenderer.density = 0.63;
                 }
 

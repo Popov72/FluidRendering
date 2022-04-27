@@ -213,7 +213,7 @@ export class FluidRenderingRenderTarget {
             kernelBlurXPostprocess.autoClear = false;
             kernelBlurYPostprocess.autoClear = false;
 
-            return [rtBlur, texture, [kernelBlurXPostprocess, kernelBlurYPostprocess]];
+            return [rtBlur, texture, [...Array(this._blurNumIterations * 2).keys()].map((elm) => elm & 1 ? kernelBlurYPostprocess : kernelBlurXPostprocess)];
         } else {
             const uniforms: string[] = ["maxFilterSize", "blurDir", "projectedParticleConstant", "depthThreshold"];
 

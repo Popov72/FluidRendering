@@ -76,7 +76,7 @@ export class FluidRendering implements CreateSceneClass {
 
         scene.createDefaultSkybox(scene.environmentTexture);
 
-        const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 0, Math.PI/3.0, 30/20, new BABYLON.Vector3(0, 0, 0), scene);
+        const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
         camera.fov = 60 * Math.PI/180;
         camera.attachControl(canvas, true);
         camera.minZ = cameraMin;
@@ -154,14 +154,15 @@ export class FluidRendering implements CreateSceneClass {
                 fluidRenderObject = fluidRenderer?.addVertexBuffer({ position: fluidSim.positionVertexBuffer }, currNumParticles, false);
 
                 if (fluidRenderObject) {
-                    fluidRenderObject.targetRenderer.enableBlur = true;
-                    fluidRenderObject.targetRenderer.blurFilterSize = 8;
-                    fluidRenderObject.targetRenderer.blurNumIterations = 3;
-                    fluidRenderObject.targetRenderer.blurDepthScale = 5;
+                    fluidRenderObject.targetRenderer.enableBlurDepth = true;
+                    fluidRenderObject.targetRenderer.blurDepthFilterSize = 8;
+                    fluidRenderObject.targetRenderer.blurDepthNumIterations = 3;
+                    fluidRenderObject.targetRenderer.blurDepthDepthScale = 5;
                     //fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 1);
                     fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(1 - 0.5, 1 - 0.2, 1 - 0.05);
                     fluidRenderObject.targetRenderer.density = 2;
                     fluidRenderObject.targetRenderer.specularPower = 200;
+                    fluidRenderObject.targetRenderer.thicknessMapSize = 256;
                     fluidRenderObject.object.particleSize = particleRadius * 2.0 * 2;
                     fluidRenderObject.object.particleThicknessAlpha = particleRadius;
                 }

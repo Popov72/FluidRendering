@@ -17,9 +17,16 @@ import standardBlurFragment from "../../assets/standardBlur.fragment.glsl";
 
 import renderFluidFragment from "../../assets/renderFluid.fragment.glsl";
 
+import passDepthVertex from "../../assets/passDepth.vertex.glsl";
+import passDepthFragment from "../../assets/passDepth.fragment.glsl";
+
+import passDepthWGSLVertex from "../../assets/passDepth.vertex.wgsl";
+import passDepthWGSLFragment from "../../assets/passDepth.fragment.wgsl";
+
 import { FluidRenderingObjectParticleSystem } from "./fluidRenderingObjectParticleSystem";
 import { FluidRenderingTargetRenderer } from "./fluidRenderingTargetRenderer";
 import { FluidRenderingObjectVertexBuffer } from "./fluidRenderingObjectVertexBuffer";
+import { CopyDepthTexture } from "scenes/Utils/copyDepthTexture";
 
 export interface IFluidRenderingRenderObject {
     object: FluidRenderingObject;
@@ -37,6 +44,7 @@ export class FluidRenderer {
     private _onEngineResizeObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Engine>>;
     private _renderObjects: Array<IFluidRenderingRenderObject>;
     private _targetRenderers: FluidRenderingTargetRenderer[];
+    private _cameras: Map<BABYLON.Camera, [Array<FluidRenderingTargetRenderer>, { [key: string]: CopyDepthTexture }]>;
 
     public get renderObjects() {
         return this._renderObjects;
@@ -52,6 +60,7 @@ export class FluidRenderer {
         this._onEngineResizeObserver = null;
         this._renderObjects = [];
         this._targetRenderers = [];
+        this._cameras = new Map();
 
         FluidRenderer._SceneComponentInitialization(this._scene);
 
@@ -231,7 +240,8 @@ export class FluidRenderer {
             this._targetRenderers[i].dispose();
         }
 
-        const cameras = new Map<BABYLON.Camera, Array<FluidRenderingTargetRenderer>>();
+        const cameras: Map<BABYLON.Camera, [Array<FluidRenderingTargetRenderer>, { [key: string]: CopyDepthTexture }]> = new Map();
+
         for (let i = 0; i < this._targetRenderers.length; ++i) {
             const targetRenderer = this._targetRenderers[i];
 
@@ -240,29 +250,61 @@ export class FluidRenderer {
             if (targetRenderer.camera && targetRenderer.renderPostProcess) {
                 let list = cameras.get(targetRenderer.camera);
                 if (!list) {
-                    list = [];
+                    list = [[], {}];
                     cameras.set(targetRenderer.camera, list);
                 }
-                list.push(targetRenderer);
+                list[0].push(targetRenderer);
                 targetRenderer.camera.attachPostProcess(targetRenderer.renderPostProcess, i);
             }
         }
 
         for (const [camera, list] of cameras) {
             const firstPostProcess = camera._getFirstPostProcess();
-            if (firstPostProcess) {
-                firstPostProcess.onSizeChangedObservable.add(() => {
-                    if (!firstPostProcess.inputTexture.depthStencilTexture) {
-                        firstPostProcess.inputTexture.createDepthStencilTexture(0, true, this._engine.isStencilEnable, list[0].samples);
-                    }
-                    for (const targetRenderer of list) {
-                        if (targetRenderer.thicknessRenderTarget?.renderTarget) {
-                            firstPostProcess.inputTexture._shareDepth(targetRenderer.thicknessRenderTarget.renderTarget);
+            if (!firstPostProcess) {
+                continue;
+            }
+
+            const [targetRenderers, copyDepthTextures] = list;
+
+            firstPostProcess.onSizeChangedObservable.add(() => {
+                if (!firstPostProcess.inputTexture.depthStencilTexture) {
+                    firstPostProcess.inputTexture.createDepthStencilTexture(0, true, this._engine.isStencilEnable, targetRenderers[0].samples);
+                }
+                for (const targetRenderer of targetRenderers) {
+                    const thicknessRT = targetRenderer.thicknessRenderTarget?.renderTarget;
+                    const thicknessTexture = thicknessRT?.texture;
+                    if (thicknessRT && thicknessTexture) {
+                        const key = thicknessTexture.width + "_" + thicknessTexture.height;
+                        let copyDepthTexture = copyDepthTextures[key];
+                        if (!copyDepthTexture) {
+                            copyDepthTexture = copyDepthTextures[key] = new CopyDepthTexture(this._engine, thicknessTexture.width, thicknessTexture.height);
                         }
+                        copyDepthTexture.depthRTWrapper._shareDepth(thicknessRT);
                     }
-                });
+                }
+            });
+        }
+
+        // Dispose the CopyDepthTexture instances that we don't need anymore
+        for (const [camera, list] of this._cameras) {
+            const copyDepthTextures = list[1];
+
+            const list2 = cameras.get(camera);
+            if (!list2) {
+                for (const key in copyDepthTextures) {
+                    copyDepthTextures[key].dispose();
+                }
+            } else {
+                for (const key in copyDepthTextures) {
+                    if (!list2[1][key]) {
+                        copyDepthTextures[key].dispose();
+                    }
+                }
             }
         }
+
+        this._cameras.clear();
+        this._cameras = cameras;
 
         this._setParticleSizeForRenderTargets();
     }
@@ -303,6 +345,21 @@ export class FluidRenderer {
             this._targetRenderers[i].clearTargets();
         }
 
+        for (const [camera, list] of this._cameras) {
+            const firstPostProcess = camera._getFirstPostProcess();
+            if (!firstPostProcess) {
+                continue;
+            }
+
+            const sourceCopyDepth = firstPostProcess.inputTexture?.depthStencilTexture;
+            if (sourceCopyDepth) {
+                const copyDepthTextures = list[1];
+                for (const key in copyDepthTextures) {
+                    copyDepthTextures[key].copy(sourceCopyDepth);
+                }
+            }
+        }
+
         for (let i = 0; i < this._renderObjects.length; ++i) {
             const renderingObject = this._renderObjects[i];
             renderingObject.targetRenderer.render(renderingObject.object);
@@ -321,22 +378,36 @@ export class FluidRenderer {
             this._targetRenderers[i].dispose();
         }
 
+        for (const key of this._cameras) {
+            const copyDepthTextures = key[1][1];
+            for (const key in copyDepthTextures) {
+                copyDepthTextures[key].dispose();
+            }
+        }
+
         this._renderObjects = [];
         this._targetRenderers = [];
+        this._cameras.clear();
     }
 }
 
-BABYLON.Effect.ShadersStore["fluidParticleDepthVertexShader"] = particleDepthVertex;
-BABYLON.Effect.ShadersStore["fluidParticleDepthFragmentShader"] = particleDepthFragment;
+BABYLON.ShaderStore.ShadersStore["fluidParticleDepthVertexShader"] = particleDepthVertex;
+BABYLON.ShaderStore.ShadersStore["fluidParticleDepthFragmentShader"] = particleDepthFragment;
 
-BABYLON.Effect.ShadersStore["fluidParticleThicknessVertexShader"] = particleThicknessVertex;
-BABYLON.Effect.ShadersStore["fluidParticleThicknessFragmentShader"] = particleThicknessFragment;
+BABYLON.ShaderStore.ShadersStore["fluidParticleThicknessVertexShader"] = particleThicknessVertex;
+BABYLON.ShaderStore.ShadersStore["fluidParticleThicknessFragmentShader"] = particleThicknessFragment;
 
-BABYLON.Effect.ShadersStore["fluidParticleDiffuseVertexShader"] = particleDiffuseVertex;
-BABYLON.Effect.ShadersStore["fluidParticleDiffuseFragmentShader"] = particleDiffuseFragment;
+BABYLON.ShaderStore.ShadersStore["fluidParticleDiffuseVertexShader"] = particleDiffuseVertex;
+BABYLON.ShaderStore.ShadersStore["fluidParticleDiffuseFragmentShader"] = particleDiffuseFragment;
 
-BABYLON.Effect.ShadersStore["bilateralBlurFragmentShader"] = bilateralBlurFragment;
+BABYLON.ShaderStore.ShadersStore["bilateralBlurFragmentShader"] = bilateralBlurFragment;
 
-BABYLON.Effect.ShadersStore["standardBlurFragmentShader"] = standardBlurFragment;
+BABYLON.ShaderStore.ShadersStore["standardBlurFragmentShader"] = standardBlurFragment;
 
-BABYLON.Effect.ShadersStore["renderFluidFragmentShader"] = renderFluidFragment;
+BABYLON.ShaderStore.ShadersStore["renderFluidFragmentShader"] = renderFluidFragment;
+
+BABYLON.ShaderStore.ShadersStore["passDepthVertexShader"] = passDepthVertex;
+BABYLON.ShaderStore.ShadersStore["passDepthFragmentShader"] = passDepthFragment;
+
+BABYLON.ShaderStore.ShadersStoreWGSL["passDepthVertexShader"] = passDepthWGSLVertex;
+BABYLON.ShaderStore.ShadersStoreWGSL["passDepthFragmentShader"] = passDepthWGSLFragment;
