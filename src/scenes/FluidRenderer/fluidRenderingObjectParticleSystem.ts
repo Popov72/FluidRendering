@@ -17,6 +17,31 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
         return "FluidRenderingObjectParticleSystem";
     }
 
+    private _useTrueRenderingForDiffuseTexture = true;
+
+    public get useTrueRenderingForDiffuseTexture() {
+        return this._useTrueRenderingForDiffuseTexture;
+    }
+
+    public set useTrueRenderingForDiffuseTexture(use: boolean) {
+        if (this._useTrueRenderingForDiffuseTexture === use) {
+            return;
+        }
+
+        this._useTrueRenderingForDiffuseTexture = use;
+
+        if (use) {
+            this._particleSystem.blendMode = this._blendMode;
+            this._particleSystem.onBeforeDrawParticlesObservable.remove(this._onBeforeDrawParticleObserver);
+            this._onBeforeDrawParticleObserver = null;
+        } else {
+            this._particleSystem.blendMode = -1;
+            this._onBeforeDrawParticleObserver = this._particleSystem.onBeforeDrawParticlesObservable.add(() => {
+                this._engine.setAlphaMode(BABYLON.Constants.ALPHA_COMBINE);
+            });
+        }
+    }
+
     constructor(scene: BABYLON.Scene, ps: BABYLON.ParticleSystem) {
         super(scene, ps.vertexBuffers as { [key: string]: BABYLON.VertexBuffer }, ps.indexBuffer);
 
@@ -24,15 +49,13 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
 
         this._renderCallback = ps.render.bind(ps);
         this._blendMode = ps.blendMode;
+        this._onBeforeDrawParticleObserver = null;
 
         ps.render = () => 0;
-        ps.blendMode = -1;
 
         this.particleSize = (ps.minSize + ps.maxSize) / 2;
 
-        this._onBeforeDrawParticleObserver = ps.onBeforeDrawParticlesObservable.add(() => {
-            this._engine.setAlphaMode(BABYLON.Constants.ALPHA_COMBINE);
-        });
+        this.useTrueRenderingForDiffuseTexture = false;
     }
 
     public isReady(): boolean {
