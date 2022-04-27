@@ -148,12 +148,13 @@ export class FluidRenderingRenderTarget {
     protected _createBlurPostProcesses(textureBlurSource: BABYLON.ThinTexture, textureType: number, textureFormat: number, blurSizeDivisor: number, debugName: string, useStandardBlur = false): [BABYLON.RenderTargetWrapper, BABYLON.Texture, BABYLON.PostProcess[]] {
         const engine = this._scene.getEngine();
         const targetSize = new BABYLON.Vector2(Math.floor(this._blurTextureSizeX / blurSizeDivisor), Math.floor(this._blurTextureSizeY / blurSizeDivisor));
+        const useBilinearFiltering = (textureType === BABYLON.Constants.TEXTURETYPE_FLOAT && engine.getCaps().textureFloatLinearFiltering) || (textureType === BABYLON.Constants.TEXTURETYPE_HALF_FLOAT && engine.getCaps().textureHalfFloatLinearFiltering);
 
         const rtBlur = this._engine.createRenderTargetTexture({ width: targetSize.x, height: targetSize.y }, {
             generateMipMaps: false,
             type: textureType,
             format: textureFormat,
-            samplingMode: BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
+            samplingMode: useBilinearFiltering ? BABYLON.Constants.TEXTURE_BILINEAR_SAMPLINGMODE : BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
             generateDepthBuffer: false,
             generateStencilBuffer: false,
             samples: this._samples,
