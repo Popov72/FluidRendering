@@ -27,6 +27,7 @@ export class CopyDepthTexture {
             generateDepthBuffer: true,
             generateStencilBuffer: false,
             samples: 1,
+            noColorTarget: true,
         });
         this._depthRTWrapper.createDepthStencilTexture(0, false, false, 1);
 
