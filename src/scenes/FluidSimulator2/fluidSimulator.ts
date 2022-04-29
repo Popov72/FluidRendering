@@ -21,10 +21,10 @@ export class FluidSimulator {
     protected _velocities: Float32Array;
     protected _hash: Hash;
 
-    private _smoothingRadius2: number;
-    private _poly6Constant: number;
-    private _spikyConstant: number;
-    private _viscConstant: number;
+    protected _smoothingRadius2: number;
+    protected _poly6Constant: number;
+    protected _spikyConstant: number;
+    protected _viscConstant: number;
     
     protected _smoothingRadius = 0.2;
 
@@ -46,6 +46,12 @@ export class FluidSimulator {
     public gravity = new BABYLON.Vector3(0, -9.8, 0);
 
     public checkXZBounds = true;
+
+    public minTimeStep = 4 / 1000;
+
+    public maxVelocity = 75;
+
+    public maxAcceleration = 2000;
 
     public currentNumParticles: number;
 
@@ -92,10 +98,23 @@ export class FluidSimulator {
     }
 
     public update(deltaTime: number): void {
-        this._hash.create(this._positions, this.currentNumParticles);
-        this._computeDensity();
-        this._computeForces();
-        this._updatePositions(deltaTime);
+        let timeLeft = deltaTime;
+
+        while (timeLeft > 0) {
+            this._hash.create(this._positions, this.currentNumParticles);
+            this._computeDensity();
+            this._computeForces();
+
+            let timeStep = this._calculateTimeStep();
+
+            timeLeft -= timeStep;
+            if (timeLeft < 0) {
+                timeStep += timeLeft;
+                timeLeft = 0;
+            }
+
+            this._updatePositions(timeStep);
+        }
     }
 
     public dispose(): void {
@@ -192,11 +211,53 @@ export class FluidSimulator {
             pA.accelX += this.gravity.x;
             pA.accelY += this.gravity.y;
             pA.accelZ += this.gravity.z;
+
+            const mag = Math.sqrt(pA.accelX * pA.accelX + pA.accelY * pA.accelY + pA.accelZ * pA.accelZ);
+
+            if (mag > this.maxAcceleration) {
+                pA.accelX = pA.accelX / mag * this.maxAcceleration;
+                pA.accelY = pA.accelY / mag * this.maxAcceleration;
+                pA.accelZ = pA.accelZ / mag * this.maxAcceleration;
+            }
         }
     }
 
+    protected _calculateTimeStep() {
+        let maxVelocity = 0;
+        let maxAcceleration = 0;
+        let maxSpeedOfSound = 0;
+
+        for (let a = 0; a < this.currentNumParticles; ++a) {
+            const pA = this._particles[a];
+
+            const velSq = this._velocities[a * 3 + 0] * this._velocities[a * 3 + 0] + this._velocities[a * 3 + 1] * this._velocities[a * 3 + 1] + this._velocities[a * 3 + 2] * this._velocities[a * 3 + 2];
+            const accSq = pA.accelX * pA.accelX + pA.accelY * pA.accelY + pA.accelZ * pA.accelZ;
+            const spsSq = pA.density < 0.00001 ? 0 : pA.pressure / pA.density;
+
+            if (velSq > maxVelocity) {
+                maxVelocity = velSq;
+            }
+            if (accSq > maxAcceleration) {
+                maxAcceleration = accSq;
+            }
+            if (spsSq > maxSpeedOfSound) {
+                maxSpeedOfSound = spsSq;
+            }
+        }
+
+        maxVelocity = Math.sqrt(maxVelocity);
+        maxAcceleration = Math.sqrt(maxAcceleration);
+        maxSpeedOfSound = Math.sqrt(maxSpeedOfSound);
+
+        const velStep = 0.4 * this.smoothingRadius / Math.max(1, maxVelocity);
+        const accStep = 0.4 * Math.sqrt(this.smoothingRadius / maxAcceleration);
+        const spsStep = this.smoothingRadius / maxSpeedOfSound;
+
+        return Math.max(this.minTimeStep, Math.min(velStep, accStep, spsStep));
+    }
+
     protected _updatePositions(deltaTime: number): void {
-        const elastic = 0.4;
+        const elastic = 0.03;
         const fx = 0.25;
         const fz = 0.65;
         for (let a = 0; a < this.currentNumParticles; ++a) {
@@ -206,6 +267,14 @@ export class FluidSimulator {
             this._velocities[a * 3 + 1] += pA.accelY * deltaTime;
             this._velocities[a * 3 + 2] += pA.accelZ * deltaTime;
             
+            const mag = Math.sqrt(this._velocities[a * 3 + 0] * this._velocities[a * 3 + 0] + this._velocities[a * 3 + 1] * this._velocities[a * 3 + 1] + this._velocities[a * 3 + 2] * this._velocities[a * 3 + 2]);
+
+            if (mag > this.maxVelocity) {
+                this._velocities[a * 3 + 0] = this._velocities[a * 3 + 0] / mag * this.maxVelocity;
+                this._velocities[a * 3 + 1] = this._velocities[a * 3 + 1] / mag * this.maxVelocity;
+                this._velocities[a * 3 + 2] = this._velocities[a * 3 + 2] / mag * this.maxVelocity;
+            }
+
             this._positions[a * 3 + 0] += deltaTime * this._velocities[a * 3 + 0];
             this._positions[a * 3 + 1] += deltaTime * this._velocities[a * 3 + 1];
             this._positions[a * 3 + 2] += deltaTime * this._velocities[a * 3 + 2];

@@ -72,7 +72,7 @@ export class FluidRendering implements CreateSceneClass {
 
             scene.activeCamera = camera;
 
-            const numX = 10, numY = 10, numZ = 10 * 5;
+            const numX = 10, numY = 10, numZ = 10 * 2.5;
 
             const numParticles = numX * numY * numZ;
 
@@ -104,7 +104,7 @@ export class FluidRendering implements CreateSceneClass {
                                 accelZ: 0,
                                 velocityX: (Math.random() - 0.5) * 0.03,
                                 velocityY: (Math.random() - 0.5) * 0.03,
-                                velocityZ: (Math.random() - 1.0) * 0.03 - 1.4,
+                                velocityZ: (Math.random() - 1.0) * 0.03 - 2.4,
                                 mass: 1,
                             });
                         }
@@ -163,20 +163,30 @@ export class FluidRendering implements CreateSceneClass {
 
             scene.onBeforeRenderObservable.add(() => {
                 if (fluidSim && fluidRenderObject) {
-                    if (currNumParticles < numParticles/1.8 && (t++ % 7) === 0) {
-                        currNumParticles += 100;
+                    if (currNumParticles === 0) {
+                        currNumParticles += numX * numY;
+                    } else if (currNumParticles < numParticles) {
+                        const px1 = fluidSim.positions[currNumParticles * 3 + 0];
+                        const py1 = fluidSim.positions[currNumParticles * 3 + 1];
+                        const pz1 = fluidSim.positions[currNumParticles * 3 + 2];
+
+                        const px2 = fluidSim.positions[(currNumParticles - numX * numY) * 3 + 0];
+                        const py2 = fluidSim.positions[(currNumParticles - numX * numY) * 3 + 1];
+                        const pz2 = fluidSim.positions[(currNumParticles - numX * numY) * 3 + 2];
+
+                        const dist = Math.sqrt((px1 - px2) * (px1 - px2) + (py1 - py2) * (py1 - py2) + (pz1 - pz2) * (pz1 - pz2));
+
+                        if (dist > fluidSim.smoothingRadius) {
+                            currNumParticles += numX * numY;
+                        }
                     }
                     fluidSim.currentNumParticles = currNumParticles;
                     (fluidRenderObject.object as FluidRenderingObjectVertexBuffer).setNumParticles(currNumParticles);
                 
-                    const numIter = 2;
-                    const delta = 4.0 / 1000;
-                    for (let i = 0; i < numIter; ++i) {
-                        fluidSim.update(delta);
-                        if (fluidRenderObject) {
-                            fluidRenderObject.object.vertexBuffers["position"].updateDirectly(fluidSim.positions, 0);
-                            fluidRenderObject.object.vertexBuffers["velocity"].updateDirectly(fluidSim.velocities, 0);
-                        }
+                    fluidSim.update(8 / 1000/*this._engine.getDeltaTime() / 1000*/);
+                    if (fluidRenderObject) {
+                        fluidRenderObject.object.vertexBuffers["position"].updateDirectly(fluidSim.positions, 0);
+                        fluidRenderObject.object.vertexBuffers["velocity"].updateDirectly(fluidSim.velocities, 0);
                     }
                 }
             });
