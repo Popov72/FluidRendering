@@ -1,6 +1,7 @@
 import { CreateSceneClass } from "../createScene";
 
 import * as BABYLON from "@babylonjs/core";
+import * as GUI from "@babylonjs/gui";
 
 import flareImg from "../assets/flare32bits.png";
 
@@ -8,33 +9,6 @@ import "./FluidRenderer/fluidRendererSceneComponent";
 import { FluidRendererGUI } from "./FluidRenderer/fluidRendererGUI";
 
 const cameraMax = 100;
-
-declare module "@babylonjs/core/Particles/IParticleSystem" {
-    export interface IParticleSystem {
-        renderAsFluid: boolean;
-    }
-}
-
-declare module "@babylonjs/core/Particles/ParticleSystem" {
-    export interface ParticleSystem {
-        /** @hidden (Backing field) */
-        _renderAsFluid: boolean;
-
-        renderAsFluid: boolean;
-    }
-}
-
-Object.defineProperty(BABYLON.ParticleSystem.prototype, "renderAsFluid", {
-    get: function (this: BABYLON.ParticleSystem) {
-        return this._renderAsFluid;
-    },
-    set: function (this: BABYLON.ParticleSystem, value: boolean) {
-        this._renderAsFluid = value;
-        this._scene?.fluidRenderer?.collectParticleSystems();
-    },
-    enumerable: true,
-    configurable: true
-});
 
 export class FluidRendering implements CreateSceneClass {
 
@@ -82,6 +56,11 @@ export class FluidRendering implements CreateSceneClass {
         camera.attachControl(canvas, true);
         //camera.minZ = 0.1;
         camera.maxZ = cameraMax;
+
+        const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 0, 0, 1, new BABYLON.Vector3(0, 0, 0), scene);
+        cameraFront.layerMask = 0x10000000;
+
+        scene.activeCameras = [camera, cameraFront];
 
         // Ground
         /*var ground = BABYLON.Mesh.CreatePlane("ground", 50.0, scene);
@@ -150,6 +129,27 @@ export class FluidRendering implements CreateSceneClass {
             particleSystem.renderAsFluid = liquidRendering;
         }
 
+        const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+        advancedTexture.layer!.layerMask = 0x10000000;
+
+        const panel = new GUI.StackPanel();
+        panel.width = "200px";
+        panel.isVertical = true;
+        panel.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        panel.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        advancedTexture.addControl(panel);
+    
+        const stkCheckBounds = GUI.Checkbox.AddCheckBoxWithHeader("Stop particle system", (v) => {
+            if (particleSystem) {
+                particleSystem.updateSpeed = v ? 0 : 0.02;
+            }
+        });
+        (stkCheckBounds.children[0] as GUI.Checkbox).isChecked = false;
+        stkCheckBounds.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        stkCheckBounds.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+
+        panel.addControl(stkCheckBounds);
+
         if (liquidRendering) {
             const fluidRenderer = scene.enableFluidRenderer();
 
@@ -201,7 +201,7 @@ export class FluidRendering implements CreateSceneClass {
                 vertexBuffers["position"] = new BABYLON.VertexBuffer(this._engine, positions, "position", true, false, 3, true);
                 vertexBuffers["color"] = new BABYLON.VertexBuffer(this._engine, (pcs as any)._colors32, "color", false, false, 4, true);
 
-                const entity = fluidRenderer?.addVertexBuffer(vertexBuffers, numParticles, true);
+                const entity = fluidRenderer?.addVertexBuffer(vertexBuffers, numParticles, true, undefined, camera);
 
                 if (entity) {
                     entity.object.particleSize = 0.1;

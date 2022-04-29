@@ -9,33 +9,6 @@ import { FluidSimulator } from "./FluidSimulator/fluidSimulator";
 const cameraMin = 0.1;
 const cameraMax = 100;
 
-declare module "@babylonjs/core/Particles/IParticleSystem" {
-    export interface IParticleSystem {
-        renderAsFluid: boolean;
-    }
-}
-
-declare module "@babylonjs/core/Particles/ParticleSystem" {
-    export interface ParticleSystem {
-        /** @hidden (Backing field) */
-        _renderAsFluid: boolean;
-
-        renderAsFluid: boolean;
-    }
-}
-
-Object.defineProperty(BABYLON.ParticleSystem.prototype, "renderAsFluid", {
-    get: function (this: BABYLON.ParticleSystem) {
-        return this._renderAsFluid;
-    },
-    set: function (this: BABYLON.ParticleSystem, value: boolean) {
-        this._renderAsFluid = value;
-        this._scene?.fluidRenderer?.collectParticleSystems();
-    },
-    enumerable: true,
-    configurable: true
-});
-
 export class FluidRendering implements CreateSceneClass {
 
     private _engine: BABYLON.Engine;

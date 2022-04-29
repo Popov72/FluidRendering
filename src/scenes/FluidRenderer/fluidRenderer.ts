@@ -28,6 +28,33 @@ import { FluidRenderingTargetRenderer } from "./fluidRenderingTargetRenderer";
 import { FluidRenderingObjectVertexBuffer } from "./fluidRenderingObjectVertexBuffer";
 import { CopyDepthTexture } from "scenes/Utils/copyDepthTexture";
 
+declare module "@babylonjs/core/Particles/IParticleSystem" {
+    export interface IParticleSystem {
+        renderAsFluid: boolean;
+    }
+}
+
+declare module "@babylonjs/core/Particles/ParticleSystem" {
+    export interface ParticleSystem {
+        /** @hidden (Backing field) */
+        _renderAsFluid: boolean;
+
+        renderAsFluid: boolean;
+    }
+}
+
+Object.defineProperty(BABYLON.ParticleSystem.prototype, "renderAsFluid", {
+    get: function (this: BABYLON.ParticleSystem) {
+        return this._renderAsFluid;
+    },
+    set: function (this: BABYLON.ParticleSystem, value: boolean) {
+        this._renderAsFluid = value;
+        this._scene?.fluidRenderer?.collectParticleSystems();
+    },
+    enumerable: true,
+    configurable: true
+});
+
 export interface IFluidRenderingRenderObject {
     object: FluidRenderingObject;
     targetRenderer: FluidRenderingTargetRenderer;
