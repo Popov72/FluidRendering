@@ -33,6 +33,25 @@ export abstract class FluidRenderingObject {
         return !this.indexBuffer;
     }
 
+    private _useVelocity = false;
+
+    public get useVelocity() {
+        return this._useVelocity;
+    }
+
+    public set useVelocity(use: boolean) {
+        if (this._useVelocity === use || !this._hasVelocity()) {
+            return;
+        }
+
+        this._useVelocity = use;
+        this._effectsAreDirty = true;
+    }
+
+    private _hasVelocity() {
+        return !!this.vertexBuffers.velocity;
+    }
+
     public getClassName(): string {
         return "FluidRenderingObject";
     }
@@ -48,8 +67,14 @@ export abstract class FluidRenderingObject {
     protected _createEffects(): void {
         const uniformNames = ["view", "projection", "particleRadius", "size"];
         const attributeNames = ["position", "offset"];
+        const defines: string[] = [];
 
         this._effectsAreDirty = false;
+
+        if (this.useVelocity) {
+            attributeNames.push("velocity");
+            defines.push("#define FLUIDRENDERING_VELOCITY");
+        }
 
         this._depthEffectWrapper = new BABYLON.EffectWrapper({
             engine: this._engine,
@@ -59,6 +84,7 @@ export abstract class FluidRenderingObject {
             attributeNames,
             uniformNames,
             samplerNames: [],
+            defines,
         });
 
         uniformNames.push("particleAlpha");
@@ -68,7 +94,7 @@ export abstract class FluidRenderingObject {
             useShaderStore: true,
             vertexShader: "fluidParticleThickness",
             fragmentShader: "fluidParticleThickness",
-            attributeNames,
+            attributeNames: ["position", "offset"],
             uniformNames,
             samplerNames: [],
         });

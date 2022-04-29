@@ -96,6 +96,10 @@ export class FluidRenderer {
             this._targetRenderers.push(targetRenderer);
         }
 
+        if (!targetRenderer.onUseVelocityChanged.hasObservers()) {
+            targetRenderer.onUseVelocityChanged.add(this._setUseVelocityForRenderObject.bind(this));
+        }
+
         if (generateDiffuseTexture !== undefined) {
             targetRenderer.generateDiffuseTexture = generateDiffuseTexture;
         }
@@ -121,6 +125,10 @@ export class FluidRenderer {
             this._targetRenderers.push(targetRenderer);
         }
 
+        if (!targetRenderer.onUseVelocityChanged.hasObservers()) {
+            targetRenderer.onUseVelocityChanged.add(this._setUseVelocityForRenderObject.bind(this));
+        }
+
         if (generateDiffuseTexture !== undefined) {
             targetRenderer.generateDiffuseTexture = generateDiffuseTexture;
         }
@@ -136,7 +144,7 @@ export class FluidRenderer {
         return renderObject;
     }
 
-    public removeRenderObject(renderObject: IFluidRenderingRenderObject): boolean {
+    public removeRenderObject(renderObject: IFluidRenderingRenderObject, removeUnusedTargetRenderer = true): boolean {
         const index = this._renderObjects.indexOf(renderObject);
         if (index === -1) {
             return false;
@@ -146,7 +154,7 @@ export class FluidRenderer {
 
         this._renderObjects.splice(index, 1);
 
-        if (this._removeUnusedTargetRenderers()) {
+        if (removeUnusedTargetRenderer && this._removeUnusedTargetRenderers()) {
             this._initialize();
         } else {
             this._setParticleSizeForRenderTargets();
@@ -325,6 +333,13 @@ export class FluidRenderer {
             if (targetRenderer.depthRenderTarget) {
                 targetRenderer.depthRenderTarget.particleSize = particleSize;
             }
+        }
+    }
+
+    private _setUseVelocityForRenderObject(): void {
+        for (let i = 0; i < this._renderObjects.length; ++i) {
+            const renderingObject = this._renderObjects[i];
+            renderingObject.object.useVelocity = renderingObject.targetRenderer.useVelocity;
         }
     }
 

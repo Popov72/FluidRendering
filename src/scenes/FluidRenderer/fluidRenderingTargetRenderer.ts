@@ -242,6 +242,24 @@ export class FluidRenderingTargetRenderer {
         this._setBlurParameters();
     }
 
+    public onUseVelocityChanged = new BABYLON.Observable<FluidRenderingTargetRenderer>();
+
+    private _useVelocity = false;
+
+    public get useVelocity() {
+        return this._useVelocity;
+    }
+
+    public set useVelocity(use: boolean) {
+        if (this._useVelocity === use) {
+            return;
+        }
+
+        this._useVelocity = use;
+        this._needInitialization = true;
+        this.onUseVelocityChanged.notifyObservers(this);
+    }
+
     private _depthMapSize: BABYLON.Nullable<number> = null;
 
     public get depthMapSize() {
@@ -353,8 +371,8 @@ export class FluidRenderingTargetRenderer {
         const depthHeight = this._depthMapSize !== null ? Math.round(this._depthMapSize * this._engine.getRenderHeight() / this._engine.getRenderWidth()) : this._engine.getRenderHeight();
         
         this._depthRenderTarget = new FluidRenderingRenderTarget("Depth", this._scene, depthWidth, depthHeight, depthWidth, depthHeight,
-            BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R,
-            BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_R, false, this._camera, true, this._samples);
+            BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RG,
+            BABYLON.Constants.TEXTURETYPE_FLOAT, BABYLON.Constants.TEXTUREFORMAT_RG, false, this._camera, true, this._samples);
 
         this._initializeRenderTarget(this._depthRenderTarget);
 
@@ -409,7 +427,7 @@ export class FluidRenderingTargetRenderer {
     }
 
     protected _initializeRenderTarget(renderTarget: FluidRenderingRenderTarget): void {
-        if (renderTarget !== this.diffuseRenderTarget) {
+        if (renderTarget !== this._diffuseRenderTarget) {
             renderTarget.enableBlur = renderTarget === this._depthRenderTarget ? this.enableBlurDepth : this.enableBlurThickness;
             renderTarget.blurSizeDivisor = renderTarget === this._depthRenderTarget ? this.blurDepthSizeDivisor : this.blurThicknessSizeDivisor;
         }
@@ -440,6 +458,11 @@ export class FluidRenderingTargetRenderer {
             defines.push("#define FLUIDRENDERING_DIFFUSETEXTURE");
         } else {
             uniformNames.push("diffuseColor");
+        }
+
+        if (this._useVelocity) {
+            samplerNames.push("velocitySampler");
+            defines.push("#define FLUIDRENDERING_VELOCITY");
         }
 
         if (this._debug) {

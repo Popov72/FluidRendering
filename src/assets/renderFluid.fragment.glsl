@@ -65,7 +65,8 @@ void main(void) {
     return;
 #endif
 
-    float depth = texture2D(depthSampler, texCoord).x;
+    vec2 depthVel = texture2D(depthSampler, texCoord).rg;
+    float depth = depthVel.r;
     float thickness = texture2D(thicknessSampler, texCoord).x;
 
     if (depth >= cameraFar || depth <= 0. || thickness == 0.) {
@@ -138,6 +139,11 @@ void main(void) {
     float fresnel = clamp(F0 + (1.0 - F0) * pow(1.0 - dot(normal, -rayDir), 5.0), 0., fresnelClamp);
     
     vec3 finalColor = mix(refractionColor, reflectionColor, fresnel) + specular;
+
+#ifdef FLUIDRENDERING_VELOCITY
+    float velocity = depthVel.g;
+    finalColor = mix(finalColor, vec3(1.0), smoothstep(0.3, 1.0, velocity / 6.0));
+#endif
 
     glFragColor = vec4(finalColor, 1.);
 }

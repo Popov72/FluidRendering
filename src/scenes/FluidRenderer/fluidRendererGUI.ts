@@ -166,6 +166,7 @@ export class FluidRendererGUI {
             targets_depthMapSize: this._parameterRead("targets_depthMapSize"),
             targets_thicknessMapSize: this._parameterRead("targets_thicknessMapSize"),
             targets_diffuseMapSize: this._parameterRead("targets_diffuseMapSize"),
+            targets_useVelocity: this._parameterRead("targets_useVelocity"),
         };
         
         const targetRenderers = this._gui.addFolder("Target renderers");
@@ -180,8 +181,9 @@ export class FluidRendererGUI {
 
         this._addList(targetRenderers, params, "targets_index", "Index", targetList);
         this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_depthMapSize", "Depth map size", ["Screen size", 256, 512, 1024, 2048, 4096]));
-        this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_thicknessMapSize", "Thickness map size", ["Screen size", 256, 512, 1024, 2048, 4096]));
+        this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_thicknessMapSize", "Thickness map size", ["Screen size", 64, 128, 256, 512, 1024, 2048]));
         this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_diffuseMapSize", "Diffuse map size", ["Screen size", 256, 512, 1024, 2048, 4096]));
+        this._targetRenderersGUIElements.push(this._addCheckbox(targetRenderers, params, "targets_useVelocity", "Use velocity"));
 
         const menuColor = targetRenderers.addFolder("Color");
         menuColor.$title.style.fontStyle = "italic";

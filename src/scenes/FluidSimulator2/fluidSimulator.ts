@@ -18,7 +18,7 @@ export class FluidSimulator {
     protected _particles: IFluidParticle[];
     protected _numMaxParticles: number;
     protected _positions: Float32Array;
-    protected _vbPositions: BABYLON.VertexBuffer;
+    protected _velocities: Float32Array;
     protected _hash: Hash;
 
     private _smoothingRadius2: number;
@@ -57,8 +57,12 @@ export class FluidSimulator {
         this._hash = new Hash(this._smoothingRadius, this._numMaxParticles);
     }
 
-    public get positionVertexBuffer() {
-        return this._vbPositions;
+    public get positions() {
+        return this._positions;
+    }
+
+    public get velocities() {
+        return this._velocities;
     }
 
     public get numParticles() {
@@ -69,7 +73,7 @@ export class FluidSimulator {
         this._particles = particles;
         this._numMaxParticles = particles.length;
         this._positions = positions ?? new Float32Array(this._numMaxParticles * 3);
-        this._vbPositions = new BABYLON.VertexBuffer(engine, this._positions, BABYLON.VertexBuffer.PositionKind, true, false, 3, true);
+        this._velocities = new Float32Array(this._numMaxParticles * 3);
         this._hash = new Hash(this._smoothingRadius, this._numMaxParticles);
 
         this.currentNumParticles = this._numMaxParticles;
@@ -77,6 +81,12 @@ export class FluidSimulator {
         this._poly6Constant = 0;
         this._spikyConstant = 0;
         this._viscConstant = 0;
+
+        for (let i = 0; i < this._numMaxParticles; ++i) {
+            this._velocities[i * 3 + 0] = particles[i].velocityX;
+            this._velocities[i * 3 + 1] = particles[i].velocityY;
+            this._velocities[i * 3 + 2] = particles[i].velocityZ;
+        }
 
         this._computeConstants();
     }
@@ -86,11 +96,10 @@ export class FluidSimulator {
         this._computeDensity();
         this._computeForces();
         this._updatePositions(deltaTime);
-        this._vbPositions.updateDirectly(this._positions, 0);
     }
 
     public dispose(): void {
-        this._vbPositions.dispose();
+        // nothing to do
     }
 
     protected _computeDensity(): void {
@@ -130,6 +139,10 @@ export class FluidSimulator {
             const paY = this._positions[a * 3 + 1];
             const paZ = this._positions[a * 3 + 2];
 
+            const vaX = this._velocities[a * 3 + 0];
+            const vaY = this._velocities[a * 3 + 1];
+            const vaZ = this._velocities[a * 3 + 2];
+
             let pressureAccelX = 0;
             let pressureAccelY = 0;
             let pressureAccelZ = 0;
@@ -166,9 +179,9 @@ export class FluidSimulator {
                     const w2 = this._viscConstant * (this._smoothingRadius - r);
                     const fv = w2 * (1 / pB.density) * massRatio * this.viscosity;
 
-                    viscosityAccelX += fv * (pB.velocityX - pA.velocityX);
-                    viscosityAccelY += fv * (pB.velocityY - pA.velocityY);
-                    viscosityAccelZ += fv * (pB.velocityZ - pA.velocityZ);
+                    viscosityAccelX += fv * (this._velocities[b * 3 + 0] - vaX);
+                    viscosityAccelY += fv * (this._velocities[b * 3 + 1] - vaY);
+                    viscosityAccelZ += fv * (this._velocities[b * 3 + 2] - vaZ);
                 }
             }
 
@@ -189,35 +202,35 @@ export class FluidSimulator {
         for (let a = 0; a < this.currentNumParticles; ++a) {
             const pA = this._particles[a];
 
-            pA.velocityX += pA.accelX * deltaTime;
-            pA.velocityY += pA.accelY * deltaTime;
-            pA.velocityZ += pA.accelZ * deltaTime;
+            this._velocities[a * 3 + 0] += pA.accelX * deltaTime;
+            this._velocities[a * 3 + 1] += pA.accelY * deltaTime;
+            this._velocities[a * 3 + 2] += pA.accelZ * deltaTime;
             
-            this._positions[a * 3 + 0] += deltaTime * pA.velocityX;
-            this._positions[a * 3 + 1] += deltaTime * pA.velocityY;
-            this._positions[a * 3 + 2] += deltaTime * pA.velocityZ;
+            this._positions[a * 3 + 0] += deltaTime * this._velocities[a * 3 + 0];
+            this._positions[a * 3 + 1] += deltaTime * this._velocities[a * 3 + 1];
+            this._positions[a * 3 + 2] += deltaTime * this._velocities[a * 3 + 2];
 
             if (this._positions[a * 3 + 1] < -0.3) {
                 this._positions[a * 3 + 1] += (-0.3 - this._positions[a * 3 + 1]) * (1 + elastic);
-                pA.velocityY *= -elastic;
+                this._velocities[a * 3 + 1] *= -elastic;
             }
 
             if (this.checkXZBounds && this._positions[a * 3 + 0] < -fx) {
                 this._positions[a * 3 + 0] += (-fx - this._positions[a * 3 + 0]) * (1 + elastic);
-                pA.velocityX *= -elastic;
+                this._velocities[a * 3 + 0] *= -elastic;
             }
             if (this.checkXZBounds && this._positions[a * 3 + 0] > fx) {
                 this._positions[a * 3 + 0] -= (this._positions[a * 3 + 0] - fx) * (1 + elastic);
-                pA.velocityX *= -elastic;
+                this._velocities[a * 3 + 0] *= -elastic;
             }
 
             if (this.checkXZBounds && this._positions[a * 3 + 2] < -fz) {
                 this._positions[a * 3 + 2] += (-fz - this._positions[a * 3 + 2]) * (1 + elastic);
-                pA.velocityZ *= -elastic;
+                this._velocities[a * 3 + 2] *= -elastic;
             }
             if (this.checkXZBounds && this._positions[a * 3 + 2] > fz) {
                 this._positions[a * 3 + 2] -= (this._positions[a * 3 + 2] - fz) * (1 + elastic);
-                pA.velocityZ *= -elastic;
+                this._velocities[a * 3 + 2] *= -elastic;
             }
         }
     }

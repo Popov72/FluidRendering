@@ -9,6 +9,11 @@ varying vec2 uv;
 varying vec3 viewPos;
 varying float sphereRadius;
 
+#ifdef FLUIDRENDERING_VELOCITY
+    attribute vec3 velocity;
+    varying float velocityNorm;
+#endif
+
 void main(void) {
     vec3 cornerPos;
     cornerPos.xy = vec2(offset.x - 0.5, offset.y - 0.5) * size;
@@ -20,4 +25,7 @@ void main(void) {
 
     uv = offset;
     sphereRadius = size.x / 2.0;
+#ifdef FLUIDRENDERING_VELOCITY
+    velocityNorm = length(velocity);
+#endif
 }

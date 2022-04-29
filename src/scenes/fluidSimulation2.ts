@@ -8,6 +8,7 @@ import { FluidRendererGUI } from "./FluidRenderer/fluidRendererGUI";
 import { FluidSimulator, IFluidParticle } from "./FluidSimulator2/fluidSimulator";
 import { FluidRenderingObjectVertexBuffer } from "./FluidRenderer/fluidRenderingObjectVertexBuffer";
 import { IFluidRenderingRenderObject } from "./FluidRenderer/fluidRenderer";
+import { FluidRenderingTargetRenderer } from "./FluidRenderer/fluidRenderingTargetRenderer";
 
 const cameraMin = 0.1;
 const cameraMax = 100;
@@ -83,6 +84,11 @@ export class FluidRendering implements CreateSceneClass {
         camera.maxZ = cameraMax;
         camera.wheelPrecision = 50;
 
+        const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
+        cameraFront.layerMask = 0x10000000;
+
+        scene.activeCameras = [camera, cameraFront];
+
         if (showObstacle) {
             const plane = BABYLON.MeshBuilder.CreatePlane("plane", { size: 15 }, scene);
             plane.position.z = -3;
@@ -137,8 +143,11 @@ export class FluidRendering implements CreateSceneClass {
 
                 fluidRendererGUI?.dispose();
 
+                let currentTargetRenderer: FluidRenderingTargetRenderer | undefined = undefined;
+
                 if (fluidRenderObject) {
-                    fluidRenderer?.removeRenderObject(fluidRenderObject);
+                    currentTargetRenderer = fluidRenderObject.targetRenderer;
+                    fluidRenderer?.removeRenderObject(fluidRenderObject, false);
                 }
 
                 fluidSim?.dispose();
@@ -151,20 +160,27 @@ export class FluidRendering implements CreateSceneClass {
 
                 (window as any).fsim = fluidSim;
 
-                fluidRenderObject = fluidRenderer?.addVertexBuffer({ position: fluidSim.positionVertexBuffer }, currNumParticles, false);
+                const vbPositions = new BABYLON.VertexBuffer(engine, fluidSim.positions, BABYLON.VertexBuffer.PositionKind, true, false, 3, true);
+                const vbVelocities = new BABYLON.VertexBuffer(engine, fluidSim.velocities, "velocity", true, false, 3, true);
+
+                fluidRenderObject = fluidRenderer?.addVertexBuffer({ position: vbPositions, velocity: vbVelocities }, currNumParticles, false, currentTargetRenderer);
 
                 if (fluidRenderObject) {
-                    fluidRenderObject.targetRenderer.enableBlurDepth = true;
-                    fluidRenderObject.targetRenderer.blurDepthFilterSize = 8;
-                    fluidRenderObject.targetRenderer.blurDepthNumIterations = 3;
-                    fluidRenderObject.targetRenderer.blurDepthDepthScale = 5;
-                    //fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 1);
-                    fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(1 - 0.5, 1 - 0.2, 1 - 0.05);
-                    fluidRenderObject.targetRenderer.density = 2;
-                    fluidRenderObject.targetRenderer.specularPower = 200;
-                    fluidRenderObject.targetRenderer.thicknessMapSize = 256;
+                    if (!currentTargetRenderer) {
+                        fluidRenderObject.targetRenderer.enableBlurDepth = true;
+                        fluidRenderObject.targetRenderer.blurDepthFilterSize = 8;
+                        fluidRenderObject.targetRenderer.blurDepthNumIterations = 3;
+                        fluidRenderObject.targetRenderer.blurDepthDepthScale = 5;
+                        //fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 1);
+                        fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(1 - 0.5, 1 - 0.2, 1 - 0.05);
+                        fluidRenderObject.targetRenderer.density = 2;
+                        fluidRenderObject.targetRenderer.specularPower = 200;
+                        fluidRenderObject.targetRenderer.thicknessMapSize = 256;
+                        fluidRenderObject.targetRenderer.dirLight = new BABYLON.Vector3(2, -1, 1);
+                    }
                     fluidRenderObject.object.particleSize = particleRadius * 2.0 * 2;
                     fluidRenderObject.object.particleThicknessAlpha = particleRadius;
+                    fluidRenderObject.object.useVelocity = fluidRenderObject.targetRenderer.useVelocity;
                 }
 
                 fluidRendererGUI = new FluidRendererGUI(this._scene, false);
@@ -174,21 +190,26 @@ export class FluidRendering implements CreateSceneClass {
 
             scene.onBeforeRenderObservable.add(() => {
                 if (fluidSim && fluidRenderObject) {
-                    if (currNumParticles < numParticles && (t++ % 8) === 0) {
+                    if (currNumParticles < numParticles/1.8 && (t++ % 7) === 0) {
                         currNumParticles += 100;
                     }
                     fluidSim.currentNumParticles = currNumParticles;
                     (fluidRenderObject.object as FluidRenderingObjectVertexBuffer).setNumParticles(currNumParticles);
                 
-                    const numIter = 1;
-                    const delta = 3.5 / 1000;
+                    const numIter = 2;
+                    const delta = 4.0 / 1000;
                     for (let i = 0; i < numIter; ++i) {
                         fluidSim.update(delta);
+                        if (fluidRenderObject) {
+                            fluidRenderObject.object.vertexBuffers["position"].updateDirectly(fluidSim.positions, 0);
+                            fluidRenderObject.object.vertexBuffers["velocity"].updateDirectly(fluidSim.velocities, 0);
+                        }
                     }
                 }
             });
 
             const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+            advancedTexture.layer!.layerMask = 0x10000000;
 
             const panel = new GUI.StackPanel();
             panel.width = "200px";

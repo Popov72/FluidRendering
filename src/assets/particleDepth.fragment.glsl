@@ -4,6 +4,10 @@ varying vec2 uv;
 varying vec3 viewPos;
 varying float sphereRadius;
 
+#ifdef FLUIDRENDERING_VELOCITY
+    varying float velocityNorm;
+#endif
+
 void main(void) {
     vec3 normal;
 
@@ -21,5 +25,9 @@ void main(void) {
     gl_FragDepth = (clipSpacePos.z / clipSpacePos.w) * 0.5 + 0.5;
 #endif
 
-    glFragColor = vec4(vec3(realViewPos.z), 1.);
+#ifdef FLUIDRENDERING_VELOCITY
+    glFragColor = vec4(realViewPos.z, velocityNorm, 0., 1.);
+#else
+    glFragColor = vec4(realViewPos.z, 0., 0., 1.);
+#endif
 }
