@@ -355,12 +355,18 @@ export class FluidRenderer {
     }
 
     /** @hidden */
-    public _render(): void {
+    public _render(forCamera?: BABYLON.Camera): void {
         for (let i = 0; i < this._targetRenderers.length; ++i) {
-            this._targetRenderers[i].clearTargets();
+            if (!forCamera || this._targetRenderers[i].camera === forCamera) {
+                this._targetRenderers[i].clearTargets();
+            }
         }
 
         for (const [camera, list] of this._cameras) {
+            if (forCamera && camera !== forCamera) {
+                continue;
+            }
+
             const firstPostProcess = camera._getFirstPostProcess();
             if (!firstPostProcess) {
                 continue;
@@ -377,7 +383,9 @@ export class FluidRenderer {
 
         for (let i = 0; i < this._renderObjects.length; ++i) {
             const renderingObject = this._renderObjects[i];
-            renderingObject.targetRenderer.render(renderingObject.object);
+            if (!forCamera || renderingObject.targetRenderer.camera === forCamera) {
+                renderingObject.targetRenderer.render(renderingObject.object);
+            }
         }
     }
 

@@ -90,8 +90,8 @@ export class FluidRendererSceneComponent implements BABYLON.ISceneComponent {
         this.scene.fluidRenderer?._prepareRendering();
     }
 
-    private _afterCameraDraw(/*camera: BABYLON.Camera*/) {
-        this.scene.fluidRenderer?._render();
+    private _afterCameraDraw(camera: BABYLON.Camera) {
+        this.scene.fluidRenderer?._render(camera);
     }
 
     /**

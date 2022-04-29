@@ -84,7 +84,7 @@ export class FluidRendering implements CreateSceneClass {
         camera.maxZ = cameraMax;
         camera.wheelPrecision = 50;
 
-        const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
+        const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 0, 0, 1, new BABYLON.Vector3(0, 0, 0), scene);
         cameraFront.layerMask = 0x10000000;
 
         scene.activeCameras = [camera, cameraFront];
@@ -163,7 +163,7 @@ export class FluidRendering implements CreateSceneClass {
                 const vbPositions = new BABYLON.VertexBuffer(engine, fluidSim.positions, BABYLON.VertexBuffer.PositionKind, true, false, 3, true);
                 const vbVelocities = new BABYLON.VertexBuffer(engine, fluidSim.velocities, "velocity", true, false, 3, true);
 
-                fluidRenderObject = fluidRenderer?.addVertexBuffer({ position: vbPositions, velocity: vbVelocities }, currNumParticles, false, currentTargetRenderer);
+                fluidRenderObject = fluidRenderer?.addVertexBuffer({ position: vbPositions, velocity: vbVelocities }, currNumParticles, false, currentTargetRenderer, camera);
 
                 if (fluidRenderObject) {
                     if (!currentTargetRenderer) {
