@@ -72,30 +72,50 @@ export class FluidRendering implements CreateSceneClass {
 
             scene.activeCamera = camera;
 
-            const numX = 10, numY = 10, numZ = 10 * 2.5;
+            const dimX = 12, dimY = 12;
+            const numMaxParticles = 2700;
 
-            const numParticles = numX * numY * numZ;
+            let numParticles = 0;
+            let numCrossSection = 0;
 
-            let currNumParticles = 0;
             let fluidSim: BABYLON.Nullable<FluidSimulator> = null;
             let fluidRenderObject: IFluidRenderingRenderObject | undefined = undefined;
             let fluidRendererGUI: FluidRendererGUI | undefined = undefined;
+
             let checkBounds = true;
+            let currNumParticles = 0;
             let t = 0;
+            let paused = false;
 
             const createSimulator = () => {
-                const positions = new Float32Array(numParticles * 3);
+                const particlePos = [];
 
                 const particles: IFluidParticle[] = [];
                 const particleRadius = 0.02;
-                let idx = 0;
-                for (let z = 0; z < numZ; ++z) {
-                    for (let y = 0; y < numY; ++y) {
-                        for (let x = 0; x < numX; ++x) {
-                            positions[idx * 3 + 0] = (x - numX / 2) * particleRadius * 2;
-                            positions[idx * 3 + 1] = (y - numY / 2) * particleRadius * 2 + 0.5;
-                            positions[idx * 3 + 2] = 0.49;//z * particleRadius * 2;
-                            idx++;
+
+                numParticles = 0;
+
+                const spacingMultiplier = 2.0;
+                const distance = particleRadius * spacingMultiplier;
+                const jitter = distance * 0.1;
+                const getJitter = () => Math.random() * jitter - jitter / 2;
+
+                while (numParticles <= numMaxParticles - numCrossSection) {
+                    let yCoord = 0.5 + (dimY / 2) * distance;
+
+                    numCrossSection = 0;
+                    for (let y = 1; y < dimY - 1; ++y) {
+                        const angle = y * Math.PI / (dimY - 1);
+
+                        let x2 = Math.sin(angle) * dimX / 2 * distance;
+                        if (x2 < 0) { x2 = 0; }
+
+                        let xCoord = -x2;
+                        while (xCoord <= x2) {
+                            const xc = xCoord === -x2 || xCoord + distance > x2 ? xCoord : xCoord + getJitter();
+                            const yc = xCoord === -x2 || xCoord + distance > x2 ? yCoord : yCoord + getJitter();
+                            const zCoord = xCoord === -x2 || xCoord + distance > x2 ? 0.49 : 0.49 + getJitter();
+                            particlePos.push(xc, yc, zCoord);
                             particles.push({
                                 density: 0,
                                 pressure: 0,
@@ -104,10 +124,15 @@ export class FluidRendering implements CreateSceneClass {
                                 accelZ: 0,
                                 velocityX: (Math.random() - 0.5) * 0.03,
                                 velocityY: (Math.random() - 0.5) * 0.03,
-                                velocityZ: (Math.random() - 1.0) * 0.03 - 2.4,
+                                velocityZ: (Math.random() - 1.0) * 0.03 - 1.5,
                                 mass: 1,
                             });
+                            xCoord += distance;
+                            numCrossSection++;
+                            numParticles++;
                         }
+
+                        yCoord += distance;
                     }
                 }
 
@@ -124,6 +149,8 @@ export class FluidRendering implements CreateSceneClass {
                 }
 
                 fluidSim?.dispose();
+
+                const positions = new Float32Array(particlePos);
 
                 fluidSim = new FluidSimulator(particles, engine, positions);
 
@@ -164,26 +191,28 @@ export class FluidRendering implements CreateSceneClass {
             scene.onBeforeRenderObservable.add(() => {
                 if (fluidSim && fluidRenderObject) {
                     if (currNumParticles === 0) {
-                        currNumParticles += numX * numY;
+                        currNumParticles += numCrossSection;
                     } else if (currNumParticles < numParticles) {
                         const px1 = fluidSim.positions[currNumParticles * 3 + 0];
                         const py1 = fluidSim.positions[currNumParticles * 3 + 1];
                         const pz1 = fluidSim.positions[currNumParticles * 3 + 2];
 
-                        const px2 = fluidSim.positions[(currNumParticles - numX * numY) * 3 + 0];
-                        const py2 = fluidSim.positions[(currNumParticles - numX * numY) * 3 + 1];
-                        const pz2 = fluidSim.positions[(currNumParticles - numX * numY) * 3 + 2];
+                        const px2 = fluidSim.positions[(currNumParticles - numCrossSection) * 3 + 0];
+                        const py2 = fluidSim.positions[(currNumParticles - numCrossSection) * 3 + 1];
+                        const pz2 = fluidSim.positions[(currNumParticles - numCrossSection) * 3 + 2];
 
                         const dist = Math.sqrt((px1 - px2) * (px1 - px2) + (py1 - py2) * (py1 - py2) + (pz1 - pz2) * (pz1 - pz2));
 
                         if (dist > fluidSim.smoothingRadius) {
-                            currNumParticles += numX * numY;
+                            currNumParticles += numCrossSection;
                         }
                     }
                     fluidSim.currentNumParticles = currNumParticles;
                     (fluidRenderObject.object as FluidRenderingObjectVertexBuffer).setNumParticles(currNumParticles);
                 
-                    fluidSim.update(8 / 1000/*this._engine.getDeltaTime() / 1000*/);
+                    if (!paused) {
+                        fluidSim.update(8 / 1000/*this._engine.getDeltaTime() / 1000*/);
+                    }
                     if (fluidRenderObject) {
                         fluidRenderObject.object.vertexBuffers["position"].updateDirectly(fluidSim.positions, 0);
                         fluidRenderObject.object.vertexBuffers["velocity"].updateDirectly(fluidSim.velocities, 0);
@@ -224,6 +253,15 @@ export class FluidRendering implements CreateSceneClass {
             stkCheckBounds.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
 
             panel.addControl(stkCheckBounds);
+
+            const stkPauseAnimation = GUI.Checkbox.AddCheckBoxWithHeader("Pause animation", (v) => {
+                paused = v;
+            });
+            (stkPauseAnimation.children[0] as GUI.Checkbox).isChecked = paused;
+            stkPauseAnimation.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            stkPauseAnimation.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+
+            panel.addControl(stkPauseAnimation);
         }
 
         return scene;
