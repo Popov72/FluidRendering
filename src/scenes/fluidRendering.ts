@@ -139,16 +139,16 @@ export class FluidRendering implements CreateSceneClass {
         panel.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
         advancedTexture.addControl(panel);
     
-        const stkCheckBounds = GUI.Checkbox.AddCheckBoxWithHeader("Stop particle system", (v) => {
+        const stkStop = GUI.Checkbox.AddCheckBoxWithHeader("Stop particle system", (v) => {
             if (particleSystem) {
                 particleSystem.updateSpeed = v ? 0 : 0.02;
             }
         });
-        (stkCheckBounds.children[0] as GUI.Checkbox).isChecked = false;
-        stkCheckBounds.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        stkCheckBounds.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        (stkStop.children[0] as GUI.Checkbox).isChecked = false;
+        stkStop.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        stkStop.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
 
-        panel.addControl(stkCheckBounds);
+        panel.addControl(stkStop);
 
         if (liquidRendering) {
             const fluidRenderer = scene.enableFluidRenderer();
