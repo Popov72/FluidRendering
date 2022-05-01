@@ -102,8 +102,11 @@ export class FluidRendering implements CreateSceneClass {
                 entity.targetRenderer.fluidColor = new BABYLON.Color3(1 - 0.5, 1 - 0.2, 1 - 0.05);
                 entity.targetRenderer.density = 2;
                 entity.targetRenderer.specularPower = 200;
+                entity.targetRenderer.thicknessMapSize = 1024;
+                entity.targetRenderer.blurThicknessFilterSize = 10;
+                entity.targetRenderer.blurThicknessNumIterations = 2;
                 entity.object.particleSize = particleRadius * 2.0 * 2;
-                entity.object.particleThicknessAlpha = particleRadius;
+                entity.object.particleThicknessAlpha = particleRadius * 2 * 2;
             }
 
             (window as any).doit = () => {

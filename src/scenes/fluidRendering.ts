@@ -156,7 +156,7 @@ export class FluidRendering implements CreateSceneClass {
             if (particleSystem) {
                 const entity = fluidRenderer!.getRenderObjectFromParticleSystem(particleSystem)!;
 
-                entity.object.particleThicknessAlpha = 0.0075;
+                entity.object.particleThicknessAlpha = 0.02;
                 entity.object.particleSize = 0.75;
                 entity.targetRenderer.blurDepthFilterSize = 10;
                 entity.targetRenderer.blurDepthDepthScale = 10;
@@ -164,6 +164,7 @@ export class FluidRendering implements CreateSceneClass {
                 entity.targetRenderer.fresnelClamp = 0.04;
                 entity.targetRenderer.fluidColor = new BABYLON.Color3(219/255, 228/255, 1);
                 entity.targetRenderer.generateDiffuseTexture = false;
+                entity.targetRenderer.thicknessMapSize = 1024;
             }
 
             const loadModel = async () => {
@@ -204,11 +205,12 @@ export class FluidRendering implements CreateSceneClass {
                 const entity = fluidRenderer?.addVertexBuffer(vertexBuffers, numParticles, true, undefined, camera);
 
                 if (entity) {
-                    entity.object.particleSize = 0.1;
-                    entity.object.particleThicknessAlpha = 0.025;
+                    entity.object.particleSize = 0.15;
+                    entity.object.particleThicknessAlpha = 0.1;
                     entity.targetRenderer.blurDepthFilterSize = 7;
                     entity.targetRenderer.blurDepthDepthScale = 10;
                     entity.targetRenderer.density = 0.63;
+                    entity.targetRenderer.thicknessMapSize = 1024;
                 }
 
                 mesh.setEnabled(false);
