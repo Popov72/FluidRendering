@@ -77,6 +77,7 @@ export class CopyDepthTexture {
 
         const engineDepthFunc = this._engine.getDepthFunction();
 
+        this._engine.setState(false);
         this._engine.setDepthBuffer(true);
         this._engine.setDepthWrite(true);
         this._engine.setDepthFunction(BABYLON.Constants.ALWAYS);

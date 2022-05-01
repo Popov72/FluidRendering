@@ -155,7 +155,7 @@ export abstract class FluidRenderingObject {
         const thicknessEffect = thicknessDrawWrapper.effect!;
 
         this._engine.setAlphaMode(BABYLON.Constants.ALPHA_ONEONE);
-        this._engine.depthCullingState.depthMask = false;
+        this._engine.setDepthWrite(false);
 
         this._engine.enableEffect(thicknessDrawWrapper);
         this._engine.bindBuffers(this.vertexBuffers, this.indexBuffer, thicknessEffect);
@@ -163,7 +163,7 @@ export abstract class FluidRenderingObject {
         thicknessEffect.setMatrix("view", this._scene.getViewMatrix());
         thicknessEffect.setMatrix("projection", this._scene.getProjectionMatrix());
         thicknessEffect.setFloat("particleAlpha", this.particleThicknessAlpha);
-        thicknessEffect.setFloat2("size", this._particleSize * 2, this._particleSize * 2);
+        thicknessEffect.setFloat2("size", this._particleSize, this._particleSize);
 
         if (this.useInstancing) {
             this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);
@@ -171,7 +171,7 @@ export abstract class FluidRenderingObject {
             this._engine.drawElementsType(BABYLON.Constants.MATERIAL_TriangleFillMode, 0, numParticles);
         }
 
-        this._engine.depthCullingState.depthMask = true;
+        this._engine.setDepthWrite(true);
         this._engine.setAlphaMode(BABYLON.Constants.ALPHA_DISABLE);
     }
 

@@ -577,6 +577,11 @@ export class FluidRenderingTargetRenderer {
 
         const currentRenderTarget = this._engine._currentRenderTarget;
 
+        this._engine.setState(false, undefined, undefined, undefined, true);
+        this._engine.setDepthBuffer(true);
+        this._engine.setDepthWrite(true);
+        this._engine.setAlphaMode(BABYLON.Constants.ALPHA_DISABLE);
+
         // Render the particles in the depth texture
         if (this._depthRenderTarget?.renderTarget) {
             this._engine.bindFramebuffer(this._depthRenderTarget.renderTarget);
