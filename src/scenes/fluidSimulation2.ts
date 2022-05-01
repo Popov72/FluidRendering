@@ -10,6 +10,8 @@ import { FluidRenderingObjectVertexBuffer } from "./FluidRenderer/fluidRendering
 import { IFluidRenderingRenderObject } from "./FluidRenderer/fluidRenderer";
 import { FluidRenderingTargetRenderer } from "./FluidRenderer/fluidRenderingTargetRenderer";
 
+import marbleBaseColor from "../assets/materials/Marble08_1K_BaseColor.png";
+
 const cameraMin = 0.1;
 const cameraMax = 100;
 
@@ -18,11 +20,29 @@ export class FluidRendering implements CreateSceneClass {
     private _engine: BABYLON.Engine;
     private _scene: BABYLON.Scene;
     private _camera: BABYLON.TargetCamera;
+    private _checkXZBounds: boolean;
+    private _spherePos: BABYLON.Vector3;
+    private _sphereRadius: number;
+    private _sphereMesh: BABYLON.Nullable<BABYLON.Mesh>;
+    private _sphereMaterial: BABYLON.Nullable<BABYLON.PBRMaterial>;
+    private _boxMin: BABYLON.Vector3;
+    private _boxMax: BABYLON.Vector3;
+    private _boxMesh: BABYLON.Nullable<BABYLON.Mesh>;
+    private _boxMaterial: BABYLON.Nullable<BABYLON.PBRMaterial>;
 
     constructor() {
         this._engine = null as any;
         this._scene = null as any;
         this._camera = null as any;
+        this._checkXZBounds = true;
+        this._sphereRadius = 0.2;
+        this._sphereMesh = null;
+        this._spherePos = new BABYLON.Vector3(0, -0.3 + this._sphereRadius, -0.1);
+        this._sphereMaterial = null;
+        this._boxMin = new BABYLON.Vector3(-0.3, -0.3, -0.7);
+        this._boxMax = new BABYLON.Vector3( 0.3,  1.2,  0.7);
+        this._boxMesh = null;
+        this._boxMaterial = null;
     }
 
     public async createScene(
@@ -36,15 +56,22 @@ export class FluidRendering implements CreateSceneClass {
         this._scene = scene;
 
         const liquidRendering = true;
-        const showObstacle = false;
+
+        this._sphereMaterial = new BABYLON.PBRMaterial("collisionMeshMat", this._scene);
+        this._sphereMaterial.metallic = 1;
+        this._sphereMaterial.roughness = 0.05;
+        this._sphereMaterial.albedoTexture = new BABYLON.Texture(marbleBaseColor, this._scene);
+        this._sphereMaterial.cullBackFaces = true;
+
+        this._boxMaterial = new BABYLON.PBRMaterial("BoxMeshMat", this._scene);
+        this._boxMaterial.metallic = 0.3;
+        this._boxMaterial.roughness = 0;
+        this._boxMaterial.alpha = 0.2;
+        this._boxMaterial.backFaceCulling = false;
 
         // Setup environment
-        const dirLight = new BABYLON.Vector3(-2, -1, 1).normalize();
-        new BABYLON.DirectionalLight("dirLight", dirLight, scene);        
-
-        scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.env", scene);
+        scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/parking.env", scene);
         //scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
-        //scene.environmentTexture = new BABYLON.HDRCubeTexture("temp/uffizi_probe.hdr", scene, 512, false, true, false, true);
 
         (window as any).BABYLON = BABYLON;
 
@@ -52,20 +79,21 @@ export class FluidRendering implements CreateSceneClass {
 
         const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
         camera.fov = 60 * Math.PI/180;
-        camera.attachControl(canvas, true);
+        camera.attachControl();
         camera.minZ = cameraMin;
         camera.maxZ = cameraMax;
         camera.wheelPrecision = 50;
 
-        const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 0, 0, 1, new BABYLON.Vector3(0, 0, 0), scene);
+        const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
+        cameraFront.fov = 60 * Math.PI/180;
+        cameraFront.attachControl();
+        cameraFront.minZ = cameraMin;
+        cameraFront.maxZ = cameraMax;
         cameraFront.layerMask = 0x10000000;
 
         scene.activeCameras = [camera, cameraFront];
 
-        if (showObstacle) {
-            const plane = BABYLON.MeshBuilder.CreatePlane("plane", { size: 15 }, scene);
-            plane.position.z = -3;
-        }
+        this._scene.cameraToUseForPointers = camera;
 
         if (liquidRendering) {
             const fluidRenderer = scene.enableFluidRenderer();
@@ -74,6 +102,7 @@ export class FluidRendering implements CreateSceneClass {
 
             const dimX = 12, dimY = 12;
             const numMaxParticles = 2700;
+            const particleRadius = 0.02;
 
             let numParticles = 0;
             let numCrossSection = 0;
@@ -82,21 +111,18 @@ export class FluidRendering implements CreateSceneClass {
             let fluidRenderObject: IFluidRenderingRenderObject | undefined = undefined;
             let fluidRendererGUI: FluidRendererGUI | undefined = undefined;
 
-            let checkBounds = true;
             let currNumParticles = 0;
-            let t = 0;
             let paused = false;
+
+            this._createMesh();
 
             const createSimulator = () => {
                 const particlePos = [];
-
                 const particles: IFluidParticle[] = [];
-                const particleRadius = 0.02;
 
                 numParticles = 0;
 
-                const spacingMultiplier = 2.0;
-                const distance = particleRadius * spacingMultiplier;
+                const distance = particleRadius * 2;
                 const jitter = distance * 0.1;
                 const getJitter = () => Math.random() * jitter - jitter / 2;
 
@@ -137,7 +163,6 @@ export class FluidRendering implements CreateSceneClass {
                 }
 
                 currNumParticles = 0;
-                t = 0;
 
                 fluidRendererGUI?.dispose();
 
@@ -156,7 +181,6 @@ export class FluidRendering implements CreateSceneClass {
 
                 fluidSim.smoothingRadius = particleRadius * 2;
                 fluidSim.currentNumParticles = currNumParticles;
-                fluidSim.checkXZBounds = checkBounds;
 
                 (window as any).fsim = fluidSim;
 
@@ -173,13 +197,16 @@ export class FluidRendering implements CreateSceneClass {
                         fluidRenderObject.targetRenderer.blurDepthDepthScale = 5;
                         //fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 1);
                         fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(1 - 0.5, 1 - 0.2, 1 - 0.05);
-                        fluidRenderObject.targetRenderer.density = 2;
+                        fluidRenderObject.targetRenderer.density = 2.2;
+                        fluidRenderObject.targetRenderer.refractionStrength = 0.04;
                         fluidRenderObject.targetRenderer.specularPower = 200;
-                        fluidRenderObject.targetRenderer.thicknessMapSize = 256;
+                        fluidRenderObject.targetRenderer.thicknessMapSize = 1024;
+                        fluidRenderObject.targetRenderer.blurThicknessFilterSize = 10;
+                        fluidRenderObject.targetRenderer.blurThicknessNumIterations = 2;
                         fluidRenderObject.targetRenderer.dirLight = new BABYLON.Vector3(2, -1, 1);
                     }
-                    fluidRenderObject.object.particleSize = particleRadius * 2.0 * 2;
-                    fluidRenderObject.object.particleThicknessAlpha = particleRadius;
+                    fluidRenderObject.object.particleSize = particleRadius * 2 * 2;
+                    fluidRenderObject.object.particleThicknessAlpha = fluidRenderObject.object.particleSize;
                     fluidRenderObject.object.useVelocity = fluidRenderObject.targetRenderer.useVelocity;
                 }
 
@@ -212,6 +239,7 @@ export class FluidRendering implements CreateSceneClass {
                 
                     if (!paused) {
                         fluidSim.update(8 / 1000/*this._engine.getDeltaTime() / 1000*/);
+                        this._checkCollisions(fluidSim, fluidSim.smoothingRadius);
                     }
                     if (fluidRenderObject) {
                         fluidRenderObject.object.vertexBuffers["position"].updateDirectly(fluidSim.positions, 0);
@@ -244,10 +272,7 @@ export class FluidRendering implements CreateSceneClass {
             panel.addControl(btnRestart);
 
             const stkCheckBounds = GUI.Checkbox.AddCheckBoxWithHeader("Check bounds", (v) => {
-                checkBounds = v;
-                if (fluidSim) {
-                    fluidSim.checkXZBounds = v;
-                }
+                this._checkXZBounds = v;
             });
             stkCheckBounds.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
             stkCheckBounds.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
@@ -267,6 +292,94 @@ export class FluidRendering implements CreateSceneClass {
         return scene;
     }
 
+    protected _createMesh(): void {
+        this._sphereMesh?.dispose();
+
+        this._sphereMesh = BABYLON.MeshBuilder.CreateSphere("collisionMesh", { diameter: this._sphereRadius * 2, segments: 16 }, this._scene);
+        this._sphereMesh.material = this._sphereMaterial;
+        this._sphereMesh.position = this._spherePos;
+
+        const pointerDragBehavior = new BABYLON.PointerDragBehavior({dragPlaneNormal: new BABYLON.Vector3(0, 1, 0)});
+
+        pointerDragBehavior.onDragStartObservable.add(() => {
+            this._scene.cameras[0].detachControl();
+        });
+
+        pointerDragBehavior.onDragEndObservable.add(() => {
+            this._scene.cameras[0].attachControl();
+        });
+
+        this._sphereMesh.addBehavior(pointerDragBehavior);
+
+        this._boxMesh = BABYLON.MeshBuilder.CreateBox("boxMesh", { width: this._boxMax.x - this._boxMin.x, height: this._boxMax.y - this._boxMin.y, depth: this._boxMax.z - this._boxMin.z }, this._scene);
+        this._boxMesh.material = this._boxMaterial;
+        this._boxMesh.position.x = (this._boxMin.x + this._boxMax.x) / 2;
+        this._boxMesh.position.y = (this._boxMin.y + this._boxMax.y) / 2;
+        this._boxMesh.position.z = (this._boxMin.z + this._boxMax.z) / 2;
+        this._boxMesh.isPickable = false;
+    }
+
+    protected _checkCollisions(fluidSim: FluidSimulator, particleRadius: number): void {
+        const elastic = 0.3;
+        const meshCollisionRestitution = 0.95;
+        const sx = this._spherePos.x;
+        const sy = this._spherePos.y;
+        const sz = this._spherePos.z;
+        const sr = this._sphereRadius + particleRadius;
+        const positions = fluidSim.positions;
+        const velocities = fluidSim.velocities;
+        for (let a = 0; a < fluidSim.currentNumParticles; ++a) {
+            let nx = positions[a * 3 + 0] - sx;
+            let ny = positions[a * 3 + 1] - sy;
+            let nz = positions[a * 3 + 2] - sz;
+
+            const d = nx * nx + ny * ny + nz * nz;
+            if (d < sr * sr) {
+                const l = Math.sqrt(d);
+                nx /= l;
+                ny /= l;
+                nz /= l;
+
+                const dotvn = velocities[a * 3 + 0] * nx + velocities[a * 3 + 1] * ny + velocities[a * 3 + 2] * nz;
+
+                velocities[a * 3 + 0] = (velocities[a * 3 + 0] - 2 * dotvn * nx) * meshCollisionRestitution;
+                velocities[a * 3 + 1] = (velocities[a * 3 + 1] - 2 * dotvn * ny) * meshCollisionRestitution;
+                velocities[a * 3 + 2] = (velocities[a * 3 + 2] - 2 * dotvn * nz) * meshCollisionRestitution;
+
+                positions[a * 3 + 0] = nx * sr + sx;
+                positions[a * 3 + 1] = ny * sr + sy;
+                positions[a * 3 + 2] = nz * sr + sz;
+            }
+
+            if (positions[a * 3 + 1] < this._boxMin.y + particleRadius) {
+                positions[a * 3 + 1] += (this._boxMin.y + particleRadius - positions[a * 3 + 1]);
+                velocities[a * 3 + 1] *= -elastic;
+            }
+
+            if (positions[a * 3 + 1] > this._boxMax.y - particleRadius) {
+                positions[a * 3 + 1] -= (positions[a * 3 + 1] - this._boxMax.y + particleRadius);
+                velocities[a * 3 + 1] *= -elastic;
+            }
+
+            if (this._checkXZBounds && positions[a * 3 + 0] < this._boxMin.x + particleRadius) {
+                positions[a * 3 + 0] += (this._boxMin.x + particleRadius - positions[a * 3 + 0]);
+                velocities[a * 3 + 0] *= -elastic;
+            }
+            if (this._checkXZBounds && positions[a * 3 + 0] > this._boxMax.x - particleRadius) {
+                positions[a * 3 + 0] -= (positions[a * 3 + 0] - this._boxMax.x + particleRadius);
+                velocities[a * 3 + 0] *= -elastic;
+            }
+
+            if (this._checkXZBounds && positions[a * 3 + 2] < this._boxMin.z + particleRadius) {
+                positions[a * 3 + 2] += (this._boxMin.z + particleRadius - positions[a * 3 + 2]);
+                velocities[a * 3 + 2] *= -elastic;
+            }
+            if (this._checkXZBounds && positions[a * 3 + 2] > this._boxMax.z - particleRadius) {
+                positions[a * 3 + 2] -= (positions[a * 3 + 2] - this._boxMax.z + particleRadius);
+                velocities[a * 3 + 2] *= -elastic;
+            }
+        }
+    }
 }
 
 export default new FluidRendering();

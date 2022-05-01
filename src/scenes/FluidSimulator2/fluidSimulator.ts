@@ -45,8 +45,6 @@ export class FluidSimulator {
 
     public gravity = new BABYLON.Vector3(0, -9.8, 0);
 
-    public checkXZBounds = true;
-
     public minTimeStep = 4 / 1000;
 
     public maxVelocity = 75;
@@ -257,9 +255,6 @@ export class FluidSimulator {
     }
 
     protected _updatePositions(deltaTime: number): void {
-        const elastic = 0.03;
-        const fx = 0.25;
-        const fz = 0.65;
         for (let a = 0; a < this.currentNumParticles; ++a) {
             const pA = this._particles[a];
 
@@ -278,29 +273,6 @@ export class FluidSimulator {
             this._positions[a * 3 + 0] += deltaTime * this._velocities[a * 3 + 0];
             this._positions[a * 3 + 1] += deltaTime * this._velocities[a * 3 + 1];
             this._positions[a * 3 + 2] += deltaTime * this._velocities[a * 3 + 2];
-
-            if (this._positions[a * 3 + 1] < -0.3) {
-                this._positions[a * 3 + 1] += (-0.3 - this._positions[a * 3 + 1]) * (1 + elastic);
-                this._velocities[a * 3 + 1] *= -elastic;
-            }
-
-            if (this.checkXZBounds && this._positions[a * 3 + 0] < -fx) {
-                this._positions[a * 3 + 0] += (-fx - this._positions[a * 3 + 0]) * (1 + elastic);
-                this._velocities[a * 3 + 0] *= -elastic;
-            }
-            if (this.checkXZBounds && this._positions[a * 3 + 0] > fx) {
-                this._positions[a * 3 + 0] -= (this._positions[a * 3 + 0] - fx) * (1 + elastic);
-                this._velocities[a * 3 + 0] *= -elastic;
-            }
-
-            if (this.checkXZBounds && this._positions[a * 3 + 2] < -fz) {
-                this._positions[a * 3 + 2] += (-fz - this._positions[a * 3 + 2]) * (1 + elastic);
-                this._velocities[a * 3 + 2] *= -elastic;
-            }
-            if (this.checkXZBounds && this._positions[a * 3 + 2] > fz) {
-                this._positions[a * 3 + 2] -= (this._positions[a * 3 + 2] - fz) * (1 + elastic);
-                this._velocities[a * 3 + 2] *= -elastic;
-            }
         }
     }
 }
