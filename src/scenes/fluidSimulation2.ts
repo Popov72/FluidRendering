@@ -33,6 +33,7 @@ export class FluidRendering implements CreateSceneClass {
     private _collisionPlanes: Array<BABYLON.Plane>;
     private _collisionPlanesFloorOnly: Array<BABYLON.Plane>;
     private _angleX: number;
+    private _angleY: number;
 
     constructor() {
         this._engine = null as any;
@@ -63,6 +64,7 @@ export class FluidRendering implements CreateSceneClass {
             this._origCollisionPlanes[5].clone(),
         ];
         this._angleX = 0;
+        this._angleY = 0;
     }
 
     public async createScene(
@@ -90,7 +92,7 @@ export class FluidRendering implements CreateSceneClass {
         this._boxMaterial.backFaceCulling = false;
 
         // Setup environment
-        scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/parking.env", scene);
+        scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.env", scene);
         //scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
 
         (window as any).BABYLON = BABYLON;
@@ -235,6 +237,8 @@ export class FluidRendering implements CreateSceneClass {
 
             let arrowLeftDown = false;
             let arrowRightDown = false;
+            let arrowUpDown = false;
+            let arrowDownDown = false;
 
             scene.onKeyboardObservable.add((kbInfo) => {
                 switch (kbInfo.type) {
@@ -243,6 +247,10 @@ export class FluidRendering implements CreateSceneClass {
                             arrowLeftDown = true;
                         } else if (kbInfo.event.code === "ArrowRight") {
                             arrowRightDown = true;
+                        } else if (kbInfo.event.code === "ArrowUp") {
+                            arrowUpDown = true;
+                        } else if (kbInfo.event.code === "ArrowDown") {
+                            arrowDownDown = true;
                         }
                         break;
                     case BABYLON.KeyboardEventTypes.KEYUP:
@@ -250,6 +258,10 @@ export class FluidRendering implements CreateSceneClass {
                             arrowLeftDown = false;
                         } else if (kbInfo.event.code === "ArrowRight") {
                             arrowRightDown = false;
+                        } else if (kbInfo.event.code === "ArrowUp") {
+                            arrowUpDown = false;
+                        } else if (kbInfo.event.code === "ArrowDown") {
+                            arrowDownDown = false;
                         }
                         break;
                 }
@@ -257,11 +269,20 @@ export class FluidRendering implements CreateSceneClass {
 
             scene.onBeforeRenderObservable.add(() => {
                 if (arrowLeftDown) {
-                    this._angleX -= 30 / 60;
-                    this._rotateMeshes(this._angleX);
-                } else if (arrowRightDown) {
                     this._angleX += 30 / 60;
-                    this._rotateMeshes(this._angleX);
+                    this._rotateMeshes(this._angleX, this._angleY);
+                }
+                if (arrowRightDown) {
+                    this._angleX -= 30 / 60;
+                    this._rotateMeshes(this._angleX, this._angleY);
+                }
+                if (arrowUpDown) {
+                    this._angleY -= 30 / 60;
+                    this._rotateMeshes(this._angleX, this._angleY);
+                }
+                if (arrowDownDown) {
+                    this._angleY += 30 / 60;
+                    this._rotateMeshes(this._angleX, this._angleY);
                 }
 
                 if (fluidSim && fluidRenderObject) {
@@ -315,8 +336,8 @@ export class FluidRendering implements CreateSceneClass {
             btnRestart.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
             btnRestart.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
             btnRestart.onPointerUpObservable.add(() => {
-                this._angleX = 0;
-                this._rotateMeshes(0);
+                this._angleX = this._angleY = 0;
+                this._rotateMeshes(0, 0);
                 createSimulator();
             });
             panel.addControl(btnRestart);
@@ -370,8 +391,8 @@ export class FluidRendering implements CreateSceneClass {
         this._boxMesh.isPickable = false;
     }
 
-    protected _rotateMeshes(angleX: number): void {
-        const transfo = BABYLON.Matrix.RotationAxis(new BABYLON.Vector3(-1, 0, 0), angleX * Math.PI / 180);
+    protected _rotateMeshes(angleX: number, angleY: number): void {
+        const transfo = BABYLON.Matrix.RotationYawPitchRoll(0, angleX * Math.PI / 180, angleY * Math.PI / 180);
 
         const boxVertices = [
             new BABYLON.Vector3(this._boxMin.x, this._boxMin.y, this._boxMin.z),
@@ -396,18 +417,19 @@ export class FluidRendering implements CreateSceneClass {
             this._collisionPlanes[i] = this._origCollisionPlanes[i].transform(transfo);
         }
 
+        const quat = BABYLON.Quaternion.FromRotationMatrix(transfo);
+
         if (this._sphereMesh) {
-            this._sphereMesh.rotationQuaternion?.set(0, 0, 0, 1);
-            this._sphereMesh.position = this._spherePos.clone();
-            this._sphereMesh.rotateAround(new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(-1, 0, 0), angleX * Math.PI / 180);
+            this._sphereMesh.rotationQuaternion = quat;
+            this._sphereMesh.position = BABYLON.Vector3.TransformCoordinates(this._spherePos.clone(), transfo);
         }
 
         if (this._boxMesh) {
-            this._boxMesh.rotationQuaternion?.set(0, 0, 0, 1);
+            this._boxMesh.rotationQuaternion = quat;
             this._boxMesh.position.x = (this._boxMin.x + this._boxMax.x) / 2;
             this._boxMesh.position.y = (this._boxMin.y + this._boxMax.y) / 2;
             this._boxMesh.position.z = (this._boxMin.z + this._boxMax.z) / 2;
-            this._boxMesh.rotateAround(new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(-1, 0, 0), angleX * Math.PI / 180);
+            this._boxMesh.position = BABYLON.Vector3.TransformCoordinates(this._boxMesh.position, transfo);
         }
     }
 
