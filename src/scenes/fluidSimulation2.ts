@@ -29,6 +29,10 @@ export class FluidRendering implements CreateSceneClass {
     private _boxMax: BABYLON.Vector3;
     private _boxMesh: BABYLON.Nullable<BABYLON.Mesh>;
     private _boxMaterial: BABYLON.Nullable<BABYLON.PBRMaterial>;
+    private _origCollisionPlanes: Array<BABYLON.Plane>;
+    private _collisionPlanes: Array<BABYLON.Plane>;
+    private _collisionPlanesFloorOnly: Array<BABYLON.Plane>;
+    private _angleX: number;
 
     constructor() {
         this._engine = null as any;
@@ -37,12 +41,28 @@ export class FluidRendering implements CreateSceneClass {
         this._checkXZBounds = true;
         this._sphereRadius = 0.2;
         this._sphereMesh = null;
-        this._spherePos = new BABYLON.Vector3(0, -0.3 + this._sphereRadius, -0.1);
         this._sphereMaterial = null;
         this._boxMin = new BABYLON.Vector3(-0.3, -0.3, -0.7);
         this._boxMax = new BABYLON.Vector3( 0.3,  1.2,  0.7);
+        this._spherePos = new BABYLON.Vector3((this._boxMin.x + this._boxMax.x) / 2, this._boxMin.y + this._sphereRadius, (this._boxMin.z + this._boxMax.z) / 2 - 0.1);
         this._boxMesh = null;
         this._boxMaterial = null;
+        this._origCollisionPlanes = [
+            new BABYLON.Plane(0, 0, -1, Math.abs(this._boxMax.z)),
+            new BABYLON.Plane(0, 0, 1, Math.abs(this._boxMin.z)),
+            new BABYLON.Plane(1, 0, 0, Math.abs(this._boxMin.x)),
+            new BABYLON.Plane(-1, 0, 0, Math.abs(this._boxMax.x)),
+            new BABYLON.Plane(0, -1, 0, Math.abs(this._boxMax.y)),
+            new BABYLON.Plane(0, 1, 0, Math.abs(this._boxMin.y)),
+        ];
+        this._collisionPlanes = [];
+        for (let i = 0; i < this._origCollisionPlanes.length; ++i) {
+            this._collisionPlanes[i] = this._origCollisionPlanes[i].clone();
+        }
+        this._collisionPlanesFloorOnly = [
+            this._origCollisionPlanes[5].clone(),
+        ];
+        this._angleX = 0;
     }
 
     public async createScene(
@@ -84,11 +104,9 @@ export class FluidRendering implements CreateSceneClass {
         camera.maxZ = cameraMax;
         camera.wheelPrecision = 50;
 
+        (camera.inputs as BABYLON.ArcRotateCameraInputsManager).removeByType("ArcRotateCameraKeyboardMoveInput");
+
         const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
-        cameraFront.fov = 60 * Math.PI/180;
-        cameraFront.attachControl();
-        cameraFront.minZ = cameraMin;
-        cameraFront.maxZ = cameraMax;
         cameraFront.layerMask = 0x10000000;
 
         scene.activeCameras = [camera, cameraFront];
@@ -200,7 +218,7 @@ export class FluidRendering implements CreateSceneClass {
                         fluidRenderObject.targetRenderer.density = 2.2;
                         fluidRenderObject.targetRenderer.refractionStrength = 0.04;
                         fluidRenderObject.targetRenderer.specularPower = 200;
-                        fluidRenderObject.targetRenderer.thicknessMapSize = 1024;
+                        //fluidRenderObject.targetRenderer.thicknessMapSize = 1024;
                         fluidRenderObject.targetRenderer.blurThicknessFilterSize = 10;
                         fluidRenderObject.targetRenderer.blurThicknessNumIterations = 2;
                         fluidRenderObject.targetRenderer.dirLight = new BABYLON.Vector3(2, -1, 1);
@@ -215,7 +233,37 @@ export class FluidRendering implements CreateSceneClass {
 
             createSimulator();
 
+            let arrowLeftDown = false;
+            let arrowRightDown = false;
+
+            scene.onKeyboardObservable.add((kbInfo) => {
+                switch (kbInfo.type) {
+                    case BABYLON.KeyboardEventTypes.KEYDOWN:
+                        if (kbInfo.event.code === "ArrowLeft") {
+                            arrowLeftDown = true;
+                        } else if (kbInfo.event.code === "ArrowRight") {
+                            arrowRightDown = true;
+                        }
+                        break;
+                    case BABYLON.KeyboardEventTypes.KEYUP:
+                        if (kbInfo.event.code === "ArrowLeft") {
+                            arrowLeftDown = false;
+                        } else if (kbInfo.event.code === "ArrowRight") {
+                            arrowRightDown = false;
+                        }
+                        break;
+                }
+            });
+
             scene.onBeforeRenderObservable.add(() => {
+                if (arrowLeftDown) {
+                    this._angleX -= 30 / 60;
+                    this._rotateMeshes(this._angleX);
+                } else if (arrowRightDown) {
+                    this._angleX += 30 / 60;
+                    this._rotateMeshes(this._angleX);
+                }
+
                 if (fluidSim && fluidRenderObject) {
                     if (currNumParticles === 0) {
                         currNumParticles += numCrossSection;
@@ -266,13 +314,16 @@ export class FluidRendering implements CreateSceneClass {
             btnRestart.background = "green";
             btnRestart.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
             btnRestart.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-            btnRestart.onPointerUpObservable.add(function() {
+            btnRestart.onPointerUpObservable.add(() => {
+                this._angleX = 0;
+                this._rotateMeshes(0);
                 createSimulator();
             });
             panel.addControl(btnRestart);
 
             const stkCheckBounds = GUI.Checkbox.AddCheckBoxWithHeader("Check bounds", (v) => {
                 this._checkXZBounds = v;
+                this._boxMesh?.setEnabled(v);
             });
             stkCheckBounds.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
             stkCheckBounds.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
@@ -297,7 +348,7 @@ export class FluidRendering implements CreateSceneClass {
 
         this._sphereMesh = BABYLON.MeshBuilder.CreateSphere("collisionMesh", { diameter: this._sphereRadius * 2, segments: 16 }, this._scene);
         this._sphereMesh.material = this._sphereMaterial;
-        this._sphereMesh.position = this._spherePos;
+        this._sphereMesh.position = this._spherePos.clone();
 
         const pointerDragBehavior = new BABYLON.PointerDragBehavior({dragPlaneNormal: new BABYLON.Vector3(0, 1, 0)});
 
@@ -319,15 +370,57 @@ export class FluidRendering implements CreateSceneClass {
         this._boxMesh.isPickable = false;
     }
 
+    protected _rotateMeshes(angleX: number): void {
+        const transfo = BABYLON.Matrix.RotationAxis(new BABYLON.Vector3(-1, 0, 0), angleX * Math.PI / 180);
+
+        const boxVertices = [
+            new BABYLON.Vector3(this._boxMin.x, this._boxMin.y, this._boxMin.z),
+            new BABYLON.Vector3(this._boxMin.x, this._boxMax.y, this._boxMin.z),
+            new BABYLON.Vector3(this._boxMin.x, this._boxMax.y, this._boxMax.z),
+            new BABYLON.Vector3(this._boxMin.x, this._boxMin.y, this._boxMax.z),
+            new BABYLON.Vector3(this._boxMax.x, this._boxMin.y, this._boxMin.z),
+            new BABYLON.Vector3(this._boxMax.x, this._boxMax.y, this._boxMin.z),
+            new BABYLON.Vector3(this._boxMax.x, this._boxMax.y, this._boxMax.z),
+            new BABYLON.Vector3(this._boxMax.x, this._boxMin.y, this._boxMax.z),
+        ];
+
+        let ymin = 1e10;
+        for (let i = 0; i < boxVertices.length; ++i) {
+            const v = BABYLON.Vector3.TransformCoordinates(boxVertices[i], transfo);
+            ymin = Math.min(ymin, v.y);
+        }
+
+        this._collisionPlanesFloorOnly[0].d = Math.abs(ymin);
+
+        for (let i = 0; i < this._origCollisionPlanes.length; ++i) {
+            this._collisionPlanes[i] = this._origCollisionPlanes[i].transform(transfo);
+        }
+
+        if (this._sphereMesh) {
+            this._sphereMesh.rotationQuaternion?.set(0, 0, 0, 1);
+            this._sphereMesh.position = this._spherePos.clone();
+            this._sphereMesh.rotateAround(new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(-1, 0, 0), angleX * Math.PI / 180);
+        }
+
+        if (this._boxMesh) {
+            this._boxMesh.rotationQuaternion?.set(0, 0, 0, 1);
+            this._boxMesh.position.x = (this._boxMin.x + this._boxMax.x) / 2;
+            this._boxMesh.position.y = (this._boxMin.y + this._boxMax.y) / 2;
+            this._boxMesh.position.z = (this._boxMin.z + this._boxMax.z) / 2;
+            this._boxMesh.rotateAround(new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(-1, 0, 0), angleX * Math.PI / 180);
+        }
+    }
+
     protected _checkCollisions(fluidSim: FluidSimulator, particleRadius: number): void {
-        const elastic = 0.3;
+        const elastic = 0.92;
         const meshCollisionRestitution = 0.95;
-        const sx = this._spherePos.x;
-        const sy = this._spherePos.y;
-        const sz = this._spherePos.z;
+        const sx = this._sphereMesh!.position.x;
+        const sy = this._sphereMesh!.position.y;
+        const sz = this._sphereMesh!.position.z;
         const sr = this._sphereRadius + particleRadius;
         const positions = fluidSim.positions;
         const velocities = fluidSim.velocities;
+        const collisionsPlanes = this._checkXZBounds ? this._collisionPlanes : this._collisionPlanesFloorOnly;
         for (let a = 0; a < fluidSim.currentNumParticles; ++a) {
             let nx = positions[a * 3 + 0] - sx;
             let ny = positions[a * 3 + 1] - sy;
@@ -351,32 +444,21 @@ export class FluidRendering implements CreateSceneClass {
                 positions[a * 3 + 2] = nz * sr + sz;
             }
 
-            if (positions[a * 3 + 1] < this._boxMin.y + particleRadius) {
-                positions[a * 3 + 1] += (this._boxMin.y + particleRadius - positions[a * 3 + 1]);
-                velocities[a * 3 + 1] *= -elastic;
-            }
+            for (let i = 0; i < collisionsPlanes.length; ++i) {
+                const plane = collisionsPlanes[i];
+                const dist = plane.normal.x * positions[a * 3 + 0] + plane.normal.y * positions[a * 3 + 1] + plane.normal.z * positions[a * 3 + 2] + plane.d - particleRadius;
+                if (dist < 0) {
+                    const dotvn = velocities[a * 3 + 0] * plane.normal.x + velocities[a * 3 + 1] * plane.normal.y + velocities[a * 3 + 2] * plane.normal.z;
 
-            if (positions[a * 3 + 1] > this._boxMax.y - particleRadius) {
-                positions[a * 3 + 1] -= (positions[a * 3 + 1] - this._boxMax.y + particleRadius);
-                velocities[a * 3 + 1] *= -elastic;
-            }
-
-            if (this._checkXZBounds && positions[a * 3 + 0] < this._boxMin.x + particleRadius) {
-                positions[a * 3 + 0] += (this._boxMin.x + particleRadius - positions[a * 3 + 0]);
-                velocities[a * 3 + 0] *= -elastic;
-            }
-            if (this._checkXZBounds && positions[a * 3 + 0] > this._boxMax.x - particleRadius) {
-                positions[a * 3 + 0] -= (positions[a * 3 + 0] - this._boxMax.x + particleRadius);
-                velocities[a * 3 + 0] *= -elastic;
-            }
-
-            if (this._checkXZBounds && positions[a * 3 + 2] < this._boxMin.z + particleRadius) {
-                positions[a * 3 + 2] += (this._boxMin.z + particleRadius - positions[a * 3 + 2]);
-                velocities[a * 3 + 2] *= -elastic;
-            }
-            if (this._checkXZBounds && positions[a * 3 + 2] > this._boxMax.z - particleRadius) {
-                positions[a * 3 + 2] -= (positions[a * 3 + 2] - this._boxMax.z + particleRadius);
-                velocities[a * 3 + 2] *= -elastic;
+                    velocities[a * 3 + 0] = (velocities[a * 3 + 0] - 2 * dotvn * plane.normal.x) * elastic;
+                    velocities[a * 3 + 1] = (velocities[a * 3 + 1] - 2 * dotvn * plane.normal.y) * elastic;
+                    velocities[a * 3 + 2] = (velocities[a * 3 + 2] - 2 * dotvn * plane.normal.z) * elastic;
+    
+                    positions[a * 3 + 0] -= plane.normal.x * dist;
+                    positions[a * 3 + 1] -= plane.normal.y * dist;
+                    positions[a * 3 + 2] -= plane.normal.z * dist;
+    
+                }
             }
         }
     }
