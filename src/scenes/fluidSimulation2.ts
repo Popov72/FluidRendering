@@ -34,6 +34,7 @@ export class FluidRendering implements CreateSceneClass {
     private _collisionPlanesFloorOnly: Array<BABYLON.Plane>;
     private _angleX: number;
     private _angleY: number;
+    private _prevTransfo: BABYLON.Matrix;
 
     constructor() {
         this._engine = null as any;
@@ -65,6 +66,7 @@ export class FluidRendering implements CreateSceneClass {
         ];
         this._angleX = 0;
         this._angleY = 0;
+        this._prevTransfo = BABYLON.Matrix.Identity();
     }
 
     public async createScene(
@@ -420,8 +422,10 @@ export class FluidRendering implements CreateSceneClass {
         const quat = BABYLON.Quaternion.FromRotationMatrix(transfo);
 
         if (this._sphereMesh) {
+            this._prevTransfo.invert();
+            const tmp = BABYLON.Vector3.TransformCoordinates(this._sphereMesh.position, this._prevTransfo);
             this._sphereMesh.rotationQuaternion = quat;
-            this._sphereMesh.position = BABYLON.Vector3.TransformCoordinates(this._spherePos.clone(), transfo);
+            this._sphereMesh.position = BABYLON.Vector3.TransformCoordinates(tmp, transfo);
         }
 
         if (this._boxMesh) {
@@ -431,6 +435,8 @@ export class FluidRendering implements CreateSceneClass {
             this._boxMesh.position.z = (this._boxMin.z + this._boxMax.z) / 2;
             this._boxMesh.position = BABYLON.Vector3.TransformCoordinates(this._boxMesh.position, transfo);
         }
+
+        this._prevTransfo.copyFrom(transfo);
     }
 
     protected _checkCollisions(fluidSim: FluidSimulator, particleRadius: number): void {
