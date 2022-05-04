@@ -8,9 +8,6 @@ export interface IFluidParticle {
     accelX: number;
     accelY: number;
     accelZ: number;
-    velocityX: number;
-    velocityY: number;
-    velocityZ: number;
 }
 
 export class FluidSimulator {
@@ -41,7 +38,7 @@ export class FluidSimulator {
 
     public pressureConstant = 20;
 
-    public viscosity = 0.007;
+    public viscosity = 0.005;
 
     public gravity = new BABYLON.Vector3(0, -9.8, 0);
 
@@ -52,6 +49,18 @@ export class FluidSimulator {
     public maxAcceleration = 2000;
 
     public currentNumParticles: number;
+
+    private _mass: number;
+
+    public get mass() {
+        return this._mass;
+    }
+
+    public set mass(m: number) {
+        for (let i = 0; i < this._particles.length; ++i) {
+            this._particles[i].mass = m;
+        }
+    }
 
     private _computeConstants(): void {
         this._smoothingRadius2 = this._smoothingRadius * this._smoothingRadius;
@@ -69,28 +78,47 @@ export class FluidSimulator {
         return this._velocities;
     }
 
-    public get numParticles() {
+    public get numMaxParticles() {
         return this._numMaxParticles;
     }
 
-    constructor(particles: IFluidParticle[], engine: BABYLON.Engine, positions?: Float32Array) {
-        this._particles = particles;
-        this._numMaxParticles = particles.length;
-        this._positions = positions ?? new Float32Array(this._numMaxParticles * 3);
-        this._velocities = new Float32Array(this._numMaxParticles * 3);
+    public setParticleData(positions?: Float32Array, velocities?: Float32Array): void {
+        this._positions = positions ?? new Float32Array();
+        this._velocities = velocities ?? new Float32Array();
+        this._numMaxParticles = this._positions.length / 3;
+        this._hash = new Hash(this._smoothingRadius, this._numMaxParticles);
+
+        for (let i = this._particles.length; i < this._numMaxParticles; ++i) {
+            this._particles.push({
+                mass: this.mass,
+                density: 0,
+                pressure: 0,
+                accelX: 0,
+                accelY: 0,
+                accelZ: 0,
+            })
+        }
+    }
+
+    constructor(positions?: Float32Array, velocities?: Float32Array, mass = 1) {
+        this._positions = undefined as any;
+        this._velocities = undefined as any;
+        this._particles = [];
+        this._numMaxParticles = 0;
+        this._mass = mass;
+
+        if (positions && velocities) {
+            this.setParticleData(positions, velocities);
+        }
+
         this._hash = new Hash(this._smoothingRadius, this._numMaxParticles);
 
         this.currentNumParticles = this._numMaxParticles;
+
         this._smoothingRadius2 = 0;
         this._poly6Constant = 0;
         this._spikyConstant = 0;
         this._viscConstant = 0;
-
-        for (let i = 0; i < this._numMaxParticles; ++i) {
-            this._velocities[i * 3 + 0] = particles[i].velocityX;
-            this._velocities[i * 3 + 1] = particles[i].velocityY;
-            this._velocities[i * 3 + 2] = particles[i].velocityZ;
-        }
 
         this._computeConstants();
     }

@@ -1,16 +1,16 @@
 import { CreateSceneClass } from "../createScene";
 
 import * as BABYLON from "@babylonjs/core";
-import * as GUI from "@babylonjs/gui";
+import * as LiLGUI from 'lil-gui'; 
 
 import "./FluidRenderer/fluidRendererSceneComponent";
 import { FluidRendererGUI } from "./FluidRenderer/fluidRendererGUI";
-import { FluidSimulator, IFluidParticle } from "./FluidSimulator2/fluidSimulator";
+import { FluidSimulator } from "./FluidSimulator2/fluidSimulator";
 import { FluidRenderingObjectVertexBuffer } from "./FluidRenderer/fluidRenderingObjectVertexBuffer";
-import { IFluidRenderingRenderObject } from "./FluidRenderer/fluidRenderer";
-import { FluidRenderingTargetRenderer } from "./FluidRenderer/fluidRenderingTargetRenderer";
+import { FluidRenderer, IFluidRenderingRenderObject } from "./FluidRenderer/fluidRenderer";
 
 import marbleBaseColor from "../assets/materials/Marble08_1K_BaseColor.png";
+import { ParticleGenerator } from "./particleGenerator";
 
 const cameraMin = 0.1;
 const cameraMax = 100;
@@ -35,6 +35,16 @@ export class FluidRendering implements CreateSceneClass {
     private _angleX: number;
     private _angleY: number;
     private _prevTransfo: BABYLON.Matrix;
+    private _gui: BABYLON.Nullable<LiLGUI.GUI>;
+    private _particleGenerator: ParticleGenerator;
+    private _fluidSim: FluidSimulator;
+    private _numMaxParticles: number;
+    private _fluidRenderer: BABYLON.Nullable<FluidRenderer>;
+    private _fluidRenderObject: IFluidRenderingRenderObject;
+    private _paused: boolean;
+    private _autoRotateBox: boolean;
+    private _sphereCollisionRestitution: number;
+    private _boxCollisionRestitution: number;
 
     constructor() {
         this._engine = null as any;
@@ -44,6 +54,10 @@ export class FluidRendering implements CreateSceneClass {
         this._sphereRadius = 0.2;
         this._sphereMesh = null;
         this._sphereMaterial = null;
+        this._particleGenerator = null as any;
+        this._fluidSim = null as any;
+        this._fluidRenderer = null;
+        this._fluidRenderObject = null as any;
         this._boxMin = new BABYLON.Vector3(-0.3, -0.3, -0.7);
         this._boxMax = new BABYLON.Vector3( 0.3,  1.2,  0.7);
         this._spherePos = new BABYLON.Vector3((this._boxMin.x + this._boxMax.x) / 2, this._boxMin.y + this._sphereRadius, (this._boxMin.z + this._boxMax.z) / 2 - 0.1);
@@ -64,9 +78,15 @@ export class FluidRendering implements CreateSceneClass {
         this._collisionPlanesFloorOnly = [
             this._origCollisionPlanes[5].clone(),
         ];
+        this._sphereCollisionRestitution = 0.95;
+        this._boxCollisionRestitution = 0.92;
         this._angleX = 0;
         this._angleY = 0;
         this._prevTransfo = BABYLON.Matrix.Identity();
+        this._numMaxParticles = 2700;
+        this._paused = false;
+        this._autoRotateBox = false;
+        this._gui = null;
     }
 
     public async createScene(
@@ -78,8 +98,6 @@ export class FluidRendering implements CreateSceneClass {
 
         this._engine = engine;
         this._scene = scene;
-
-        const liquidRendering = true;
 
         this._sphereMaterial = new BABYLON.PBRMaterial("collisionMeshMat", this._scene);
         this._sphereMaterial.metallic = 1;
@@ -108,6 +126,8 @@ export class FluidRendering implements CreateSceneClass {
         camera.maxZ = cameraMax;
         camera.wheelPrecision = 50;
 
+        scene.activeCamera = camera;
+
         (camera.inputs as BABYLON.ArcRotateCameraInputsManager).removeByType("ArcRotateCameraKeyboardMoveInput");
 
         const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
@@ -117,263 +137,277 @@ export class FluidRendering implements CreateSceneClass {
 
         this._scene.cameraToUseForPointers = camera;
 
-        if (liquidRendering) {
-            const fluidRenderer = scene.enableFluidRenderer();
+        this._fluidRenderer = scene.enableFluidRenderer();
 
-            scene.activeCamera = camera;
+        if (!this._fluidRenderer) {
+            return scene;
+        }
 
-            const dimX = 12, dimY = 12;
-            const numMaxParticles = 2700;
-            const particleRadius = 0.02;
+        const particleRadius = 0.02;
 
-            let numParticles = 0;
-            let numCrossSection = 0;
+        this._createMeshes();
 
-            let fluidSim: BABYLON.Nullable<FluidSimulator> = null;
-            let fluidRenderObject: IFluidRenderingRenderObject | undefined = undefined;
-            let fluidRendererGUI: FluidRendererGUI | undefined = undefined;
+        // Setup the fluid renderer object
+        const vertexBuffers: { [name: string]: BABYLON.VertexBuffer } = {};
 
-            let currNumParticles = 0;
-            let paused = false;
+        this._fluidRenderObject = this._fluidRenderer.addVertexBuffer(vertexBuffers, 0, false, undefined, camera);
 
-            this._createMesh();
+        this._fluidRenderObject.targetRenderer.enableBlurDepth = true;
+        this._fluidRenderObject.targetRenderer.blurDepthFilterSize = 8;
+        this._fluidRenderObject.targetRenderer.blurDepthNumIterations = 3;
+        this._fluidRenderObject.targetRenderer.blurDepthDepthScale = 5;
+        //this._fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 1);
+        this._fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(1 - 0.5, 1 - 0.2, 1 - 0.05);
+        this._fluidRenderObject.targetRenderer.density = 2.2;
+        this._fluidRenderObject.targetRenderer.refractionStrength = 0.04;
+        this._fluidRenderObject.targetRenderer.specularPower = 200;
+        //this._fluidRenderObject.targetRenderer.thicknessMapSize = 1024;
+        this._fluidRenderObject.targetRenderer.blurThicknessFilterSize = 10;
+        this._fluidRenderObject.targetRenderer.blurThicknessNumIterations = 2;
+        this._fluidRenderObject.targetRenderer.dirLight = new BABYLON.Vector3(2, -1, 1);
+        this._fluidRenderObject.object.particleSize = particleRadius * 2 * 2;
+        this._fluidRenderObject.object.particleThicknessAlpha = this._fluidRenderObject.object.particleSize;
+        this._fluidRenderObject.object.useVelocity = this._fluidRenderObject.targetRenderer.useVelocity;
 
-            const createSimulator = () => {
-                const particlePos = [];
-                const particles: IFluidParticle[] = [];
+        new FluidRendererGUI(this._scene, false);
 
-                numParticles = 0;
+        // Setup the fluid simulator / particle generator
+        this._fluidSim = new FluidSimulator();
 
-                const distance = particleRadius * 2;
-                const jitter = distance * 0.1;
-                const getJitter = () => Math.random() * jitter - jitter / 2;
+        this._fluidSim.smoothingRadius = particleRadius * 2;
+        this._fluidSim.maxVelocity = 3;
 
-                while (numParticles <= numMaxParticles - numCrossSection) {
-                    let yCoord = 0.5 + (dimY / 2) * distance;
+        (window as any).fsim = this._fluidSim;
 
-                    numCrossSection = 0;
-                    for (let y = 1; y < dimY - 1; ++y) {
-                        const angle = y * Math.PI / (dimY - 1);
+        this._particleGenerator = new ParticleGenerator(this._scene);
+        this._particleGenerator.particleRadius = this._fluidSim.smoothingRadius / 2;
 
-                        let x2 = Math.sin(angle) * dimX / 2 * distance;
-                        if (x2 < 0) { x2 = 0; }
+        this._generateParticles();
 
-                        let xCoord = -x2;
-                        while (xCoord <= x2) {
-                            const xc = xCoord === -x2 || xCoord + distance > x2 ? xCoord : xCoord + getJitter();
-                            const yc = xCoord === -x2 || xCoord + distance > x2 ? yCoord : yCoord + getJitter();
-                            const zCoord = xCoord === -x2 || xCoord + distance > x2 ? 0.49 : 0.49 + getJitter();
-                            particlePos.push(xc, yc, zCoord);
-                            particles.push({
-                                density: 0,
-                                pressure: 0,
-                                accelX: 0,
-                                accelY: 0,
-                                accelZ: 0,
-                                velocityX: (Math.random() - 0.5) * 0.03,
-                                velocityY: (Math.random() - 0.5) * 0.03,
-                                velocityZ: (Math.random() - 1.0) * 0.03 - 1.5,
-                                mass: 1,
-                            });
-                            xCoord += distance;
-                            numCrossSection++;
-                            numParticles++;
-                        }
+        this._makeGUI();
 
-                        yCoord += distance;
+        let arrowLeftDown = false;
+        let arrowRightDown = false;
+        let arrowUpDown = false;
+        let arrowDownDown = false;
+
+        scene.onKeyboardObservable.add((kbInfo) => {
+            switch (kbInfo.type) {
+                case BABYLON.KeyboardEventTypes.KEYDOWN:
+                    if (kbInfo.event.code === "ArrowLeft") {
+                        arrowLeftDown = true;
+                    } else if (kbInfo.event.code === "ArrowRight") {
+                        arrowRightDown = true;
+                    } else if (kbInfo.event.code === "ArrowUp") {
+                        arrowUpDown = true;
+                    } else if (kbInfo.event.code === "ArrowDown") {
+                        arrowDownDown = true;
                     }
-                }
-
-                currNumParticles = 0;
-
-                fluidRendererGUI?.dispose();
-
-                let currentTargetRenderer: FluidRenderingTargetRenderer | undefined = undefined;
-
-                if (fluidRenderObject) {
-                    currentTargetRenderer = fluidRenderObject.targetRenderer;
-                    fluidRenderer?.removeRenderObject(fluidRenderObject, false);
-                }
-
-                fluidSim?.dispose();
-
-                const positions = new Float32Array(particlePos);
-
-                fluidSim = new FluidSimulator(particles, engine, positions);
-
-                fluidSim.smoothingRadius = particleRadius * 2;
-                fluidSim.currentNumParticles = currNumParticles;
-
-                (window as any).fsim = fluidSim;
-
-                const vbPositions = new BABYLON.VertexBuffer(engine, fluidSim.positions, BABYLON.VertexBuffer.PositionKind, true, false, 3, true);
-                const vbVelocities = new BABYLON.VertexBuffer(engine, fluidSim.velocities, "velocity", true, false, 3, true);
-
-                fluidRenderObject = fluidRenderer?.addVertexBuffer({ position: vbPositions, velocity: vbVelocities }, currNumParticles, false, currentTargetRenderer, camera);
-
-                if (fluidRenderObject) {
-                    if (!currentTargetRenderer) {
-                        fluidRenderObject.targetRenderer.enableBlurDepth = true;
-                        fluidRenderObject.targetRenderer.blurDepthFilterSize = 8;
-                        fluidRenderObject.targetRenderer.blurDepthNumIterations = 3;
-                        fluidRenderObject.targetRenderer.blurDepthDepthScale = 5;
-                        //fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(0.011126082368383245*5*3, 0.05637409755197975*5*3, 1);
-                        fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(1 - 0.5, 1 - 0.2, 1 - 0.05);
-                        fluidRenderObject.targetRenderer.density = 2.2;
-                        fluidRenderObject.targetRenderer.refractionStrength = 0.04;
-                        fluidRenderObject.targetRenderer.specularPower = 200;
-                        //fluidRenderObject.targetRenderer.thicknessMapSize = 1024;
-                        fluidRenderObject.targetRenderer.blurThicknessFilterSize = 10;
-                        fluidRenderObject.targetRenderer.blurThicknessNumIterations = 2;
-                        fluidRenderObject.targetRenderer.dirLight = new BABYLON.Vector3(2, -1, 1);
+                    break;
+                case BABYLON.KeyboardEventTypes.KEYUP:
+                    if (kbInfo.event.code === "ArrowLeft") {
+                        arrowLeftDown = false;
+                    } else if (kbInfo.event.code === "ArrowRight") {
+                        arrowRightDown = false;
+                    } else if (kbInfo.event.code === "ArrowUp") {
+                        arrowUpDown = false;
+                    } else if (kbInfo.event.code === "ArrowDown") {
+                        arrowDownDown = false;
                     }
-                    fluidRenderObject.object.particleSize = particleRadius * 2 * 2;
-                    fluidRenderObject.object.particleThicknessAlpha = fluidRenderObject.object.particleSize;
-                    fluidRenderObject.object.useVelocity = fluidRenderObject.targetRenderer.useVelocity;
-                }
+                    break;
+            }
+        });
 
-                fluidRendererGUI = new FluidRendererGUI(this._scene, false);
+        scene.onBeforeRenderObservable.add(() => {
+            if (arrowLeftDown) {
+                this._angleX += 30 / 60;
+                this._rotateMeshes(this._angleX, this._angleY);
+            }
+            if (arrowRightDown) {
+                this._angleX -= 30 / 60;
+                this._rotateMeshes(this._angleX, this._angleY);
+            }
+            if (arrowUpDown) {
+                this._angleY -= 30 / 60;
+                this._rotateMeshes(this._angleX, this._angleY);
+            }
+            if (arrowDownDown) {
+                this._angleY += 30 / 60;
+                this._rotateMeshes(this._angleX, this._angleY);
             }
 
-            createSimulator();
+            if (this._autoRotateBox) {
+                const fps = this._engine.getFps();
+                this._angleX += 20 / fps;
+                this._angleY += 30 / fps;
+                this._rotateMeshes(this._angleX, this._angleY);
+            }
 
-            let arrowLeftDown = false;
-            let arrowRightDown = false;
-            let arrowUpDown = false;
-            let arrowDownDown = false;
-
-            scene.onKeyboardObservable.add((kbInfo) => {
-                switch (kbInfo.type) {
-                    case BABYLON.KeyboardEventTypes.KEYDOWN:
-                        if (kbInfo.event.code === "ArrowLeft") {
-                            arrowLeftDown = true;
-                        } else if (kbInfo.event.code === "ArrowRight") {
-                            arrowRightDown = true;
-                        } else if (kbInfo.event.code === "ArrowUp") {
-                            arrowUpDown = true;
-                        } else if (kbInfo.event.code === "ArrowDown") {
-                            arrowDownDown = true;
-                        }
-                        break;
-                    case BABYLON.KeyboardEventTypes.KEYUP:
-                        if (kbInfo.event.code === "ArrowLeft") {
-                            arrowLeftDown = false;
-                        } else if (kbInfo.event.code === "ArrowRight") {
-                            arrowRightDown = false;
-                        } else if (kbInfo.event.code === "ArrowUp") {
-                            arrowUpDown = false;
-                        } else if (kbInfo.event.code === "ArrowDown") {
-                            arrowDownDown = false;
-                        }
-                        break;
-                }
-            });
-
-            scene.onBeforeRenderObservable.add(() => {
-                if (arrowLeftDown) {
-                    this._angleX += 30 / 60;
-                    this._rotateMeshes(this._angleX, this._angleY);
-                }
-                if (arrowRightDown) {
-                    this._angleX -= 30 / 60;
-                    this._rotateMeshes(this._angleX, this._angleY);
-                }
-                if (arrowUpDown) {
-                    this._angleY -= 30 / 60;
-                    this._rotateMeshes(this._angleX, this._angleY);
-                }
-                if (arrowDownDown) {
-                    this._angleY += 30 / 60;
-                    this._rotateMeshes(this._angleX, this._angleY);
-                }
-
-                if (fluidSim && fluidRenderObject) {
-                    if (currNumParticles === 0) {
-                        currNumParticles += numCrossSection;
-                    } else if (currNumParticles < numParticles) {
-                        const px1 = fluidSim.positions[currNumParticles * 3 + 0];
-                        const py1 = fluidSim.positions[currNumParticles * 3 + 1];
-                        const pz1 = fluidSim.positions[currNumParticles * 3 + 2];
-
-                        const px2 = fluidSim.positions[(currNumParticles - numCrossSection) * 3 + 0];
-                        const py2 = fluidSim.positions[(currNumParticles - numCrossSection) * 3 + 1];
-                        const pz2 = fluidSim.positions[(currNumParticles - numCrossSection) * 3 + 2];
-
-                        const dist = Math.sqrt((px1 - px2) * (px1 - px2) + (py1 - py2) * (py1 - py2) + (pz1 - pz2) * (pz1 - pz2));
-
-                        if (dist > fluidSim.smoothingRadius) {
-                            currNumParticles += numCrossSection;
-                        }
-                    }
-                    fluidSim.currentNumParticles = currNumParticles;
-                    (fluidRenderObject.object as FluidRenderingObjectVertexBuffer).setNumParticles(currNumParticles);
-                
-                    if (!paused) {
-                        fluidSim.update(8 / 1000/*this._engine.getDeltaTime() / 1000*/);
-                        this._checkCollisions(fluidSim, fluidSim.smoothingRadius);
-                    }
-                    if (fluidRenderObject) {
-                        fluidRenderObject.object.vertexBuffers["position"].updateDirectly(fluidSim.positions, 0);
-                        fluidRenderObject.object.vertexBuffers["velocity"].updateDirectly(fluidSim.velocities, 0);
-                    }
-                }
-            });
-
-            const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
-            advancedTexture.layer!.layerMask = 0x10000000;
-
-            const panel = new GUI.StackPanel();
-            panel.width = "200px";
-            panel.isVertical = true;
-            panel.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-            panel.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-            advancedTexture.addControl(panel);
+            this._fluidSim.currentNumParticles = Math.min(this._numMaxParticles, this._particleGenerator.currNumParticles);
+            (this._fluidRenderObject.object as FluidRenderingObjectVertexBuffer).setNumParticles(this._fluidSim.currentNumParticles);
         
-            const btnRestart = GUI.Button.CreateSimpleButton("btnRestart", "Restart");
-            btnRestart.width = "150px"
-            btnRestart.height = "40px";
-            btnRestart.color = "white";
-            btnRestart.cornerRadius = 20;
-            btnRestart.background = "green";
-            btnRestart.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-            btnRestart.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-            btnRestart.onPointerUpObservable.add(() => {
-                this._angleX = this._angleY = 0;
-                this._rotateMeshes(0, 0);
-                createSimulator();
-            });
-            panel.addControl(btnRestart);
+            if (!this._paused) {
+                this._fluidSim.update(8 / 1000/*this._engine.getDeltaTime() / 1000*/);
+                this._checkCollisions(this._fluidSim, this._fluidSim.smoothingRadius);
+            }
 
-            const stkCheckBounds = GUI.Checkbox.AddCheckBoxWithHeader("Check bounds", (v) => {
-                this._checkXZBounds = v;
-                this._boxMesh?.setEnabled(v);
-            });
-            stkCheckBounds.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-            stkCheckBounds.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-
-            panel.addControl(stkCheckBounds);
-
-            const stkPauseAnimation = GUI.Checkbox.AddCheckBoxWithHeader("Pause animation", (v) => {
-                paused = v;
-            });
-            (stkPauseAnimation.children[0] as GUI.Checkbox).isChecked = paused;
-            stkPauseAnimation.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-            stkPauseAnimation.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-
-            panel.addControl(stkPauseAnimation);
-        }
+            if (this._fluidRenderObject) {
+                this._fluidRenderObject.object.vertexBuffers["position"].updateDirectly(this._fluidSim.positions, 0);
+                this._fluidRenderObject.object.vertexBuffers["velocity"].updateDirectly(this._fluidSim.velocities, 0);
+            }
+        });
 
         return scene;
     }
 
-    protected _createMesh(): void {
-        this._sphereMesh?.dispose();
+    protected _generateParticles(regenerateAll = true): void {
+        this._particleGenerator.generateParticles(this._numMaxParticles, regenerateAll);
 
+        if (this._fluidSim.positions !== this._particleGenerator.positions) {
+            this._fluidSim.setParticleData(this._particleGenerator.positions, this._particleGenerator.velocities);
+
+            this._fluidRenderObject.object.vertexBuffers["position"]?.dispose();
+            this._fluidRenderObject.object.vertexBuffers["velocity"]?.dispose();
+
+            this._fluidRenderObject.object.vertexBuffers["position"] = new BABYLON.VertexBuffer(this._engine, this._fluidSim.positions, BABYLON.VertexBuffer.PositionKind, true, false, 3, true);
+            this._fluidRenderObject.object.vertexBuffers["velocity"] = new BABYLON.VertexBuffer(this._engine, this._fluidSim.velocities, "velocity", true, false, 3, true);
+        }
+    }
+
+    protected _makeGUI(): void {
+        this._gui = new LiLGUI.GUI();
+        this._gui.domElement.style.marginTop = "60px";
+        this._gui.domElement.style.left = "20px";
+        this._gui.domElement.id = "simGUI";
+
+        const params = {
+            checkXZBounds: true,
+            paused: false,
+            autoRotateBox: false,
+            restart: () => {
+                this._angleX = this._angleY = 0;
+                this._autoRotateBox = false;
+                autoRotateBoxCtrl?.setValue(false);
+                this._rotateMeshes(0, 0);
+                this._generateParticles();
+            },
+            sphereCollisionRestitution: this._sphereCollisionRestitution,
+            boxCollisionRestitution: this._boxCollisionRestitution,
+            numParticles: this._numMaxParticles,
+            smoothingRadius: this._fluidSim.smoothingRadius,
+            densityReference: this._fluidSim.densityReference,
+            pressureConstant: this._fluidSim.pressureConstant,
+            viscosity: this._fluidSim.viscosity,
+            minTimeStep: this._fluidSim.minTimeStep,
+            maxVelocity: this._fluidSim.maxVelocity,
+            maxAcceleration: this._fluidSim.maxAcceleration,
+        };
+
+        const mainMenu = this._gui;
+
+        let autoRotateBoxCtrl: BABYLON.Nullable<LiLGUI.Controller> = null;
+
+        mainMenu.add(params, "restart").name("Restart");
+
+        mainMenu.add(params, "checkXZBounds")
+            .name("Check box bounds")
+            .onChange((value: boolean) => {
+                this._checkXZBounds = value;
+                this._boxMesh?.setEnabled(value);
+                if (!value) {
+                    this._autoRotateBox = false;
+                    autoRotateBoxCtrl?.setValue(false);
+                }
+            });
+
+        mainMenu.add(params, "paused")
+            .name("Pause animation")
+            .onChange((value: boolean) => {
+                this._paused = value;
+            });        
+
+        autoRotateBoxCtrl = mainMenu.add(params, "autoRotateBox")
+            .name("Auto rotate box")
+            .onChange((value: boolean) => {
+                this._autoRotateBox = value;
+            });
+
+        mainMenu.add(params, "sphereCollisionRestitution", 0, 1, 0.01)
+            .name("Sphere collision restitution")
+            .onChange((value: any) => {
+                this._sphereCollisionRestitution = value;
+            });
+
+        mainMenu.add(params, "boxCollisionRestitution", 0, 1, 0.01)
+            .name("Box collision restitution")
+            .onChange((value: any) => {
+                this._boxCollisionRestitution = value;
+            });
+
+        const menuFluidSim = this._gui.addFolder("Fluid Simulator");
+
+        menuFluidSim.$title.style.fontWeight = "bold";
+
+        menuFluidSim.add(params, "numParticles", 0, 10000, 88)
+            .name("Num particles")
+            .onChange((value: any) => {
+                this._numMaxParticles = value;
+                this._generateParticles(false);
+            });
+
+        menuFluidSim.add(params, "smoothingRadius", 0, 1, 0.001)
+            .name("Smoothing radius")
+            .onChange((value: any) => {
+                this._fluidSim.smoothingRadius = value || 0.04;
+                this._particleGenerator.particleRadius = this._fluidSim.smoothingRadius / 2;
+            });
+
+        menuFluidSim.add(params, "densityReference", 0, 50000, 100)
+            .name("Density reference")
+            .onChange((value: any) => {
+                this._fluidSim.densityReference = value;
+            });
+
+        menuFluidSim.add(params, "pressureConstant", 0, 100, 1)
+            .name("Pressure constant")
+            .onChange((value: any) => {
+                this._fluidSim.pressureConstant = value;
+            });
+
+        menuFluidSim.add(params, "viscosity", 0, 0.05, 0.001)
+            .name("Viscosity")
+            .onChange((value: any) => {
+                this._fluidSim.viscosity = value;
+            });
+
+        menuFluidSim.add(params, "maxVelocity", 0, 200, 1)
+            .name("Max velocity")
+            .onChange((value: any) => {
+                this._fluidSim.maxVelocity = value;
+            });
+
+        menuFluidSim.add(params, "maxAcceleration", 0, 10000, 10)
+            .name("Max acceleration")
+            .onChange((value: any) => {
+                this._fluidSim.maxAcceleration = value;
+            });
+
+        menuFluidSim.add(params, "minTimeStep", 0, 0.01, 0.00001)
+            .name("Min time step")
+            .onChange((value: any) => {
+                this._fluidSim.minTimeStep = value;
+            });
+
+        menuFluidSim.open();
+    
+    }
+
+    protected _createMeshes(): void {
         this._sphereMesh = BABYLON.MeshBuilder.CreateSphere("collisionMesh", { diameter: this._sphereRadius * 2, segments: 16 }, this._scene);
         this._sphereMesh.material = this._sphereMaterial;
         this._sphereMesh.position = this._spherePos.clone();
 
-        const pointerDragBehavior = new BABYLON.PointerDragBehavior({dragPlaneNormal: new BABYLON.Vector3(0, 1, 0)});
+        const pointerDragBehavior = new BABYLON.PointerDragBehavior({ dragPlaneNormal: new BABYLON.Vector3(0, 1, 0) });
 
         pointerDragBehavior.onDragStartObservable.add(() => {
             this._scene.cameras[0].detachControl();
@@ -440,8 +474,6 @@ export class FluidRendering implements CreateSceneClass {
     }
 
     protected _checkCollisions(fluidSim: FluidSimulator, particleRadius: number): void {
-        const elastic = 0.92;
-        const meshCollisionRestitution = 0.95;
         const sx = this._sphereMesh!.position.x;
         const sy = this._sphereMesh!.position.y;
         const sz = this._sphereMesh!.position.z;
@@ -454,6 +486,7 @@ export class FluidRendering implements CreateSceneClass {
             let ny = positions[a * 3 + 1] - sy;
             let nz = positions[a * 3 + 2] - sz;
 
+            // Check collision with sphere
             const d = nx * nx + ny * ny + nz * nz;
             if (d < sr * sr) {
                 const l = Math.sqrt(d);
@@ -463,24 +496,25 @@ export class FluidRendering implements CreateSceneClass {
 
                 const dotvn = velocities[a * 3 + 0] * nx + velocities[a * 3 + 1] * ny + velocities[a * 3 + 2] * nz;
 
-                velocities[a * 3 + 0] = (velocities[a * 3 + 0] - 2 * dotvn * nx) * meshCollisionRestitution;
-                velocities[a * 3 + 1] = (velocities[a * 3 + 1] - 2 * dotvn * ny) * meshCollisionRestitution;
-                velocities[a * 3 + 2] = (velocities[a * 3 + 2] - 2 * dotvn * nz) * meshCollisionRestitution;
+                velocities[a * 3 + 0] = (velocities[a * 3 + 0] - 2 * dotvn * nx) * this._sphereCollisionRestitution;
+                velocities[a * 3 + 1] = (velocities[a * 3 + 1] - 2 * dotvn * ny) * this._sphereCollisionRestitution;
+                velocities[a * 3 + 2] = (velocities[a * 3 + 2] - 2 * dotvn * nz) * this._sphereCollisionRestitution;
 
                 positions[a * 3 + 0] = nx * sr + sx;
                 positions[a * 3 + 1] = ny * sr + sy;
                 positions[a * 3 + 2] = nz * sr + sz;
             }
 
+            // Check collisions with planes
             for (let i = 0; i < collisionsPlanes.length; ++i) {
                 const plane = collisionsPlanes[i];
                 const dist = plane.normal.x * positions[a * 3 + 0] + plane.normal.y * positions[a * 3 + 1] + plane.normal.z * positions[a * 3 + 2] + plane.d - particleRadius;
                 if (dist < 0) {
                     const dotvn = velocities[a * 3 + 0] * plane.normal.x + velocities[a * 3 + 1] * plane.normal.y + velocities[a * 3 + 2] * plane.normal.z;
 
-                    velocities[a * 3 + 0] = (velocities[a * 3 + 0] - 2 * dotvn * plane.normal.x) * elastic;
-                    velocities[a * 3 + 1] = (velocities[a * 3 + 1] - 2 * dotvn * plane.normal.y) * elastic;
-                    velocities[a * 3 + 2] = (velocities[a * 3 + 2] - 2 * dotvn * plane.normal.z) * elastic;
+                    velocities[a * 3 + 0] = (velocities[a * 3 + 0] - 2 * dotvn * plane.normal.x) * this._boxCollisionRestitution;
+                    velocities[a * 3 + 1] = (velocities[a * 3 + 1] - 2 * dotvn * plane.normal.y) * this._boxCollisionRestitution;
+                    velocities[a * 3 + 2] = (velocities[a * 3 + 2] - 2 * dotvn * plane.normal.z) * this._boxCollisionRestitution;
     
                     positions[a * 3 + 0] -= plane.normal.x * dist;
                     positions[a * 3 + 1] -= plane.normal.y * dist;
