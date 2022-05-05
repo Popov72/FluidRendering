@@ -38,6 +38,7 @@ export const babylonInit = async (): Promise<void>  => {
                     "indirect-first-instance",
                 ],
             },
+            stencil: false,
         });
         await (engine as WebGPUEngine).initAsync();
     } else {

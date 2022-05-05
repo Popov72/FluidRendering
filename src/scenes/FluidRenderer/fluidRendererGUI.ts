@@ -75,7 +75,7 @@ export class FluidRendererGUI {
     public initialize(): void {
         this.dispose();
     
-        this._gui = new LiLGUI.GUI();
+        this._gui = new LiLGUI.GUI({ title: "Fluid Rendering" });
         this._gui.domElement.style.marginTop = "60px";
         this._gui.domElement.id = "datGUI";
 

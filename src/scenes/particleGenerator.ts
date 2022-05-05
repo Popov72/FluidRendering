@@ -12,6 +12,8 @@ export class ParticleGenerator {
 
     public particleRadius: number;
 
+    public yBaseEmitter = 0.5;
+
     public get currNumParticles() {
         return this._currNumParticles;
     }
@@ -76,7 +78,7 @@ export class ParticleGenerator {
         this._numParticles = particleStartIndex;
 
         while (this._numParticles <= numTotParticles - this._numCrossSection) {
-            let yCoord = 0.5 + (dimY / 2) * distance;
+            let yCoord = this.yBaseEmitter + (dimY / 2) * distance;
 
             this._numCrossSection = 0;
             for (let y = 1; y < dimY - 1; ++y) {
