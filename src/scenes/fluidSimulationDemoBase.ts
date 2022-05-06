@@ -21,6 +21,22 @@ export class FluidSimulationDemoBase {
     protected _particleGenerator: ParticleGenerator;
     protected _numMaxParticles: number;
     protected _paused: boolean;
+    protected _sceneObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>>;
+
+    protected static _DemoList: Array<{ name: string, factory: () => FluidSimulationDemoBase }> = [];
+    protected static _CurrentDemo: FluidSimulationDemoBase;
+    protected static _CurrentDemoIndex: number;
+
+    public static AddDemo(name: string, factory: () => FluidSimulationDemoBase): void {
+        FluidSimulationDemoBase._DemoList.push({ name, factory });
+    }
+
+    public static StartDemo(index: number): void {
+        FluidSimulationDemoBase._CurrentDemo?.dispose();
+        FluidSimulationDemoBase._CurrentDemoIndex = index;
+        FluidSimulationDemoBase._CurrentDemo = FluidSimulationDemoBase._DemoList[index].factory();
+        FluidSimulationDemoBase._CurrentDemo.run();
+    }
 
     constructor(scene: BABYLON.Scene) {
         this._scene = scene;
@@ -32,7 +48,7 @@ export class FluidSimulationDemoBase {
         this._fluidRendererGUI = null;
 
         const particleRadius = 0.02;
-        const camera = scene.activeCamera ?? scene.activeCameras?.[0];
+        const camera = scene.activeCameras?.[0] ?? scene.activeCamera!;
 
         // Setup the fluid renderer object
         const vertexBuffers: { [name: string]: BABYLON.VertexBuffer } = {};
@@ -67,7 +83,7 @@ export class FluidSimulationDemoBase {
         this._particleGenerator = new ParticleGenerator(this._scene);
         this._particleGenerator.particleRadius = this._fluidSim.smoothingRadius / 2;
 
-        scene.onBeforeRenderObservable.add(() => {
+        this._sceneObserver = scene.onBeforeRenderObservable.add(() => {
             this._fluidSim.currentNumParticles = Math.min(this._numMaxParticles, this._particleGenerator.currNumParticles);
             (this._fluidRenderObject.object as FluidRenderingObjectVertexBuffer).setNumParticles(this._fluidSim.currentNumParticles);
         
@@ -92,6 +108,7 @@ export class FluidSimulationDemoBase {
     }
 
     public dispose(): void {
+        this._scene.onBeforeRenderObservable.remove(this._sceneObserver);
         this._fluidRendererGUI?.dispose();
         this._gui?.destroy();
         this._fluidSim.dispose();
@@ -124,6 +141,7 @@ export class FluidSimulationDemoBase {
         this._gui.domElement.id = "simGUI";
 
         const params = {
+            demo: FluidSimulationDemoBase._DemoList[FluidSimulationDemoBase._CurrentDemoIndex].name,
             paused: false,
             numParticles: this._numMaxParticles,
             smoothingRadius: this._fluidSim.smoothingRadius,
@@ -135,13 +153,29 @@ export class FluidSimulationDemoBase {
             maxAcceleration: this._fluidSim.maxAcceleration,
         };
 
+        const demoList: string[] = [];
+        for (const demo of FluidSimulationDemoBase._DemoList) {
+            demoList.push(demo.name);
+        }
+
+        this._gui.add(params, "demo", demoList)
+            .name("Name")
+            .onChange((value: any) => {
+                for (let i = 0; i < FluidSimulationDemoBase._DemoList.length; ++i) {
+                    if (FluidSimulationDemoBase._DemoList[i].name === value) {
+                        FluidSimulationDemoBase.StartDemo(i);
+                        break;
+                    }
+                }
+            });
+        
         this._makeGUIMainMenu();
 
         const menuFluidSim = this._gui.addFolder("Fluid Simulator");
 
         menuFluidSim.$title.style.fontWeight = "bold";
 
-        menuFluidSim.add(params, "numParticles", 0, 10000, 88)
+        menuFluidSim.add(params, "numParticles", 0, 20000, 88)
             .name("Num particles")
             .onChange((value: any) => {
                 this._numMaxParticles = value;

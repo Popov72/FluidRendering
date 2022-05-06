@@ -26,6 +26,8 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
     private _autoRotateBox: boolean;
     private _sphereCollisionRestitution: number;
     private _boxCollisionRestitution: number;
+    private _sceneRenderObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>>;
+    private _sceneKeyboardObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.KeyboardInfo>>;
 
     constructor(scene: BABYLON.Scene) {
         super(scene);
@@ -60,17 +62,21 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         this._angleY = 0;
         this._prevTransfo = BABYLON.Matrix.Identity();
         this._autoRotateBox = false;
-
-        this._particleGenerator.yBaseEmitter = 0.5;
-        this._fluidSim.viscosity = 0.005;
+        this._sceneRenderObserver = null;
+        this._sceneKeyboardObserver = null;
     }
 
     public run(): void {
         super.run();
 
-        this._fluidRenderObject.targetRenderer.blurThicknessFilterSize = 8;
-        this._fluidRenderObject.targetRenderer.blurThicknessNumIterations = 2;
-        this._fluidRenderObject.targetRenderer.density = 2.2;
+        const camera = this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
+
+        if (camera) {
+            console.log(camera.name);
+            (camera as BABYLON.ArcRotateCamera).alpha =  3.06;
+            (camera as BABYLON.ArcRotateCamera).beta = 1.14;
+            (camera as BABYLON.ArcRotateCamera).radius = 2.96;
+        }
 
         // Create materials
         this._sphereMaterial = new BABYLON.PBRMaterial("collisionMeshMat", this._scene);
@@ -143,7 +149,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         });
 
         // Main loop
-        this._scene.onBeforeRenderObservable.add(() => {
+        this._sceneRenderObserver = this._scene.onBeforeRenderObservable.add(() => {
             if (arrowLeftDown) {
                 this._angleX += 30 / 60;
                 this._rotateMeshes(this._angleX, this._angleY);
@@ -172,6 +178,11 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
     }
 
     public dispose(): void {
+        super.dispose();
+
+        this._scene.onBeforeRenderObservable.remove(this._sceneRenderObserver);
+        this._scene.onKeyboardObservable.remove(this._sceneKeyboardObserver);
+
         this._sphereMesh?.dispose();
         this._boxMesh?.dispose();
         this._sphereMaterial?.dispose();

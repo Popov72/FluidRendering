@@ -6,6 +6,7 @@ import "./FluidRenderer/fluidRendererSceneComponent";
 
 import { FluidSimulationDemoBoxSphere } from "./fluidSimulationDemoBoxSphere";
 import { FluidSimulationDemoHeightMap } from "./fluidSimulationDemoHeightMap";
+import { FluidSimulationDemoBase } from "./fluidSimulationDemoBase";
 
 const cameraMin = 0.1;
 const cameraMax = 100;
@@ -53,12 +54,10 @@ export class FluidRendering implements CreateSceneClass {
 
         this._scene.cameraToUseForPointers = camera;
 
-        const demo = new FluidSimulationDemoBoxSphere(scene);
-        //const demo = new FluidSimulationDemoHeightMap(scene);
+        FluidSimulationDemoBase.AddDemo("Box and sphere", () => new FluidSimulationDemoBoxSphere(scene));
+        FluidSimulationDemoBase.AddDemo("Height map", () => new FluidSimulationDemoHeightMap(scene));
 
-        demo.run();
-
-        (window as any).demo = demo;
+        FluidSimulationDemoBase.StartDemo(0);
 
         return scene;
     }

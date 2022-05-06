@@ -46,17 +46,12 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
 
         this._ground.material = mat;
 
-        //mat.diffuseTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/mixMap.png", this._scene);
-
-        //const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0), this._scene);
-
-        //light.intensity = 0.75;
-
         const camera = this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
 
         if (camera) {
             (camera as BABYLON.ArcRotateCamera).alpha = 4.38;
             (camera as BABYLON.ArcRotateCamera).beta = 1.16;
+            (camera as BABYLON.ArcRotateCamera).radius = 4.9;
         }
 
         this._fluidRenderObject.targetRenderer.blurThicknessFilterSize = 12;
@@ -67,6 +62,8 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
     }
 
     public dispose(): void {
+        super.dispose();
+
         this._ground?.dispose();
     }
 
