@@ -28,8 +28,8 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
             new BABYLON.Plane(-1, 0, 0, this._terrainSize / 2),
         ];
 
-        this._particleGenerator.yBaseEmitter = 1.0;
-        this._fluidSim.viscosity = 0.05;
+        this._particleGenerator!.yBaseEmitter = 1.0;
+        this._fluidSim!.viscosity = 0.05;
     }
 
     public run(): void {
@@ -55,7 +55,7 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
         }
 
         this._fluidRenderObject.targetRenderer.blurThicknessFilterSize = 12;
-        this._fluidRenderObject.targetRenderer.blurThicknessNumIterations = 4;
+        this._fluidRenderObject.targetRenderer.blurThicknessNumIterations = 3;
         this._fluidRenderObject.targetRenderer.density = 5;
 
         super.run();
@@ -87,9 +87,9 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
     }
 
     protected _checkCollisions(particleRadius: number): void {
-        const positions = this._fluidSim.positions;
-        const velocities = this._fluidSim.velocities;
-        for (let a = 0; a < this._fluidSim.currentNumParticles; ++a) {
+        const positions = this._fluidSim!.positions;
+        const velocities = this._fluidSim!.velocities;
+        for (let a = 0; a < this._fluidSim!.currentNumParticles; ++a) {
             const px = positions[a * 3 + 0];
             const py = positions[a * 3 + 1];
             const pz = positions[a * 3 + 2];

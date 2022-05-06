@@ -67,12 +67,10 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
     }
 
     public run(): void {
-        super.run();
-
+        // Reset camera
         const camera = this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
 
         if (camera) {
-            console.log(camera.name);
             (camera as BABYLON.ArcRotateCamera).alpha =  3.06;
             (camera as BABYLON.ArcRotateCamera).beta = 1.14;
             (camera as BABYLON.ArcRotateCamera).radius = 2.96;
@@ -148,7 +146,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
             }
         });
 
-        // Main loop
+        // Move meshes
         this._sceneRenderObserver = this._scene.onBeforeRenderObservable.add(() => {
             if (arrowLeftDown) {
                 this._angleX += 30 / 60;
@@ -175,6 +173,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
             }
         });
 
+        super.run();
     }
 
     public dispose(): void {
@@ -291,10 +290,10 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         const sy = this._sphereMesh!.position.y;
         const sz = this._sphereMesh!.position.z;
         const sr = this._sphereRadius + particleRadius;
-        const positions = this._fluidSim.positions;
-        const velocities = this._fluidSim.velocities;
+        const positions = this._fluidSim!.positions;
+        const velocities = this._fluidSim!.velocities;
         const collisionsPlanes = this._checkXZBounds ? this._collisionPlanes : this._collisionPlanesFloorOnly;
-        for (let a = 0; a < this._fluidSim.currentNumParticles; ++a) {
+        for (let a = 0; a < this._fluidSim!.currentNumParticles; ++a) {
             let nx = positions[a * 3 + 0] - sx;
             let ny = positions[a * 3 + 1] - sy;
             let nz = positions[a * 3 + 2] - sz;

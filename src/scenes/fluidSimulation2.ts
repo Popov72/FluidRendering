@@ -7,6 +7,7 @@ import "./FluidRenderer/fluidRendererSceneComponent";
 import { FluidSimulationDemoBoxSphere } from "./fluidSimulationDemoBoxSphere";
 import { FluidSimulationDemoHeightMap } from "./fluidSimulationDemoHeightMap";
 import { FluidSimulationDemoBase } from "./fluidSimulationDemoBase";
+import { FluidSimulationDemoPrecomputeRendering } from "./fluidSimulationPrecomputeRendering";
 
 const cameraMin = 0.1;
 const cameraMax = 100;
@@ -37,7 +38,7 @@ export class FluidRendering implements CreateSceneClass {
         scene.createDefaultSkybox(scene.environmentTexture);
 
         const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
-        camera.fov = 60 * Math.PI/180;
+        camera.fov = 60 * Math.PI / 180;
         camera.attachControl();
         camera.minZ = cameraMin;
         camera.maxZ = cameraMax;
@@ -47,13 +48,14 @@ export class FluidRendering implements CreateSceneClass {
 
         (camera.inputs as BABYLON.ArcRotateCameraInputsManager).removeByType("ArcRotateCameraKeyboardMoveInput");
 
-        const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
+        /*const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
         cameraFront.layerMask = 0x10000000;
 
         scene.activeCameras = [camera, cameraFront];
 
-        this._scene.cameraToUseForPointers = camera;
+        this._scene.cameraToUseForPointers = camera;*/
 
+        FluidSimulationDemoBase.AddDemo("Precomputed particles - rendering only", () => new FluidSimulationDemoPrecomputeRendering(scene));
         FluidSimulationDemoBase.AddDemo("Box and sphere", () => new FluidSimulationDemoBoxSphere(scene));
         FluidSimulationDemoBase.AddDemo("Height map", () => new FluidSimulationDemoHeightMap(scene));
 
