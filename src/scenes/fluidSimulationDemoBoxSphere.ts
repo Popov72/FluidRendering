@@ -17,6 +17,8 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
     private _boxMax: BABYLON.Vector3;
     private _boxMesh: BABYLON.Nullable<BABYLON.Mesh>;
     private _boxMaterial: BABYLON.Nullable<BABYLON.PBRMaterial>;
+    private _boxMeshFront: BABYLON.Nullable<BABYLON.Mesh>;
+    private _boxMaterialFront: BABYLON.Nullable<BABYLON.PBRMaterial>;
     private _origCollisionPlanes: Array<BABYLON.Plane>;
     private _collisionPlanes: Array<BABYLON.Plane>;
     private _collisionPlanesFloorOnly: Array<BABYLON.Plane>;
@@ -26,8 +28,11 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
     private _autoRotateBox: boolean;
     private _sphereCollisionRestitution: number;
     private _boxCollisionRestitution: number;
+    private _passPP: BABYLON.PostProcess;
     private _sceneRenderObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>>;
+    private _sceneAfterCameraRenderObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>;
     private _sceneKeyboardObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.KeyboardInfo>>;
+    private _onEngineResizeObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Engine>>;
 
     constructor(scene: BABYLON.Scene) {
         super(scene);
@@ -41,6 +46,8 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         this._spherePos = new BABYLON.Vector3((this._boxMin.x + this._boxMax.x) / 2, this._boxMin.y + this._sphereRadius, (this._boxMin.z + this._boxMax.z) / 2 - 0.1);
         this._boxMesh = null;
         this._boxMaterial = null;
+        this._boxMeshFront = null;
+        this._boxMaterialFront = null;
         this._origCollisionPlanes = [
             new BABYLON.Plane(0, 0, -1, Math.abs(this._boxMax.z)),
             new BABYLON.Plane(0, 0, 1, Math.abs(this._boxMin.z)),
@@ -63,7 +70,12 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         this._prevTransfo = BABYLON.Matrix.Identity();
         this._autoRotateBox = false;
         this._sceneRenderObserver = null;
+        this._sceneAfterCameraRenderObserver = null;
         this._sceneKeyboardObserver = null;
+        this._onEngineResizeObserver = null;
+
+        this._passPP = new BABYLON.PassPostProcess("pass", 1, null, undefined, this._engine);
+        this._passPP.externalTextureSamplerBinding = true;
     }
 
     public run(): void {
@@ -74,6 +86,8 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
             (camera as BABYLON.ArcRotateCamera).alpha =  3.06;
             (camera as BABYLON.ArcRotateCamera).beta = 1.14;
             (camera as BABYLON.ArcRotateCamera).radius = 2.96;
+
+            camera.outputRenderTarget = new BABYLON.RenderTargetTexture("rttFinal", { width: this._engine.getRenderWidth(), height: this._engine.getRenderHeight() }, this._scene);
         }
 
         // Create materials
@@ -87,7 +101,11 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         this._boxMaterial.metallic = 0.3;
         this._boxMaterial.roughness = 0;
         this._boxMaterial.alpha = 0.2;
-        this._boxMaterial.backFaceCulling = false;
+        this._boxMaterial.backFaceCulling = true;
+        this._boxMaterial.cullBackFaces = false;
+
+        this._boxMaterialFront = this._boxMaterial.clone("BoxMeshFrontMat");
+        this._boxMaterialFront.cullBackFaces = true;
 
         // Create meshes
         this._sphereMesh = BABYLON.MeshBuilder.CreateSphere("collisionMesh", { diameter: this._sphereRadius * 2, segments: 16 }, this._scene);
@@ -112,6 +130,10 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         this._boxMesh.position.y = (this._boxMin.y + this._boxMax.y) / 2;
         this._boxMesh.position.z = (this._boxMin.z + this._boxMax.z) / 2;
         this._boxMesh.isPickable = false;
+
+        this._boxMeshFront = this._boxMesh.clone("boxMeshFront");
+        this._boxMeshFront.material = this._boxMaterialFront;
+        this._boxMeshFront.layerMask = 0x10000000; // make sure the mesh is not displayed by the camera - we will display it ourselves by a direct call to render()
 
         // Keyboard handling
         let arrowLeftDown = false;
@@ -144,6 +166,29 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
                     }
                     break;
             }
+        });
+
+        // Render the front side of the box
+        this._passPP.onApplyObservable.add((effect) => {
+            effect.setTexture("textureSampler", camera!.outputRenderTarget);
+        });
+
+        let depthIsShared = false;
+        this._sceneAfterCameraRenderObserver = this._scene.onAfterCameraRenderObservable.add(() => {
+            const firstPP = camera?._getFirstPostProcess();
+            if (firstPP && firstPP.inputTexture.depthStencilTexture && !depthIsShared) {
+                firstPP.inputTexture._shareDepth(camera!.outputRenderTarget!.renderTarget!);
+                depthIsShared = true;
+            }
+            if (depthIsShared) {
+                this._boxMeshFront?.render(this._boxMeshFront.subMeshes[0], true);
+                this._scene.postProcessManager.directRender([this._passPP!], null);
+            }
+        });
+
+        this._onEngineResizeObserver = this._engine.onResizeObservable.add(() => {
+            camera?.outputRenderTarget?.resize({ width: this._engine.getRenderWidth(true), height: this._engine.getRenderHeight(true) });
+            depthIsShared = false;
         });
 
         // Move meshes
@@ -179,13 +224,23 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
     public dispose(): void {
         super.dispose();
 
+        const camera = this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
+
+        if (camera) {
+            camera.outputRenderTarget?.dispose();
+            camera.outputRenderTarget = null;
+        }
+
         this._scene.onBeforeRenderObservable.remove(this._sceneRenderObserver);
+        this._scene.onAfterCameraRenderObservable.remove(this._sceneAfterCameraRenderObserver);
         this._scene.onKeyboardObservable.remove(this._sceneKeyboardObserver);
 
+        this._passPP.dispose();
         this._sphereMesh?.dispose();
         this._boxMesh?.dispose();
         this._sphereMaterial?.dispose();
         this._boxMaterial?.dispose();
+        this._engine.onResizeObservable.remove(this._onEngineResizeObserver);
     }
 
     protected _makeGUIMainMenu(): void {
@@ -201,6 +256,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
             },
             sphereCollisionRestitution: this._sphereCollisionRestitution,
             boxCollisionRestitution: this._boxCollisionRestitution,
+            boxOpacity: this._boxMaterial!.alpha,
         };
 
         const mainMenu = this._gui!;
@@ -214,6 +270,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
             .onChange((value: boolean) => {
                 this._checkXZBounds = value;
                 this._boxMesh?.setEnabled(value);
+                this._boxMeshFront?.setEnabled(value);
                 if (!value) {
                     this._autoRotateBox = false;
                     autoRotateBoxCtrl?.setValue(false);
@@ -236,6 +293,13 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
             .name("Box collision restitution")
             .onChange((value: any) => {
                 this._boxCollisionRestitution = value;
+            });
+
+        mainMenu.add(params, "boxOpacity", 0, 1, 0.01)
+            .name("Box opacity")
+            .onChange((value: any) => {
+                this._boxMaterial!.alpha = value;
+                this._boxMaterialFront!.alpha = value;
             });
     }
 
@@ -274,12 +338,13 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
             this._sphereMesh.position = BABYLON.Vector3.TransformCoordinates(tmp, transfo);
         }
 
-        if (this._boxMesh) {
-            this._boxMesh.rotationQuaternion = quat;
+        if (this._boxMesh && this._boxMeshFront) {
+            this._boxMesh.rotationQuaternion = this._boxMeshFront.rotationQuaternion = quat;
             this._boxMesh.position.x = (this._boxMin.x + this._boxMax.x) / 2;
             this._boxMesh.position.y = (this._boxMin.y + this._boxMax.y) / 2;
             this._boxMesh.position.z = (this._boxMin.z + this._boxMax.z) / 2;
             this._boxMesh.position = BABYLON.Vector3.TransformCoordinates(this._boxMesh.position, transfo);
+            this._boxMeshFront.position = this._boxMesh.position;
         }
 
         this._prevTransfo.copyFrom(transfo);
