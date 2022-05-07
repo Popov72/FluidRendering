@@ -53,6 +53,8 @@ export class FluidSimulationDemoBase {
         const particleRadius = 0.02;
         const camera = scene.activeCameras?.[0] ?? scene.activeCamera!;
 
+        camera.storeState();
+
         // Setup the fluid renderer object
         const vertexBuffers: { [name: string]: BABYLON.VertexBuffer } = {};
 
@@ -117,6 +119,10 @@ export class FluidSimulationDemoBase {
         this._fluidSim?.dispose();
         this._particleGenerator?.dispose();
         this._fluidRenderer.removeRenderObject(this._fluidRenderObject);
+
+        const camera = this._scene.activeCameras?.[0] ?? this._scene.activeCamera!;
+
+        (camera as BABYLON.ArcRotateCamera)._restoreStateValues();
     }
 
     protected _generateParticles(regenerateAll = true): void {
@@ -229,7 +235,7 @@ export class FluidSimulationDemoBase {
                     this._fluidSim!.minTimeStep = value;
                 });
 
-                menuFluidSim.add(params, "paused")
+            menuFluidSim.add(params, "paused")
                 .name("Pause")
                 .onChange((value: boolean) => {
                     this._paused = value;

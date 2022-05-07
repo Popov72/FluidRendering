@@ -8,6 +8,8 @@ import { FluidSimulationDemoBoxSphere } from "./fluidSimulationDemoBoxSphere";
 import { FluidSimulationDemoHeightMap } from "./fluidSimulationDemoHeightMap";
 import { FluidSimulationDemoBase } from "./fluidSimulationDemoBase";
 import { FluidSimulationDemoPrecomputeRendering } from "./fluidSimulationPrecomputeRendering";
+import { FluidSimulationDemoParticleSystem } from "./fluidSimulationDemoParticleSystem";
+import { FluidSimulationDemoParticleCustomShape } from "./fluidSimulationDemoParticleCustomShape";
 
 const cameraMin = 0.1;
 const cameraMax = 100;
@@ -37,16 +39,21 @@ export class FluidRendering implements CreateSceneClass {
 
         scene.createDefaultSkybox(scene.environmentTexture);
 
-        const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
-        camera.fov = 60 * Math.PI / 180;
-        camera.attachControl();
-        camera.minZ = cameraMin;
-        camera.maxZ = cameraMax;
-        camera.wheelPrecision = 50;
+        const createCamera = () => {
+            const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
+            camera.fov = 60 * Math.PI / 180;
+            camera.attachControl();
+            camera.minZ = cameraMin;
+            camera.maxZ = cameraMax;
+            camera.wheelPrecision = 50;
+            camera.inputs.removeByType("ArcRotateCameraKeyboardMoveInput");
+
+            return camera;
+        };
+
+        const camera = createCamera();
 
         scene.activeCamera = camera;
-
-        (camera.inputs as BABYLON.ArcRotateCameraInputsManager).removeByType("ArcRotateCameraKeyboardMoveInput");
 
         /*const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
         cameraFront.layerMask = 0x10000000;
@@ -55,6 +62,8 @@ export class FluidRendering implements CreateSceneClass {
 
         this._scene.cameraToUseForPointers = camera;*/
 
+        FluidSimulationDemoBase.AddDemo("Particle system", () => new FluidSimulationDemoParticleSystem(scene));
+        FluidSimulationDemoBase.AddDemo("Particle custom shape", () => new FluidSimulationDemoParticleCustomShape(scene));
         FluidSimulationDemoBase.AddDemo("Precomputed particles - rendering only", () => new FluidSimulationDemoPrecomputeRendering(scene));
         FluidSimulationDemoBase.AddDemo("Box and sphere", () => new FluidSimulationDemoBoxSphere(scene));
         FluidSimulationDemoBase.AddDemo("Height map", () => new FluidSimulationDemoHeightMap(scene));
