@@ -12,7 +12,7 @@ import { FluidSimulationDemoParticleSystem } from "./fluidSimulationDemoParticle
 import { FluidSimulationDemoParticleCustomShape } from "./fluidSimulationDemoParticleCustomShape";
 
 const cameraMin = 0.1;
-const cameraMax = 100;
+const cameraMax = 1000;
 
 export class FluidRendering implements CreateSceneClass {
 

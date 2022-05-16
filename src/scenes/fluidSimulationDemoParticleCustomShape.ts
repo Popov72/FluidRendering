@@ -1,4 +1,5 @@
 import * as BABYLON from "@babylonjs/core";
+//import * as BABYLONSER from "@babylonjs/serializers";
 
 import { FluidSimulationDemoBase } from "./fluidSimulationDemoBase";
 import { FluidRenderingObjectVertexBuffer } from "./FluidRenderer/fluidRenderingObjectVertexBuffer";
@@ -43,11 +44,16 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
         this._scene.getMeshByName("him")!.getChildMeshes().forEach((m) => {
             m.setEnabled(false);
             m.scaling.setAll(0.1);
-            //m.rotation.y = Math.PI / 2;
+            //m.rotation.y = Math.PI;
+            //(m as BABYLON.Mesh).bakeCurrentTransformIntoVertices();
             (m.material as any).disableLighting = true;
             (m.material as any).emissiveTexture = (m.material as any).diffuseTexture;
             this._pcs!.addSurfacePoints(m as BABYLON.Mesh, 5000, BABYLON.PointColor.Color, 0);
         });
+
+        /*this._scene.useRightHandedSystem = true;
+        console.log(BABYLONSER.OBJExport.OBJ(this._scene.getMeshByName("him")!.getChildMeshes()));
+        this._scene.useRightHandedSystem = false;*/
 
         this._meshPCS = await this._pcs.buildMeshAsync();
 

@@ -19,9 +19,10 @@ export class FluidSimulationDemoBase {
     protected _fluidRendererGUI: BABYLON.Nullable<FluidRendererGUI>;
     protected _fluidSim: BABYLON.Nullable<FluidSimulator>;
     protected _particleGenerator: BABYLON.Nullable<ParticleGenerator>;
-    protected _numMaxParticles: number;
+    protected _numParticles: number;
     protected _paused: boolean;
     protected _sceneObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>>;
+    protected _loadParticlesFromFile: boolean;
 
     protected static _DemoList: Array<{ name: string, factory: () => FluidSimulationDemoBase }> = [];
     protected static _CurrentDemo: FluidSimulationDemoBase;
@@ -38,17 +39,18 @@ export class FluidSimulationDemoBase {
         FluidSimulationDemoBase._CurrentDemo.run();
     }
 
-    constructor(scene: BABYLON.Scene, noFluidSimulation = false) {
+    constructor(scene: BABYLON.Scene, noFluidSimulation = false, particleFileName?: string) {
         this._scene = scene;
         this._engine = scene.getEngine();
         this._fluidRenderer = scene.enableFluidRenderer()!;
-        this._numMaxParticles = 4000;
+        this._numParticles = 6000;
         this._paused = false;
         this._gui = null;
         this._fluidRendererGUI = null;
         this._sceneObserver = null;
         this._fluidSim = null;
         this._particleGenerator = null;
+        this._loadParticlesFromFile = particleFileName !== undefined;
 
         const particleRadius = 0.02;
         const camera = scene.activeCameras?.[0] ?? scene.activeCamera!;
@@ -84,19 +86,19 @@ export class FluidSimulationDemoBase {
 
             (window as any).fsim = this._fluidSim;
 
-            this._particleGenerator = new ParticleGenerator(this._scene);
+            this._particleGenerator = new ParticleGenerator(this._scene, particleFileName);
             this._particleGenerator.particleRadius = this._fluidSim.smoothingRadius / 2;
 
             this._sceneObserver = scene.onBeforeRenderObservable.add(() => {
-                this._fluidSim!.currentNumParticles = Math.min(this._numMaxParticles, this._particleGenerator!.currNumParticles);
+                this._fluidSim!.currentNumParticles = Math.min(this._numParticles, this._particleGenerator!.currNumParticles);
                 (this._fluidRenderObject.object as FluidRenderingObjectVertexBuffer).setNumParticles(this._fluidSim!.currentNumParticles);
             
                 if (!this._paused) {
-                    this._fluidSim!.update(8 / 1000/*this._engine.getDeltaTime() / 1000*/);
+                    this._fluidSim!.update(1 / 100);
                     this._checkCollisions(this._fluidRenderObject.object.particleSize / 2);
                 }
 
-                if (this._fluidRenderObject) {
+                if (this._fluidRenderObject && this._fluidRenderObject.object.vertexBuffers["position"]) {
                     this._fluidRenderObject.object.vertexBuffers["position"].updateDirectly(this._fluidSim!.positions, 0);
                     this._fluidRenderObject.object.vertexBuffers["velocity"].updateDirectly(this._fluidSim!.velocities, 0);
                 }
@@ -104,8 +106,12 @@ export class FluidSimulationDemoBase {
         }
     }
 
-    public run(): void {
-        this._generateParticles();
+    public async run() {
+        await this._generateParticles();
+
+        if (this._particleGenerator && this._loadParticlesFromFile) {
+            this._numParticles = this._particleGenerator.currNumParticles;
+        }
 
         this._fluidRendererGUI = new FluidRendererGUI(this._scene, false);
 
@@ -125,8 +131,8 @@ export class FluidSimulationDemoBase {
         (camera as BABYLON.ArcRotateCamera)._restoreStateValues();
     }
 
-    protected _generateParticles(regenerateAll = true): void {
-        this._particleGenerator?.generateParticles(this._numMaxParticles, regenerateAll);
+    protected async _generateParticles(regenerateAll = true) {
+        await this._particleGenerator?.generateParticles(this._numParticles, regenerateAll);
 
         if (this._fluidSim && this._particleGenerator && this._fluidSim.positions !== this._particleGenerator.positions) {
             this._fluidSim.setParticleData(this._particleGenerator.positions, this._particleGenerator.velocities);
@@ -152,7 +158,7 @@ export class FluidSimulationDemoBase {
         const params = {
             demo: FluidSimulationDemoBase._DemoList[FluidSimulationDemoBase._CurrentDemoIndex].name,
             paused: false,
-            numParticles: this._numMaxParticles,
+            numParticles: this._numParticles,
             smoothingRadius: this._fluidSim?.smoothingRadius,
             densityReference: this._fluidSim?.densityReference,
             pressureConstant: this._fluidSim?.pressureConstant,
@@ -177,7 +183,7 @@ export class FluidSimulationDemoBase {
                     }
                 }
             });
-        
+
         this._makeGUIMainMenu();
 
         if (this._fluidSim && this._particleGenerator) {
@@ -188,11 +194,11 @@ export class FluidSimulationDemoBase {
             menuFluidSim.add(params, "numParticles", 0, 20000, 88)
                 .name("Num particles")
                 .onChange((value: any) => {
-                    this._numMaxParticles = value;
+                    this._numParticles = value;
                     this._generateParticles(false);
                 });
 
-            menuFluidSim.add(params, "smoothingRadius", 0, 1, 0.001)
+            menuFluidSim.add(params, "smoothingRadius", 0, 2, 0.001)
                 .name("Smoothing radius")
                 .onChange((value: any) => {
                     this._fluidSim!.smoothingRadius = value || 0.04;
@@ -205,13 +211,13 @@ export class FluidSimulationDemoBase {
                     this._fluidSim!.densityReference = value;
                 });
 
-            menuFluidSim.add(params, "pressureConstant", 0, 100, 1)
+            menuFluidSim.add(params, "pressureConstant", 0, 5000, 1)
                 .name("Pressure constant")
                 .onChange((value: any) => {
                     this._fluidSim!.pressureConstant = value;
                 });
 
-            menuFluidSim.add(params, "viscosity", 0, 0.05, 0.001)
+            menuFluidSim.add(params, "viscosity", 0, 100, 0.001)
                 .name("Viscosity")
                 .onChange((value: any) => {
                     this._fluidSim!.viscosity = value;
@@ -223,13 +229,13 @@ export class FluidSimulationDemoBase {
                     this._fluidSim!.maxVelocity = value;
                 });
 
-            menuFluidSim.add(params, "maxAcceleration", 0, 10000, 10)
+            menuFluidSim.add(params, "maxAcceleration", 0, 100000, 10)
                 .name("Max acceleration")
                 .onChange((value: any) => {
                     this._fluidSim!.maxAcceleration = value;
                 });
 
-            menuFluidSim.add(params, "minTimeStep", 0, 0.01, 0.00001)
+            menuFluidSim.add(params, "minTimeStep", 0, 0.1, 0.00001)
                 .name("Min time step")
                 .onChange((value: any) => {
                     this._fluidSim!.minTimeStep = value;

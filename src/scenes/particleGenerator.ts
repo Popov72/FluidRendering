@@ -9,6 +9,7 @@ export class ParticleGenerator {
     private _numParticles = 0;
     private _positions: Float32Array;
     private _velocities: Float32Array;
+    private _loadFromFile: string | undefined;
 
     public particleRadius: number;
 
@@ -26,38 +27,93 @@ export class ParticleGenerator {
         return this._velocities;
     }
 
-    constructor(scene: BABYLON.Scene) {
+    constructor(scene: BABYLON.Scene, loadFromFile?: string) {
         this._scene = scene;
         this._currNumParticles = 0;
         this._numCrossSection = 0;
         this._positions = new Float32Array();
         this._velocities = new Float32Array();
         this.particleRadius = 0;
+        this._loadFromFile = loadFromFile;
 
-        this._observer = scene.onBeforeRenderObservable.add(() => {
-            if (this._currNumParticles === 0) {
-                if (this._positions.length / 3 >= this._numCrossSection) {
-                    this._currNumParticles = this._numCrossSection;
+        if (!this._loadFromFile) {
+            this._observer = scene.onBeforeRenderObservable.add(() => {
+                if (this._currNumParticles === 0) {
+                    if (this._positions.length / 3 >= this._numCrossSection) {
+                        this._currNumParticles = this._numCrossSection;
+                    }
+                } else if (this._currNumParticles < this._numParticles) {
+                    const px1 = this._positions[this._currNumParticles * 3 + 0];
+                    const py1 = this._positions[this._currNumParticles * 3 + 1];
+                    const pz1 = this._positions[this._currNumParticles * 3 + 2];
+
+                    const px2 = this._positions[(this._currNumParticles - this._numCrossSection) * 3 + 0];
+                    const py2 = this._positions[(this._currNumParticles - this._numCrossSection) * 3 + 1];
+                    const pz2 = this._positions[(this._currNumParticles - this._numCrossSection) * 3 + 2];
+
+                    const dist = Math.sqrt((px1 - px2) * (px1 - px2) + (py1 - py2) * (py1 - py2) + (pz1 - pz2) * (pz1 - pz2));
+
+                    if (dist > this.particleRadius * 2) {
+                        this._currNumParticles += this._numCrossSection;
+                    }
                 }
-            } else if (this._currNumParticles < this._numParticles) {
-                const px1 = this._positions[this._currNumParticles * 3 + 0];
-                const py1 = this._positions[this._currNumParticles * 3 + 1];
-                const pz1 = this._positions[this._currNumParticles * 3 + 2];
-
-                const px2 = this._positions[(this._currNumParticles - this._numCrossSection) * 3 + 0];
-                const py2 = this._positions[(this._currNumParticles - this._numCrossSection) * 3 + 1];
-                const pz2 = this._positions[(this._currNumParticles - this._numCrossSection) * 3 + 2];
-
-                const dist = Math.sqrt((px1 - px2) * (px1 - px2) + (py1 - py2) * (py1 - py2) + (pz1 - pz2) * (pz1 - pz2));
-
-                if (dist > this.particleRadius * 2) {
-                    this._currNumParticles += this._numCrossSection;
-                }
-            }
-        });
+            });
+        } else {
+            this._observer = null;
+        }
     }
 
-    public generateParticles(numTotParticles: number, regenerateAll = true): void {
+    public async generateParticles(numTotParticles: number, regenerateAll = true) {
+        if (this._loadFromFile) {
+            await this._generateParticlesFromFile(this._loadFromFile);
+        } else {
+            this._generateParticles(numTotParticles, regenerateAll);
+        }
+    }
+
+    private async _generateParticlesFromFile(fileName: string) {
+        const data = await (await fetch(`assets/particles/${fileName}.txt`)).text();
+
+        const lines = data.replace("\r", "").split("\n");
+
+        const particlePos = [];
+        const particleVel = [];
+
+        let numParticles = 0;
+
+        for (let i = 1; i < lines.length; ++i) {
+            const line = lines[i];
+            const vals = line.split(",");
+            if (line.charAt(0) === '"' || vals.length < 4) {
+                continue;
+            }
+            particlePos.push(parseFloat(vals[1]), parseFloat(vals[2]) + this.yBaseEmitter, parseFloat(vals[3]));
+            particleVel.push(0, 0, 0);
+            numParticles++;
+        }
+
+        const particleStartIndex = 0;
+
+        this._numParticles = this._numCrossSection = numParticles;
+
+        if (this._numParticles > this._positions.length / 3) {
+            const newPositions = new Float32Array(this._numParticles * 3);
+            const newVelocities = new Float32Array(this._numParticles * 3);
+
+            newPositions.set(this._positions, 0);
+            newVelocities.set(this._velocities, 0);
+
+            this._positions = newPositions;
+            this._velocities = newVelocities;
+        }
+
+        this._positions.set(particlePos, particleStartIndex * 3);
+        this._velocities.set(particleVel, particleStartIndex * 3);
+
+        this._currNumParticles = this._numParticles;
+    }
+
+    private _generateParticles(numTotParticles: number, regenerateAll = true): void {
         if (this._numParticles >= numTotParticles && !regenerateAll) {
             this._numParticles = numTotParticles;
             this._currNumParticles = Math.min(this._currNumParticles, this._numParticles);

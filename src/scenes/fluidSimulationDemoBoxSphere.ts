@@ -64,7 +64,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
             this._origCollisionPlanes[5].clone(),
         ];
         this._sphereCollisionRestitution = 0.95;
-        this._boxCollisionRestitution = 0.92;
+        this._boxCollisionRestitution = 0.98;
         this._angleX = 0;
         this._angleY = 0;
         this._prevTransfo = BABYLON.Matrix.Identity();
@@ -78,7 +78,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         this._passPP.externalTextureSamplerBinding = true;
     }
 
-    public run(): void {
+    public async run() {
         // Reset camera
         const camera = this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
 
@@ -89,6 +89,18 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
 
             camera.outputRenderTarget = new BABYLON.RenderTargetTexture("rttFinal", { width: this._engine.getRenderWidth(), height: this._engine.getRenderHeight() }, this._scene);
         }
+
+        // Simulation parameters
+        this._fluidRenderObject.object.particleSize = 0.08;
+
+        this._fluidSim!.smoothingRadius = 0.04;
+        this._fluidSim!.densityReference = 20000;
+        this._fluidSim!.pressureConstant = 4;
+        this._fluidSim!.viscosity = 0.003;
+        this._fluidSim!.maxVelocity = 3;
+        this._fluidSim!.maxAcceleration = 2000;
+        this._fluidSim!.minTimeStep = 0.1;
+        this._fluidSim!.gravity.y = -9.81;
 
         // Create materials
         this._sphereMaterial = new BABYLON.PBRMaterial("collisionMeshMat", this._scene);
