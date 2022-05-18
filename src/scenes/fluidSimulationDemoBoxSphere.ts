@@ -63,7 +63,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         this._collisionPlanesFloorOnly = [
             this._origCollisionPlanes[5].clone(),
         ];
-        this._sphereCollisionRestitution = 0.95;
+        this._sphereCollisionRestitution = 0.999;
         this._boxCollisionRestitution = 0.98;
         this._angleX = 0;
         this._angleY = 0;
@@ -96,7 +96,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         this._fluidSim!.smoothingRadius = 0.04;
         this._fluidSim!.densityReference = 20000;
         this._fluidSim!.pressureConstant = 4;
-        this._fluidSim!.viscosity = 0.003;
+        this._fluidSim!.viscosity = 0.01;
         this._fluidSim!.maxVelocity = 3;
         this._fluidSim!.maxAcceleration = 2000;
         this._fluidSim!.minTimeStep = 0.1;
@@ -206,19 +206,19 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         // Move meshes
         this._sceneRenderObserver = this._scene.onBeforeRenderObservable.add(() => {
             if (arrowLeftDown) {
-                this._angleX += 30 / 60;
+                this._angleX += 2 * 30 / 60;
                 this._rotateMeshes(this._angleX, this._angleY);
             }
             if (arrowRightDown) {
-                this._angleX -= 30 / 60;
+                this._angleX -= 2 * 30 / 60;
                 this._rotateMeshes(this._angleX, this._angleY);
             }
             if (arrowUpDown) {
-                this._angleY -= 30 / 60;
+                this._angleY -= 2 * 30 / 60;
                 this._rotateMeshes(this._angleX, this._angleY);
             }
             if (arrowDownDown) {
-                this._angleY += 30 / 60;
+                this._angleY += 2 * 30 / 60;
                 this._rotateMeshes(this._angleX, this._angleY);
             }
 

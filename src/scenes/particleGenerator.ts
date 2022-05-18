@@ -13,7 +13,7 @@ export class ParticleGenerator {
 
     public particleRadius: number;
 
-    public yBaseEmitter = 0.5;
+    public position: BABYLON.Vector3;
 
     public get currNumParticles() {
         return this._currNumParticles;
@@ -35,6 +35,7 @@ export class ParticleGenerator {
         this._velocities = new Float32Array();
         this.particleRadius = 0;
         this._loadFromFile = loadFromFile;
+        this.position = new BABYLON.Vector3(0, 0, 0);
 
         if (!this._loadFromFile) {
             this._observer = scene.onBeforeRenderObservable.add(() => {
@@ -87,7 +88,7 @@ export class ParticleGenerator {
             if (line.charAt(0) === '"' || vals.length < 4) {
                 continue;
             }
-            particlePos.push(parseFloat(vals[1]), parseFloat(vals[2]) + this.yBaseEmitter, parseFloat(vals[3]));
+            particlePos.push(parseFloat(vals[1]) + this.position.x, parseFloat(vals[2]) +  + this.position.y, parseFloat(vals[3]) + this.position.z);
             particleVel.push(0, 0, 0);
             numParticles++;
         }
@@ -134,7 +135,7 @@ export class ParticleGenerator {
         this._numParticles = particleStartIndex;
 
         while (this._numParticles <= numTotParticles - this._numCrossSection) {
-            let yCoord = this.yBaseEmitter + (dimY / 2) * distance;
+            let yCoord = (dimY / 2) * distance;
 
             this._numCrossSection = 0;
             for (let y = 1; y < dimY - 1; ++y) {
@@ -148,7 +149,7 @@ export class ParticleGenerator {
                     const xc = xCoord === -x2 || xCoord + distance > x2 ? xCoord : xCoord + getJitter();
                     const yc = xCoord === -x2 || xCoord + distance > x2 ? yCoord : yCoord + getJitter();
                     const zCoord = xCoord === -x2 || xCoord + distance > x2 ? 0.49 : 0.49 + getJitter();
-                    particlePos.push(xc, yc, zCoord);
+                    particlePos.push(xc + this.position.x, yc + this.position.y, zCoord + this.position.z);
                     particleVel.push(
                         (Math.random() - 0.5) * 0.03,
                         (Math.random() - 0.5) * 0.03,

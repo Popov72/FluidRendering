@@ -63,13 +63,13 @@ export class FluidSimulationDemoBase {
         this._fluidRenderObject = this._fluidRenderer.addVertexBuffer(vertexBuffers, 0, false, undefined, camera);
 
         this._fluidRenderObject.targetRenderer.enableBlurDepth = true;
-        this._fluidRenderObject.targetRenderer.blurDepthFilterSize = 12;
-        this._fluidRenderObject.targetRenderer.blurDepthNumIterations = 4;
-        this._fluidRenderObject.targetRenderer.blurDepthDepthScale = 5;
+        this._fluidRenderObject.targetRenderer.blurDepthFilterSize = 20;
+        this._fluidRenderObject.targetRenderer.blurDepthNumIterations = 5;
+        this._fluidRenderObject.targetRenderer.blurDepthDepthScale = 8;
         this._fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(1 - 0.5, 1 - 0.2, 1 - 0.05);
         this._fluidRenderObject.targetRenderer.density = 2.2;
         this._fluidRenderObject.targetRenderer.refractionStrength = 0.04;
-        this._fluidRenderObject.targetRenderer.specularPower = 200;
+        this._fluidRenderObject.targetRenderer.specularPower = 150;
         this._fluidRenderObject.targetRenderer.blurThicknessFilterSize = 10;
         this._fluidRenderObject.targetRenderer.blurThicknessNumIterations = 2;
         this._fluidRenderObject.targetRenderer.dirLight = new BABYLON.Vector3(2, -1, 1);
@@ -88,6 +88,7 @@ export class FluidSimulationDemoBase {
 
             this._particleGenerator = new ParticleGenerator(this._scene, particleFileName);
             this._particleGenerator.particleRadius = this._fluidSim.smoothingRadius / 2;
+            this._particleGenerator.position.y = 0.5;
 
             this._sceneObserver = scene.onBeforeRenderObservable.add(() => {
                 this._fluidSim!.currentNumParticles = Math.min(this._numParticles, this._particleGenerator!.currNumParticles);
@@ -191,7 +192,7 @@ export class FluidSimulationDemoBase {
 
             menuFluidSim.$title.style.fontWeight = "bold";
 
-            menuFluidSim.add(params, "numParticles", 0, 20000, 88)
+            menuFluidSim.add(params, "numParticles", 0, 40000, 88)
                 .name("Num particles")
                 .onChange((value: any) => {
                     this._numParticles = value;
@@ -211,19 +212,19 @@ export class FluidSimulationDemoBase {
                     this._fluidSim!.densityReference = value;
                 });
 
-            menuFluidSim.add(params, "pressureConstant", 0, 5000, 1)
+            menuFluidSim.add(params, "pressureConstant", 0, 100, 1)
                 .name("Pressure constant")
                 .onChange((value: any) => {
                     this._fluidSim!.pressureConstant = value;
                 });
 
-            menuFluidSim.add(params, "viscosity", 0, 100, 0.001)
+            menuFluidSim.add(params, "viscosity", 0, 0.1, 0.001)
                 .name("Viscosity")
                 .onChange((value: any) => {
                     this._fluidSim!.viscosity = value;
                 });
 
-            menuFluidSim.add(params, "maxVelocity", 0, 200, 1)
+            menuFluidSim.add(params, "maxVelocity", 0, 20, 1)
                 .name("Max velocity")
                 .onChange((value: any) => {
                     this._fluidSim!.maxVelocity = value;
