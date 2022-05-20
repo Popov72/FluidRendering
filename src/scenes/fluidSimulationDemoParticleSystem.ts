@@ -3,7 +3,7 @@ import * as BABYLON from "@babylonjs/core";
 import { FluidSimulationDemoBase } from "./fluidSimulationDemoBase";
 import { FluidRenderingObjectParticleSystem } from "./FluidRenderer/fluidRenderingObjectParticleSystem";
 
-import flareImg from "../assets/flare32bits.png";
+import flareImg from "../assets/pictures/flare32bits.png";
 
 export class FluidSimulationDemoParticleSystem extends FluidSimulationDemoBase {
 

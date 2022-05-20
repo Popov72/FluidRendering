@@ -3,25 +3,25 @@ import * as BABYLON from "@babylonjs/core";
 import { Scene } from "@babylonjs/core/scene";
 import { FluidRenderingObject } from "./fluidRenderingObject";
 
-import particleDepthVertex from "../../assets/particleDepth.vertex.glsl";
-import particleDepthFragment from "../../assets/particleDepth.fragment.glsl";
+import particleDepthVertex from "../../assets/shaders/particleDepth.vertex.glsl";
+import particleDepthFragment from "../../assets/shaders/particleDepth.fragment.glsl";
 
-import particleThicknessVertex from "../../assets/particleThickness.vertex.glsl";
-import particleThicknessFragment from "../../assets/particleThickness.fragment.glsl";
+import particleThicknessVertex from "../../assets/shaders/particleThickness.vertex.glsl";
+import particleThicknessFragment from "../../assets/shaders/particleThickness.fragment.glsl";
 
-import particleDiffuseVertex from "../../assets/particleDiffuse.vertex.glsl";
-import particleDiffuseFragment from "../../assets/particleDiffuse.fragment.glsl";
+import particleDiffuseVertex from "../../assets/shaders/particleDiffuse.vertex.glsl";
+import particleDiffuseFragment from "../../assets/shaders/particleDiffuse.fragment.glsl";
 
-import bilateralBlurFragment from "../../assets/bilateralBlur.fragment.glsl";
-import standardBlurFragment from "../../assets/standardBlur.fragment.glsl";
+import bilateralBlurFragment from "../../assets/shaders/bilateralBlur.fragment.glsl";
+import standardBlurFragment from "../../assets/shaders/standardBlur.fragment.glsl";
 
-import renderFluidFragment from "../../assets/renderFluid.fragment.glsl";
+import renderFluidFragment from "../../assets/shaders/renderFluid.fragment.glsl";
 
-import passDepthVertex from "../../assets/passDepth.vertex.glsl";
-import passDepthFragment from "../../assets/passDepth.fragment.glsl";
+import passDepthVertex from "../../assets/shaders/passDepth.vertex.glsl";
+import passDepthFragment from "../../assets/shaders/passDepth.fragment.glsl";
 
-import passDepthWGSLVertex from "../../assets/passDepth.vertex.wgsl";
-import passDepthWGSLFragment from "../../assets/passDepth.fragment.wgsl";
+import passDepthWGSLVertex from "../../assets/shaders/passDepth.vertex.wgsl";
+import passDepthWGSLFragment from "../../assets/shaders/passDepth.fragment.wgsl";
 
 import { FluidRenderingObjectParticleSystem } from "./fluidRenderingObjectParticleSystem";
 import { FluidRenderingTargetRenderer } from "./fluidRenderingTargetRenderer";
