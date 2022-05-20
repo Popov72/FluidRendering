@@ -36,8 +36,11 @@ export interface ICollisionShape {
     invTransf: BABYLON.Matrix;
     position?: BABYLON.Vector3;
     rotation?: BABYLON.Vector3;
+    rotationQuaternion?: BABYLON.Quaternion;
     mesh?: BABYLON.Mesh;
     dragPlane: BABYLON.Nullable<BABYLON.Vector3>;
+    disabled?: boolean;
+    collisionRestitution?: number;
 }
 
 export class SDFHelper {

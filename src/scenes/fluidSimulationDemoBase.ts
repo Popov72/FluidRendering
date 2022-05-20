@@ -89,7 +89,7 @@ export class FluidSimulationDemoBase {
         this._fluidRenderObject.targetRenderer.enableBlurDepth = true;
         this._fluidRenderObject.targetRenderer.blurDepthFilterSize = 20;
         this._fluidRenderObject.targetRenderer.blurDepthNumIterations = 5;
-        this._fluidRenderObject.targetRenderer.blurDepthDepthScale = 8;
+        this._fluidRenderObject.targetRenderer.blurDepthDepthScale = 10;
         this._fluidRenderObject.targetRenderer.fluidColor = new BABYLON.Color3(
             1 - 0.5,
             1 - 0.2,
@@ -247,18 +247,21 @@ export class FluidSimulationDemoBase {
         );
     }
 
-    public addCollisionPlane(normal: BABYLON.Vector3, d: number) {
+    public addCollisionPlane(normal: BABYLON.Vector3, d: number, collisionRestitution?: number): [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape] {
         this._collisionShapes.push({
             params: [normal.clone(), d],
             sdEvaluate: SDFHelper.SDPlane,
             computeNormal: SDFHelper.ComputeSDFNormal,
             mesh: null as any,
+            position: new BABYLON.Vector3(0, 0, 0),
+            rotation: new BABYLON.Vector3(0, 0, 0),
             transf: BABYLON.Matrix.Identity(),
             invTransf: BABYLON.Matrix.Identity(),
             dragPlane: null,
+            collisionRestitution,
         });
 
-        return null;
+        return [null, this._collisionShapes[this._collisionShapes.length - 1]];
     }
 
     public addCollisionTerrain(size: number) {
@@ -280,15 +283,24 @@ export class FluidSimulationDemoBase {
 
     protected _createMeshForCollision(
         shape: ICollisionShape
-    ): BABYLON.Nullable<BABYLON.Mesh> {
+    ): [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>] {
         const mesh = shape.createMesh?.(this._scene, shape, ...shape.params);
 
-        if (!mesh) {
-            return null;
+        shape.position = shape.position ?? new BABYLON.Vector3(0, 0, 0);
+        if (!shape.rotation && !shape.rotationQuaternion) {
+            shape.rotation = new BABYLON.Vector3(0, 0, 0);
         }
 
-        mesh.position = shape.position ?? new BABYLON.Vector3(0, 0, 0);
-        mesh.rotation = shape.rotation ?? new BABYLON.Vector3(0, 0, 0);
+        if (!mesh) {
+            return [null, null];
+        }
+
+        mesh.position = shape.position;
+        if (shape.rotation) {
+            mesh.rotation = shape.rotation;
+        } else {
+            mesh.rotationQuaternion = shape.rotationQuaternion!;
+        }
 
         shape.mesh = mesh;
 
@@ -312,7 +324,7 @@ export class FluidSimulationDemoBase {
             mesh.addBehavior(pointerDragBehavior);
         }
 
-        return mesh;
+        return [mesh, shape];
     }
 
     protected async _generateParticles(regenerateAll = true) {
@@ -481,11 +493,15 @@ export class FluidSimulationDemoBase {
                 .add(params, "paused")
                 .name("Pause")
                 .onChange((value: boolean) => {
-                    this._paused = value;
+                    this._onPaused(value);
                 });
 
             menuFluidSim.open();
         }
+    }
+
+    protected _onPaused(value: boolean) {
+        this._paused = value;
     }
 
     protected _checkCollisions(particleRadius: number): void {
@@ -504,22 +520,19 @@ export class FluidSimulationDemoBase {
         for (let i = 0; i < this._collisionShapes.length; ++i) {
             const shape = this._collisionShapes[i];
 
-            if (!shape.mesh) {
-                continue;
-            }
-
             const quat =
-                shape.mesh.rotationQuaternion ??
+                shape.mesh?.rotationQuaternion ??
+                shape.rotationQuaternion ??
                 BABYLON.Quaternion.FromEulerAnglesToRef(
-                    shape.mesh.rotation.x,
-                    shape.mesh.rotation.y,
-                    shape.mesh.rotation.z,
+                    shape.mesh?.rotation.x ?? shape.rotation!.x,
+                    shape.mesh?.rotation.y ?? shape.rotation!.y,
+                    shape.mesh?.rotation.z ?? shape.rotation!.z,
                     tmpQuat
                 );
             BABYLON.Matrix.ComposeToRef(
                 tmpScale,
                 quat,
-                shape.mesh.position,
+                shape.mesh?.position ?? shape.position!,
                 shape.transf
             );
 
@@ -536,6 +549,10 @@ export class FluidSimulationDemoBase {
 
             for (let i = 0; i < this._collisionShapes.length; ++i) {
                 const shape = this._collisionShapes[i];
+                if (shape.disabled) {
+                    continue;
+                }
+
                 pos.copyFromFloats(px, py, pz);
                 BABYLON.Vector3.TransformCoordinatesToRef(
                     pos,
@@ -547,6 +564,8 @@ export class FluidSimulationDemoBase {
                 if (dist < 0) {
                     shape.computeNormal(pos, shape, normal);
 
+                    const restitution = shape.collisionRestitution ?? this._shapeCollisionRestitution;
+
                     const dotvn =
                         velocities[a * 3 + 0] * normal.x +
                         velocities[a * 3 + 1] * normal.y +
@@ -554,13 +573,13 @@ export class FluidSimulationDemoBase {
 
                     velocities[a * 3 + 0] =
                         (velocities[a * 3 + 0] - 2 * dotvn * normal.x) *
-                        this._shapeCollisionRestitution;
+                        restitution;
                     velocities[a * 3 + 1] =
                         (velocities[a * 3 + 1] - 2 * dotvn * normal.y) *
-                        this._shapeCollisionRestitution;
+                        restitution;
                     velocities[a * 3 + 2] =
                         (velocities[a * 3 + 2] - 2 * dotvn * normal.z) *
-                        this._shapeCollisionRestitution;
+                        restitution;
 
                     positions[a * 3 + 0] -= normal.x * dist;
                     positions[a * 3 + 1] -= normal.y * dist;

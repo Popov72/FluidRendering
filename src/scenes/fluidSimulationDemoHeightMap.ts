@@ -22,12 +22,12 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
             new BABYLON.Vector3(0, 0.2, 0),
             0.2,
             null
-        )!;
+        )[0]!;
         this._box = this.addCollisionBox(
             new BABYLON.Vector3(-0.7, 0.249, -0.7),
             new BABYLON.Vector3(0, 0, (90 * Math.PI) / 180),
             new BABYLON.Vector3(0.2, 0.05, 0.5)
-        )!;
+        )[0]!;
         this.addCollisionTerrain(terrainSize);
         this.addCollisionPlane(new BABYLON.Vector3(0, 0, -1), terrainSize / 2);
         this.addCollisionPlane(new BABYLON.Vector3(0, 0, 1), terrainSize / 2);
