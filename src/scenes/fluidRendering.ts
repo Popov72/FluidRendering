@@ -3,7 +3,7 @@ import { CreateSceneClass } from "../createScene";
 import * as BABYLON from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 
-import flareImg from "../assets/flare32bits.png";
+import flareImg from "../assets/pictures/flare32bits.png";
 
 import "./FluidRenderer/fluidRendererSceneComponent";
 import { FluidRendererGUI } from "./FluidRenderer/fluidRendererGUI";
