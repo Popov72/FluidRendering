@@ -76,6 +76,7 @@ export class FluidSimulationDemoParticleSystem extends FluidSimulationDemoBase {
         this._fluidRenderObject.object.particleSize = 0.75;
         this._fluidRenderObject.object.particleThicknessAlpha = 0.02;
         (this._fluidRenderObject.object as FluidRenderingObjectParticleSystem).useTrueRenderingForDiffuseTexture = true;
+        this._fluidRenderObject.targetRenderer.minimumThickness = this._fluidRenderObject.object.particleThicknessAlpha;
         this._fluidRenderObject.targetRenderer.blurDepthFilterSize = 10;
         this._fluidRenderObject.targetRenderer.blurDepthDepthScale = 10;
         this._fluidRenderObject.targetRenderer.thicknessMapSize = 1024;

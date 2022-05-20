@@ -31,6 +31,7 @@ uniform float density;
 uniform float refractionStrength;
 uniform float fresnelClamp;
 uniform float specularPower;
+uniform float minimumThickness;
 
 varying vec2 vUV;
 
@@ -69,7 +70,7 @@ void main(void) {
     float depth = depthVel.r;
     float thickness = texture2D(thicknessSampler, texCoord).x;
 
-    if (depth >= cameraFar || depth <= 0. || thickness == 0.) {
+    if (depth >= cameraFar || depth <= 0. || thickness <= minimumThickness) {
         vec3 backColor = texture2D(textureSampler, texCoord).rgb;
         glFragColor = vec4(backColor, 1.);
         return;

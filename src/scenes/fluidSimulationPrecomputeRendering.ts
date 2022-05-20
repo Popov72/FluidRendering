@@ -58,6 +58,7 @@ export class FluidSimulationDemoPrecomputeRendering extends FluidSimulationDemoB
 
         this._fluidRenderObject.object.particleSize = 0.03;
         this._fluidRenderObject.object.particleThicknessAlpha = 0.007;
+        this._fluidRenderObject.targetRenderer.minimumThickness = 0;
         this._fluidRenderObject.targetRenderer.blurDepthFilterSize = 10;
         this._fluidRenderObject.targetRenderer.blurDepthDepthScale = 10;
         this._fluidRenderObject.targetRenderer.thicknessMapSize = 256;

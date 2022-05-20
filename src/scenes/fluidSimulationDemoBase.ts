@@ -110,6 +110,7 @@ export class FluidSimulationDemoBase {
             this._fluidRenderObject.object.particleSize;
         this._fluidRenderObject.object.useVelocity =
             this._fluidRenderObject.targetRenderer.useVelocity;
+        this._fluidRenderObject.targetRenderer.minimumThickness = this._fluidRenderObject.object.particleThicknessAlpha;
 
         // Setup the fluid simulator / particle generator
         if (!noFluidSimulation) {

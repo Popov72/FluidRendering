@@ -60,6 +60,8 @@ export class FluidRenderingTargetRenderer {
 
     public specularPower = 250;
 
+    public minimumThickness = 0;
+
     public dirLight: BABYLON.Vector3 = new BABYLON.Vector3(-2, -1, 1).normalize();
 
     private _debugFeature: FluidRenderingDebug = FluidRenderingDebug.DepthBlurredTexture;
@@ -440,7 +442,7 @@ export class FluidRenderingTargetRenderer {
     protected _createLiquidRenderingPostProcess(): void {
         const engine = this._scene.getEngine();
 
-        const uniformNames = ["viewMatrix", "projectionMatrix", "invProjectionMatrix", "texelSize", "dirLight", "cameraFar", "density", "refractionStrength", "fresnelClamp", "specularPower"];
+        const uniformNames = ["viewMatrix", "projectionMatrix", "invProjectionMatrix", "texelSize", "dirLight", "cameraFar", "density", "refractionStrength", "fresnelClamp", "specularPower", "minimumThickness"];
         const samplerNames = ["depthSampler", "thicknessSampler", "reflectionSampler"];
         const defines = [];
 
@@ -516,6 +518,7 @@ export class FluidRenderingTargetRenderer {
             effect.setFloat("refractionStrength", this.refractionStrength);
             effect.setFloat("fresnelClamp", this.fresnelClamp);
             effect.setFloat("specularPower", this.specularPower);
+            effect.setFloat("minimumThickness", this.minimumThickness);
 
             effect.setVector3("dirLight", this.dirLight);
 

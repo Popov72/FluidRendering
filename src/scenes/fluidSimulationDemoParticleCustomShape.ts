@@ -70,6 +70,7 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
 
         this._fluidRenderObject.object.particleSize = 0.15;
         this._fluidRenderObject.object.particleThicknessAlpha = 0.1;
+        this._fluidRenderObject.targetRenderer.minimumThickness = 0;
         this._fluidRenderObject.targetRenderer.blurDepthFilterSize = 15;
         this._fluidRenderObject.targetRenderer.blurDepthNumIterations = 8;
         this._fluidRenderObject.targetRenderer.blurDepthDepthScale = 50;

@@ -65,10 +65,10 @@ export class FluidRendering implements CreateSceneClass {
         FluidSimulationDemoBase.AddDemo("Particle system", () => new FluidSimulationDemoParticleSystem(scene));
         FluidSimulationDemoBase.AddDemo("Particle custom shape", () => new FluidSimulationDemoParticleCustomShape(scene));
         FluidSimulationDemoBase.AddDemo("Precomputed particles - rendering only", () => new FluidSimulationDemoPrecomputeRendering(scene));
-        FluidSimulationDemoBase.AddDemo("Box and sphere", () => new FluidSimulationDemoBoxSphere(scene));
+        FluidSimulationDemoBase.AddDemo("Box, sphere and wall", () => new FluidSimulationDemoBoxSphere(scene));
         FluidSimulationDemoBase.AddDemo("Height map", () => new FluidSimulationDemoHeightMap(scene));
 
-        FluidSimulationDemoBase.StartDemo(0);
+        FluidSimulationDemoBase.StartDemo(3);
 
         return scene;
     }
