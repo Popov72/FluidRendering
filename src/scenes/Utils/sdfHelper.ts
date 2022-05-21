@@ -97,6 +97,61 @@ export class SDFHelper {
         return sphere;
     }
 
+    public static CreateCutHollowSphere(
+        scene: BABYLON.Scene,
+        shape: ICollisionShape,
+        radius: number,
+        planeDist: number,
+        thickness: number,
+        segments: number
+    ) {
+        thickness = thickness / radius;
+
+        const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: radius * 2, segments}, scene);
+        const plane = BABYLON.MeshBuilder.CreatePlane("plane", { size: radius * 2 }, scene);
+
+        plane.rotation.y = Math.PI / 2;
+        plane.position.x = planeDist;
+
+        const csg1 = BABYLON.CSG.FromMesh(sphere);
+        const csgp = BABYLON.CSG.FromMesh(plane);
+
+        sphere.dispose();
+        plane.dispose();
+
+        csg1.subtractInPlace(csgp);
+
+        const mesh = csg1.toMesh("sppl");
+
+        mesh.computeWorldMatrix(true);
+        mesh.refreshBoundingInfo();
+
+        mesh.scaling.setAll(1 - thickness);
+        mesh.position.x = mesh.getBoundingInfo().boundingBox.maximumWorld.x * thickness;
+
+        const csg2 = BABYLON.CSG.FromMesh(mesh);
+
+        mesh.dispose();
+
+        csg1.subtractInPlace(csg2);
+
+        const meshFinal = csg1.toMesh("final");
+
+        meshFinal.rotation.z = Math.PI / 2;
+        meshFinal.bakeCurrentTransformIntoVertices();
+
+        const material = new BABYLON.PBRMaterial("collisionMeshMat", scene);
+
+        material.metallic = 1;
+        material.roughness = 0.05;
+        material.albedoTexture = new BABYLON.Texture(marbleBaseColor, scene);
+        material.cullBackFaces = true;
+
+        meshFinal.material = material;
+
+        return meshFinal;
+    }
+
     public static CreateTerrain(
         scene: BABYLON.Scene,
         shape: ICollisionShape,
@@ -150,6 +205,21 @@ export class SDFHelper {
 
     public static SDPlane(p: BABYLON.Vector3, n: BABYLON.Vector3, h: number) {
         return BABYLON.Vector3.Dot(p, n) + h;
+    }
+
+    public static SDCutHollowSphere(p: BABYLON.Vector3, r: number, h: number, t: number) {
+        // sampling independent computations (only depend on shape)
+        const w = Math.sqrt(r * r - h * h);
+
+        // sampling dependant computations
+        const qx = Math.sqrt(p.x * p.x + p.z * p.z);
+        const qy = p.y;
+
+        if (h * qx < w * qy) {
+            return Math.sqrt((qx - w) * (qx - w) + (qy - h) * (qy - h));
+        }
+
+        return Math.abs(Math.sqrt(qx * qx + qy * qy) - r) - t;
     }
 
     public static SDTerrain(

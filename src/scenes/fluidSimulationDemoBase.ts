@@ -265,6 +265,37 @@ export class FluidSimulationDemoBase {
         return [null, this._collisionShapes[this._collisionShapes.length - 1]];
     }
 
+    public addCollisionCutHollowSphere(
+        position: BABYLON.Vector3,
+        rotation: BABYLON.Vector3,
+        radius: number,
+        planeDist: number,
+        thickness: number,
+        segments: number,
+        dragPlane: BABYLON.Nullable<BABYLON.Vector3> = new BABYLON.Vector3(
+            0,
+            1,
+            0
+        )
+    ) {
+        this._collisionShapes.push({
+            params: [radius, planeDist, thickness],
+            createMesh: SDFHelper.CreateCutHollowSphere,
+            sdEvaluate: SDFHelper.SDCutHollowSphere,
+            computeNormal: SDFHelper.ComputeSDFNormal,
+            rotation: rotation.clone(),
+            position: position.clone(),
+            mesh: null as any,
+            transf: new BABYLON.Matrix(),
+            invTransf: new BABYLON.Matrix(),
+            dragPlane,
+        });
+
+        return this._createMeshForCollision(
+            this._collisionShapes[this._collisionShapes.length - 1]
+        );
+    }
+
     public addCollisionTerrain(size: number) {
         this._collisionShapes.push({
             params: [size],
