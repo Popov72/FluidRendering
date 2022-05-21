@@ -32,13 +32,7 @@ export class FluidRendering implements CreateSceneClass {
 
         this._scene = scene;
 
-        // Setup environment
-        scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.env", scene);
-        //scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
-
         (window as any).BABYLON = BABYLON;
-
-        scene.createDefaultSkybox(scene.environmentTexture);
 
         const createCamera = () => {
             const camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);

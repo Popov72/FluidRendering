@@ -16,11 +16,12 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
     constructor(scene: BABYLON.Scene) {
         super(scene);
 
+        this._environmentFile = "Country";
         this._sceneRenderObserver = null;
         this._boxMesh = null;
         this._boxMaterial = null;
 
-        this.addCollisionPlane(new BABYLON.Vector3(0, 1, 0), 1.9 + 0.04 - 0.2, 0.75);
+        this.addCollisionPlane(new BABYLON.Vector3(0, 1, 0), 1.9 + 0.04 - 0.2, 0.6);
 
         this._boxMesh = this.addCollisionCutHollowSphere(
             new BABYLON.Vector3(0.0, 0.2, 0.0),
@@ -40,7 +41,7 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
             0.04,
             16,
             null,
-            0.98
+            0.6
         )[0]!;
 
         this._cylMeshOfst = new BABYLON.Vector3(0, -1.2, 0);
@@ -51,7 +52,7 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
             1.4,
             16,
             null,
-            0.98
+            0.6
         )[0]!;
     }
 
@@ -78,7 +79,7 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
         this._fluidSim!.densityReference = 20000;
         this._fluidSim!.pressureConstant = 4;
         this._fluidSim!.viscosity = 0.01;
-        this._fluidSim!.maxVelocity = 3;
+        this._fluidSim!.maxVelocity = 10;
         this._fluidSim!.maxAcceleration = 2000;
         this._fluidSim!.minTimeStep = 0.1;
         this._fluidSim!.gravity.y = -9.81;

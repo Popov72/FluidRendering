@@ -12,10 +12,14 @@ import { FluidSimulator } from "./FluidSimulator2/fluidSimulator";
 import { ParticleGenerator } from "./Utils/particleGenerator";
 import { ICollisionShape, SDFHelper } from "./Utils/sdfHelper";
 
+const envNames = ["Environment", "Country", "Parking", "Night", "Canyon", "Studio"];
+const envFile = ["environment.env", "country.env", "parking.env", "night.env", "Runyon_Canyon_A_2k_cube_specular.env", "Studio_Softbox_2Umbrellas_cube_specular.env"];
+
 export class FluidSimulationDemoBase {
     protected _scene: BABYLON.Scene;
     protected _engine: BABYLON.Engine;
     protected _gui: BABYLON.Nullable<LiLGUI.GUI>;
+    protected _environmentFile: string;
 
     protected _fluidRenderer: FluidRenderer;
     protected _fluidRenderObject: IFluidRenderingRenderObject;
@@ -69,6 +73,7 @@ export class FluidSimulationDemoBase {
         this._loadParticlesFromFile = particleFileName !== undefined;
         this._shapeCollisionRestitution = 0.999;
         this._collisionShapes = [];
+        this._environmentFile = "Environment";
 
         const particleRadius = 0.02;
         const camera = scene.activeCameras?.[0] ?? scene.activeCamera!;
@@ -110,7 +115,7 @@ export class FluidSimulationDemoBase {
             this._fluidRenderObject.object.particleSize;
         this._fluidRenderObject.object.useVelocity =
             this._fluidRenderObject.targetRenderer.useVelocity;
-        this._fluidRenderObject.targetRenderer.minimumThickness = this._fluidRenderObject.object.particleThicknessAlpha;
+        this._fluidRenderObject.targetRenderer.minimumThickness = this._fluidRenderObject.object.particleThicknessAlpha / 2;
 
         // Setup the fluid simulator / particle generator
         if (!noFluidSimulation) {
@@ -161,7 +166,15 @@ export class FluidSimulationDemoBase {
         }
     }
 
+    protected _setEnvironment() {
+        const idx = envNames.indexOf(this._environmentFile);
+        this._scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/" + envFile[idx], this._scene);
+        this._scene.createDefaultSkybox(this._scene.environmentTexture);
+    }
+
     public async run() {
+        this._setEnvironment();
+
         await this._generateParticles();
 
         if (this._particleGenerator && this._loadParticlesFromFile) {
@@ -453,6 +466,7 @@ export class FluidSimulationDemoBase {
             demo: FluidSimulationDemoBase._DemoList[
                 FluidSimulationDemoBase._CurrentDemoIndex
             ].name,
+            environment: this._environmentFile,
             paused: false,
             numParticles: this._numParticles,
             smoothingRadius: this._fluidSim?.smoothingRadius,
@@ -484,6 +498,14 @@ export class FluidSimulationDemoBase {
                         break;
                     }
                 }
+            });
+
+        this._gui
+            .add(params, "environment", envNames)
+            .name("Environment")
+            .onChange((value: any) => {
+                this._environmentFile = value;
+                this._setEnvironment();
             });
 
         this._makeGUIMainMenu();
