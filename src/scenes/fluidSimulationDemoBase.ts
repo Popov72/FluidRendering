@@ -201,7 +201,8 @@ export class FluidSimulationDemoBase {
             0,
             1,
             0
-        )
+        ),
+        collisionRestitution?: number
     ) {
         this._collisionShapes.push({
             params: [radius],
@@ -213,6 +214,7 @@ export class FluidSimulationDemoBase {
             transf: new BABYLON.Matrix(),
             invTransf: new BABYLON.Matrix(),
             dragPlane,
+            collisionRestitution
         });
 
         return this._createMeshForCollision(
@@ -228,7 +230,8 @@ export class FluidSimulationDemoBase {
             0,
             1,
             0
-        )
+        ),
+        collisionRestitution?: number
     ) {
         this._collisionShapes.push({
             params: [extents.clone()],
@@ -241,6 +244,7 @@ export class FluidSimulationDemoBase {
             transf: new BABYLON.Matrix(),
             invTransf: new BABYLON.Matrix(),
             dragPlane,
+            collisionRestitution
         });
 
         return this._createMeshForCollision(
@@ -276,10 +280,11 @@ export class FluidSimulationDemoBase {
             0,
             1,
             0
-        )
+        ),
+        collisionRestitution?: number
     ) {
         this._collisionShapes.push({
-            params: [radius, planeDist, thickness],
+            params: [radius, planeDist, thickness, segments],
             createMesh: SDFHelper.CreateCutHollowSphere,
             sdEvaluate: SDFHelper.SDCutHollowSphere,
             computeNormal: SDFHelper.ComputeSDFNormal,
@@ -289,6 +294,39 @@ export class FluidSimulationDemoBase {
             transf: new BABYLON.Matrix(),
             invTransf: new BABYLON.Matrix(),
             dragPlane,
+            collisionRestitution
+        });
+
+        return this._createMeshForCollision(
+            this._collisionShapes[this._collisionShapes.length - 1]
+        );
+    }
+
+    public addCollisionVerticalCylinder(
+        position: BABYLON.Vector3,
+        rotation: BABYLON.Vector3,
+        radius: number,
+        height: number,
+        segments: number,
+        dragPlane: BABYLON.Nullable<BABYLON.Vector3> = new BABYLON.Vector3(
+            0,
+            1,
+            0
+        ),
+        collisionRestitution?: number
+    ) {
+        this._collisionShapes.push({
+            params: [radius, height, segments],
+            createMesh: SDFHelper.CreateVerticalCylinder,
+            sdEvaluate: SDFHelper.SDVerticalCylinder,
+            computeNormal: SDFHelper.ComputeSDFNormal,
+            rotation: rotation.clone(),
+            position: position.clone(),
+            mesh: null as any,
+            transf: new BABYLON.Matrix(),
+            invTransf: new BABYLON.Matrix(),
+            dragPlane,
+            collisionRestitution
         });
 
         return this._createMeshForCollision(

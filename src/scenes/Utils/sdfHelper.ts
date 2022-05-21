@@ -59,7 +59,7 @@ export class SDFHelper {
             scene
         );
 
-        const material = new BABYLON.PBRMaterial("collisionMeshMat", scene);
+        const material = new BABYLON.PBRMaterial("boxMat", scene);
 
         material.metallic = 0;
         material.roughness = 0.9;
@@ -85,7 +85,7 @@ export class SDFHelper {
             scene
         );
 
-        const material = new BABYLON.PBRMaterial("collisionMeshMat", scene);
+        const material = new BABYLON.PBRMaterial("sphereMat", scene);
 
         material.metallic = 1;
         material.roughness = 0.05;
@@ -135,12 +135,12 @@ export class SDFHelper {
 
         csg1.subtractInPlace(csg2);
 
-        const meshFinal = csg1.toMesh("final");
+        const meshFinal = csg1.toMesh("cutHollowSphere");
 
         meshFinal.rotation.z = Math.PI / 2;
         meshFinal.bakeCurrentTransformIntoVertices();
 
-        const material = new BABYLON.PBRMaterial("collisionMeshMat", scene);
+        const material = new BABYLON.PBRMaterial("cutHollowSphereMat", scene);
 
         material.metallic = 1;
         material.roughness = 0.05;
@@ -152,13 +152,38 @@ export class SDFHelper {
         return meshFinal;
     }
 
+    public static CreateVerticalCylinder(
+        scene: BABYLON.Scene,
+        shape: ICollisionShape,
+        r: number,
+        h: number,
+        segments: number
+    ) {
+        const cylinder = BABYLON.MeshBuilder.CreateCylinder(
+            "cylinder",
+            { diameter: r * 2, height: h, tessellation: segments },
+            scene
+        );
+
+        const material = new BABYLON.PBRMaterial("cylinderMat", scene);
+
+        material.metallic = 1;
+        material.roughness = 0.05;
+        material.albedoTexture = new BABYLON.Texture(marbleBaseColor, scene);
+        material.cullBackFaces = true;
+
+        cylinder.material = material;
+
+        return cylinder;
+    }
+
     public static CreateTerrain(
         scene: BABYLON.Scene,
         shape: ICollisionShape,
         size: number
     ) {
         const ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap(
-            "gdhm",
+            "terrain",
             "https://playground.babylonjs.com/textures/heightMap.png",
             {
                 width: size,
@@ -220,6 +245,15 @@ export class SDFHelper {
         }
 
         return Math.abs(Math.sqrt(qx * qx + qy * qy) - r) - t;
+    }
+
+    public static SDVerticalCylinder(p: BABYLON.Vector3, r: number, h: number) {
+        const dx = Math.abs(Math.sqrt(p.x * p.x + p.z * p.z)) - r;
+        const dy = Math.abs(p.y) - h;
+        const dx2 = Math.max(dx, 0);
+        const dy2 = Math.max(dy, 0);
+
+        return Math.min(Math.max(dx, dy), 0.0) + Math.sqrt(dx2 * dx2 + dy2 * dy2);
     }
 
     public static SDTerrain(
