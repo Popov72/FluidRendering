@@ -90,6 +90,7 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
                 break;
             case "Dragon 0.04":
             case "Dude 0.04":
+            case "Sphere 0.04":
                 this._fluidRenderObject.object.particleSize = 0.08;
 
                 this._fluidSim!.smoothingRadius = 0.08;
@@ -105,6 +106,7 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
                 break;
             case "Dragon 0.03":
             case "Dude 0.03":
+            case "Sphere 0.03":
                 this._fluidRenderObject.object.particleSize = 0.06;
 
                 this._fluidSim!.smoothingRadius = 0.06;
@@ -124,9 +126,7 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
             this._scene,
             particleSize === ""
                 ? undefined
-                : this._particleGeneratorName.indexOf("Dragon") >= 0
-                ? "dragon_" + particleSize
-                : "dude_" + particleSize
+                : this._particleGeneratorName.substring(0, this._particleGeneratorName.indexOf(" ")).toLocaleLowerCase() + "_" + particleSize
         );
 
         this._particleGenerator!.position.y = 2;
@@ -159,8 +159,10 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
                 "Water jet",
                 "Dragon 0.04",
                 "Dude 0.04",
+                "Sphere 0.04",
                 "Dragon 0.03",
                 "Dude 0.03",
+                "Sphere 0.03",
             ])
             .name("Particle generator")
             .onChange(async (value: any) => {
