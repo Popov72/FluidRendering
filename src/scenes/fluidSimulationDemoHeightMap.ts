@@ -2,12 +2,17 @@ import * as BABYLON from "@babylonjs/core";
 
 import { FluidSimulationDemoBase } from "./fluidSimulationDemoBase";
 import { ParticleGenerator } from "./Utils/particleGenerator";
+import { ICollisionShape } from "./Utils/sdfHelper";
 
 export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
     private _particleGeneratorName: string;
     private _sphere: BABYLON.Mesh;
     private _box: BABYLON.Mesh;
+    private _heightMap: [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>];
+    private _ground: BABYLON.Mesh;
+    private _groundCollision: ICollisionShape;
     private _time: number;
+    private _showHeightmap: boolean;
 
     constructor(scene: BABYLON.Scene) {
         super(scene, false);
@@ -15,6 +20,7 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
         this._numParticles = 10000;
         this._particleGeneratorName = "Water jet";
         this._time = 0;
+        this._showHeightmap = true;
 
         const terrainSize = 2.85;
 
@@ -28,12 +34,19 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
             new BABYLON.Vector3(0, 0, (90 * Math.PI) / 180),
             new BABYLON.Vector3(0.2, 0.05, 0.5)
         )[0]!;
-        this.addCollisionTerrain(terrainSize);
+
+        this._heightMap = this.addCollisionTerrain(terrainSize);
+
         this.addCollisionPlane(new BABYLON.Vector3(0, 0, -1), terrainSize / 2);
         this.addCollisionPlane(new BABYLON.Vector3(0, 0, 1), terrainSize / 2);
         this.addCollisionPlane(new BABYLON.Vector3(1, 0, 0), terrainSize / 2);
         this.addCollisionPlane(new BABYLON.Vector3(-1, 0, 0), terrainSize / 2);
-        this.addCollisionPlane(new BABYLON.Vector3(0, 1, 0), -0.01);
+        this._groundCollision = this.addCollisionPlane(new BABYLON.Vector3(0, 1, 0), 0)[1]!;
+        this._groundCollision.disabled = true;
+
+        this._ground = BABYLON.MeshBuilder.CreateGround("ground", { width: terrainSize, height: terrainSize }, this._scene);
+        this._ground.material = this._heightMap[0]!.material;
+        this._ground.setEnabled(false);
     }
 
     public async run() {
@@ -122,12 +135,19 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
             this._fluidSim!.smoothingRadius / 2;
     }
 
+    public dispose() {
+        super.dispose();
+
+        this._ground.dispose();
+    }
+
     protected _makeGUIMainMenu(): void {
         const params = {
             restart: () => {
                 this._generateParticles();
             },
             particleGeneratorName: this._particleGeneratorName,
+            showHeightmap: this._showHeightmap,
         };
 
         const mainMenu = this._gui!;
@@ -151,6 +171,17 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
                     this._numParticles =
                         this._particleGenerator!.currNumParticles;
                 }
+            });
+
+            mainMenu
+            .add(params, "showHeightmap")
+            .name("Show height map")
+            .onChange((value: boolean) => {
+                this._showHeightmap = value;
+                this._ground.setEnabled(!value);
+                this._groundCollision.disabled = value;
+                this._heightMap[0]!.setEnabled(value);
+                this._heightMap[1]!.disabled = !value;
             });
     }
 
