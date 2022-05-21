@@ -10,6 +10,7 @@ import { FluidSimulationDemoBase } from "./fluidSimulationDemoBase";
 import { FluidSimulationDemoPrecomputeRendering } from "./fluidSimulationPrecomputeRendering";
 import { FluidSimulationDemoParticleSystem } from "./fluidSimulationDemoParticleSystem";
 import { FluidSimulationDemoParticleCustomShape } from "./fluidSimulationDemoParticleCustomShape";
+import { FluidSimulationDemoGlass } from "./fluidSimulationDemoGlass";
 
 const cameraMin = 0.1;
 const cameraMax = 1000;
@@ -55,18 +56,12 @@ export class FluidRendering implements CreateSceneClass {
 
         scene.activeCamera = camera;
 
-        /*const cameraFront = new BABYLON.ArcRotateCamera("ArcRotateCameraGUI", 3.06, 1.14, 2.96, new BABYLON.Vector3(0, 0, 0), scene);
-        cameraFront.layerMask = 0x10000000;
-
-        scene.activeCameras = [camera, cameraFront];
-
-        this._scene.cameraToUseForPointers = camera;*/
-
         FluidSimulationDemoBase.AddDemo("Particle system", () => new FluidSimulationDemoParticleSystem(scene));
         FluidSimulationDemoBase.AddDemo("Particle custom shape", () => new FluidSimulationDemoParticleCustomShape(scene));
         FluidSimulationDemoBase.AddDemo("Precomputed particles - rendering only", () => new FluidSimulationDemoPrecomputeRendering(scene));
         FluidSimulationDemoBase.AddDemo("Box, sphere and wall", () => new FluidSimulationDemoBoxSphere(scene));
         FluidSimulationDemoBase.AddDemo("Height map", () => new FluidSimulationDemoHeightMap(scene));
+        FluidSimulationDemoBase.AddDemo("Glass", () => new FluidSimulationDemoGlass(scene));
 
         FluidSimulationDemoBase.StartDemo(3);
 

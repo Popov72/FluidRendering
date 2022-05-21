@@ -288,6 +288,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
 
         this._passPP.dispose();
         this._boxMesh?.dispose();
+        this._boxMeshFront?.dispose();
         this._boxMaterial?.dispose();
         this._engine.onResizeObservable.remove(this._onEngineResizeObserver);
     }
