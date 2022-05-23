@@ -12,8 +12,22 @@ import { FluidSimulator } from "./FluidSimulator2/fluidSimulator";
 import { ParticleGenerator } from "./Utils/particleGenerator";
 import { ICollisionShape, SDFHelper } from "./Utils/sdfHelper";
 
-const envNames = ["Environment", "Country", "Parking", "Night", "Canyon", "Studio"];
-const envFile = ["environment.env", "country.env", "parking.env", "night.env", "Runyon_Canyon_A_2k_cube_specular.env", "Studio_Softbox_2Umbrellas_cube_specular.env"];
+const envNames = [
+    "Environment",
+    "Country",
+    "Parking",
+    "Night",
+    "Canyon",
+    "Studio",
+];
+const envFile = [
+    "environment.env",
+    "country.env",
+    "parking.env",
+    "night.env",
+    "Runyon_Canyon_A_2k_cube_specular.env",
+    "Studio_Softbox_2Umbrellas_cube_specular.env",
+];
 
 export class FluidSimulationDemoBase {
     protected _scene: BABYLON.Scene;
@@ -101,7 +115,7 @@ export class FluidSimulationDemoBase {
             1 - 0.05
         );
         this._fluidRenderObject.targetRenderer.density = 2.2;
-        this._fluidRenderObject.targetRenderer.refractionStrength = 0.04;
+        this._fluidRenderObject.targetRenderer.refractionStrength = 0.02;
         this._fluidRenderObject.targetRenderer.specularPower = 150;
         this._fluidRenderObject.targetRenderer.blurThicknessFilterSize = 10;
         this._fluidRenderObject.targetRenderer.blurThicknessNumIterations = 2;
@@ -115,7 +129,8 @@ export class FluidSimulationDemoBase {
             this._fluidRenderObject.object.particleSize;
         this._fluidRenderObject.object.useVelocity =
             this._fluidRenderObject.targetRenderer.useVelocity;
-        this._fluidRenderObject.targetRenderer.minimumThickness = this._fluidRenderObject.object.particleThicknessAlpha / 2;
+        this._fluidRenderObject.targetRenderer.minimumThickness =
+            this._fluidRenderObject.object.particleThicknessAlpha / 2;
 
         // Setup the fluid simulator / particle generator
         if (!noFluidSimulation) {
@@ -168,7 +183,11 @@ export class FluidSimulationDemoBase {
 
     protected _setEnvironment() {
         const idx = envNames.indexOf(this._environmentFile);
-        this._scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/" + envFile[idx], this._scene);
+        this._scene.environmentTexture =
+            BABYLON.CubeTexture.CreateFromPrefilteredData(
+                "https://playground.babylonjs.com/textures/" + envFile[idx],
+                this._scene
+            );
         this._scene.createDefaultSkybox(this._scene.environmentTexture);
     }
 
@@ -215,8 +234,9 @@ export class FluidSimulationDemoBase {
             1,
             0
         ),
-        collisionRestitution?: number
-    ) {
+        collisionRestitution?: number,
+        dontCreateMesh?: boolean
+    ): [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>] {
         this._collisionShapes.push({
             params: [radius],
             createMesh: SDFHelper.CreateSphere,
@@ -227,12 +247,14 @@ export class FluidSimulationDemoBase {
             transf: new BABYLON.Matrix(),
             invTransf: new BABYLON.Matrix(),
             dragPlane,
-            collisionRestitution
+            collisionRestitution,
         });
 
-        return this._createMeshForCollision(
-            this._collisionShapes[this._collisionShapes.length - 1]
-        );
+        return dontCreateMesh
+            ? [null, this._collisionShapes[this._collisionShapes.length - 1]]
+            : this._createMeshForCollision(
+                  this._collisionShapes[this._collisionShapes.length - 1]
+              );
     }
 
     public addCollisionBox(
@@ -244,8 +266,9 @@ export class FluidSimulationDemoBase {
             1,
             0
         ),
-        collisionRestitution?: number
-    ) {
+        collisionRestitution?: number,
+        dontCreateMesh?: boolean
+    ): [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>] {
         this._collisionShapes.push({
             params: [extents.clone()],
             createMesh: SDFHelper.CreateBox,
@@ -257,15 +280,21 @@ export class FluidSimulationDemoBase {
             transf: new BABYLON.Matrix(),
             invTransf: new BABYLON.Matrix(),
             dragPlane,
-            collisionRestitution
+            collisionRestitution,
         });
 
-        return this._createMeshForCollision(
-            this._collisionShapes[this._collisionShapes.length - 1]
-        );
+        return dontCreateMesh
+            ? [null, this._collisionShapes[this._collisionShapes.length - 1]]
+            : this._createMeshForCollision(
+                  this._collisionShapes[this._collisionShapes.length - 1]
+              );
     }
 
-    public addCollisionPlane(normal: BABYLON.Vector3, d: number, collisionRestitution?: number): [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape] {
+    public addCollisionPlane(
+        normal: BABYLON.Vector3,
+        d: number,
+        collisionRestitution?: number
+    ): [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape] {
         this._collisionShapes.push({
             params: [normal.clone(), d],
             sdEvaluate: SDFHelper.SDPlane,
@@ -294,8 +323,9 @@ export class FluidSimulationDemoBase {
             1,
             0
         ),
-        collisionRestitution?: number
-    ) {
+        collisionRestitution?: number,
+        dontCreateMesh?: boolean
+    ): [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>] {
         this._collisionShapes.push({
             params: [radius, planeDist, thickness, segments],
             createMesh: SDFHelper.CreateCutHollowSphere,
@@ -307,12 +337,14 @@ export class FluidSimulationDemoBase {
             transf: new BABYLON.Matrix(),
             invTransf: new BABYLON.Matrix(),
             dragPlane,
-            collisionRestitution
+            collisionRestitution,
         });
 
-        return this._createMeshForCollision(
-            this._collisionShapes[this._collisionShapes.length - 1]
-        );
+        return dontCreateMesh
+            ? [null, this._collisionShapes[this._collisionShapes.length - 1]]
+            : this._createMeshForCollision(
+                  this._collisionShapes[this._collisionShapes.length - 1]
+              );
     }
 
     public addCollisionVerticalCylinder(
@@ -326,8 +358,9 @@ export class FluidSimulationDemoBase {
             1,
             0
         ),
-        collisionRestitution?: number
-    ) {
+        collisionRestitution?: number,
+        dontCreateMesh?: boolean
+    ): [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>] {
         this._collisionShapes.push({
             params: [radius, height, segments],
             createMesh: SDFHelper.CreateVerticalCylinder,
@@ -339,12 +372,14 @@ export class FluidSimulationDemoBase {
             transf: new BABYLON.Matrix(),
             invTransf: new BABYLON.Matrix(),
             dragPlane,
-            collisionRestitution
+            collisionRestitution,
         });
 
-        return this._createMeshForCollision(
-            this._collisionShapes[this._collisionShapes.length - 1]
-        );
+        return dontCreateMesh
+            ? [null, this._collisionShapes[this._collisionShapes.length - 1]]
+            : this._createMeshForCollision(
+                  this._collisionShapes[this._collisionShapes.length - 1]
+              );
     }
 
     public addCollisionTerrain(size: number) {
@@ -656,7 +691,9 @@ export class FluidSimulationDemoBase {
                 if (dist < 0) {
                     shape.computeNormal(pos, shape, normal);
 
-                    const restitution = shape.collisionRestitution ?? this._shapeCollisionRestitution;
+                    const restitution =
+                        shape.collisionRestitution ??
+                        this._shapeCollisionRestitution;
 
                     const dotvn =
                         velocities[a * 3 + 0] * normal.x +

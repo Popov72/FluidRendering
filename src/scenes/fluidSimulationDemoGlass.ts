@@ -2,6 +2,9 @@ import * as BABYLON from "@babylonjs/core";
 
 import { FluidSimulationDemoBase } from "./fluidSimulationDemoBase";
 
+// Table from YouniqueĪdeaStudio (https://sketchfab.com/3d-models/simple-round-table-obj-6083c7dd80034ed5a6425a5fe7bcdf9a)
+import tableScene from "../assets/scenes/simple_round_table.glb";
+
 export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
     private _boxMesh: BABYLON.Nullable<BABYLON.Mesh>;
     private _boxMaterial: BABYLON.Nullable<BABYLON.PBRMaterial>;
@@ -21,7 +24,18 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
         this._boxMesh = null;
         this._boxMaterial = null;
 
-        this.addCollisionPlane(new BABYLON.Vector3(0, 1, 0), 1.9 + 0.04 - 0.2, 0.6);
+        this.addCollisionVerticalCylinder(
+            new BABYLON.Vector3(0.0, -(1.9 + 0.04 - 0.2 + 0.15), 0.0),
+            new BABYLON.Vector3(0, 0, 0),
+            2.2,
+            0.12,
+            16,
+            null,
+            0.3,
+            true
+        );
+
+        this.addCollisionPlane(new BABYLON.Vector3(0, 1, 0), 6, 0.3);
 
         this._boxMesh = this.addCollisionCutHollowSphere(
             new BABYLON.Vector3(0.0, 0.2, 0.0),
@@ -102,20 +116,31 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
         this._cylMesh!.material.alpha = 1;
         this._footMesh!.material = this._cylMesh!.material;
 
-        this._sceneRenderObserver = this._scene.onBeforeRenderObservable.add(() => {
-            this._cylMesh!.position.copyFrom(this._boxMesh!.position);
-            this._cylMesh!.position.addInPlace(this._cylMeshOfst);
-            this._footMesh!.position.copyFrom(this._boxMesh!.position);
-            this._footMesh!.position.addInPlace(this._footMeshOfst);
-        });
+        this._sceneRenderObserver = this._scene.onBeforeRenderObservable.add(
+            () => {
+                this._cylMesh!.position.copyFrom(this._boxMesh!.position);
+                this._cylMesh!.position.addInPlace(this._cylMeshOfst);
+                this._footMesh!.position.copyFrom(this._boxMesh!.position);
+                this._footMesh!.position.addInPlace(this._footMeshOfst);
+            }
+        );
 
         super.run();
+
+        await BABYLON.SceneLoader.AppendAsync("", tableScene, this._scene);
+
+        const table = this._scene.getMeshByName("Object_3")!;
+
+        table.scaling.setAll(6);
+        table.position.set(-2.3, -2, -5.54);
     }
 
     public dispose(): void {
         super.dispose();
 
         this._scene.onBeforeRenderObservable.remove(this._sceneRenderObserver);
+
+        this._scene.getMeshByName("__root__")?.dispose(false, true);
 
         this._boxMesh?.dispose();
         this._boxMaterial?.dispose();
