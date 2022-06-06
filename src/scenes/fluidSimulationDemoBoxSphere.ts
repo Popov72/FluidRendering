@@ -129,8 +129,6 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         this._fluidSim!.viscosity = 0.01;
         this._fluidSim!.maxVelocity = 3;
         this._fluidSim!.maxAcceleration = 2000;
-        this._fluidSim!.minTimeStep = 0.1;
-        this._fluidSim!.gravity.y = -9.81;
 
         // Create materials
         this._boxMaterial = new BABYLON.PBRMaterial("BoxMeshMat", this._scene);

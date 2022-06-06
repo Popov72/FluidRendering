@@ -42,7 +42,7 @@ export class FluidSimulator {
 
     public gravity = new BABYLON.Vector3(0, -9.8, 0);
 
-    public minTimeStep = 4 / 1000;
+    public minTimeStep = 1 / 100;
 
     public maxVelocity = 75;
 

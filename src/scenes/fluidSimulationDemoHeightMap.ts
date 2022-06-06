@@ -85,8 +85,6 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
                 this._fluidSim!.viscosity = 0.01;
                 this._fluidSim!.maxVelocity = 3;
                 this._fluidSim!.maxAcceleration = 2000;
-                this._fluidSim!.minTimeStep = 0.1;
-                this._fluidSim!.gravity.y = -9.81;
                 break;
             case "Dragon 0.04":
             case "Dude 0.04":
@@ -99,8 +97,6 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
                 this._fluidSim!.viscosity = 0.01;
                 this._fluidSim!.maxVelocity = 4;
                 this._fluidSim!.maxAcceleration = 2000;
-                this._fluidSim!.minTimeStep = 0.1;
-                this._fluidSim!.gravity.y = -9.81;
 
                 particleSize = "04";
                 break;
@@ -115,12 +111,13 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
                 this._fluidSim!.viscosity = 0.01;
                 this._fluidSim!.maxVelocity = 4;
                 this._fluidSim!.maxAcceleration = 2000;
-                this._fluidSim!.minTimeStep = 0.1;
-                this._fluidSim!.gravity.y = -9.81;
 
                 particleSize = "03";
                 break;
         }
+
+        this._fluidRendererGUI?.syncGUI();
+        this._syncFluidSimGUI();
 
         this._particleGenerator = new ParticleGenerator(
             this._scene,
@@ -173,6 +170,7 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
                     this._numParticles =
                         this._particleGenerator!.currNumParticles;
                 }
+                this._syncFluidSimGUI();
             });
 
             mainMenu

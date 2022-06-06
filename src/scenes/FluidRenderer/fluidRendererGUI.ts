@@ -325,6 +325,15 @@ export class FluidRendererGUI {
         }
     }
 
+    public syncGUI(): void {
+        const fluidRenderer = this._scene.fluidRenderer;
+
+        if (fluidRenderer) {
+            this._fillValues(this._targetRenderersGUIElements, fluidRenderer.targetRenderers[this._targetRendererIndex]);
+            this._fillValues(this._renderObjectsGUIElements, fluidRenderer.renderObjects[this._renderObjectIndex].object);
+        }
+    }
+
     private _parameterChanged(name: string, value: any): void {
         const fluidRenderer = this._scene.fluidRenderer;
         switch (name) {

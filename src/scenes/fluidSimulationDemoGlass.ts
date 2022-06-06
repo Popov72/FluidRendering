@@ -95,8 +95,6 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
         this._fluidSim!.viscosity = 0.01;
         this._fluidSim!.maxVelocity = 10;
         this._fluidSim!.maxAcceleration = 2000;
-        this._fluidSim!.minTimeStep = 0.1;
-        this._fluidSim!.gravity.y = -9.81;
 
         this._shapeCollisionRestitution = 0.95;
 

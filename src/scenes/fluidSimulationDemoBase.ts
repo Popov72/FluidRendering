@@ -47,6 +47,8 @@ export class FluidSimulationDemoBase {
     protected _shapeCollisionRestitution: number;
     protected _collisionShapes: Array<ICollisionShape>;
 
+    protected _fluidSimGUIElements: Array<[LiLGUI.Controller, any, string]>;
+
     protected static _DemoList: Array<{
         name: string;
         factory: () => FluidSimulationDemoBase;
@@ -88,6 +90,7 @@ export class FluidSimulationDemoBase {
         this._shapeCollisionRestitution = 0.999;
         this._collisionShapes = [];
         this._environmentFile = "Environment";
+        this._fluidSimGUIElements = [];
 
         const particleRadius = 0.02;
         const camera = scene.activeCameras?.[0] ?? scene.activeCamera!;
@@ -491,6 +494,13 @@ export class FluidSimulationDemoBase {
         // empty
     }
 
+    protected _syncFluidSimGUI(): void {
+        for (const [elem, obj, property] of this._fluidSimGUIElements) {
+            (elem.object as any)[elem.property] = obj[property];
+            elem.updateDisplay();
+        }
+    }
+
     protected _makeGUI(): void {
         this._gui = new LiLGUI.GUI({ title: "Demo" });
         this._gui.domElement.style.marginTop = "60px";
@@ -550,71 +560,107 @@ export class FluidSimulationDemoBase {
 
             menuFluidSim.$title.style.fontWeight = "bold";
 
-            menuFluidSim
-                .add(params, "numParticles", 0, 40000, 88)
-                .name("Num particles")
-                .onChange((value: any) => {
-                    this._numParticles = value;
-                    this._generateParticles(false);
-                });
+            this._fluidSimGUIElements.push([
+                menuFluidSim
+                    .add(params, "numParticles", 0, 40000, 88)
+                    .name("Num particles")
+                    .onChange((value: any) => {
+                        this._numParticles = value;
+                        this._generateParticles(false);
+                    }),
+                this,
+                "_numParticles",
+            ]);
 
-            menuFluidSim
-                .add(params, "smoothingRadius", 0, 2, 0.001)
-                .name("Smoothing radius")
-                .onChange((value: any) => {
-                    this._fluidSim!.smoothingRadius = value || 0.04;
-                    this._particleGenerator!.particleRadius =
-                        this._fluidSim!.smoothingRadius / 2;
-                });
+            this._fluidSimGUIElements.push([
+                menuFluidSim
+                    .add(params, "smoothingRadius", 0, 2, 0.001)
+                    .name("Smoothing radius")
+                    .onChange((value: any) => {
+                        this._fluidSim!.smoothingRadius = value || 0.04;
+                        this._particleGenerator!.particleRadius =
+                            this._fluidSim!.smoothingRadius / 2;
+                    }),
+                this._fluidSim,
+                "smoothingRadius",
+            ]);
 
-            menuFluidSim
-                .add(params, "densityReference", 0, 50000, 100)
-                .name("Density reference")
-                .onChange((value: any) => {
-                    this._fluidSim!.densityReference = value;
-                });
+            this._fluidSimGUIElements.push([
+                menuFluidSim
+                    .add(params, "densityReference", 0, 50000, 100)
+                    .name("Density reference")
+                    .onChange((value: any) => {
+                        this._fluidSim!.densityReference = value;
+                    }),
+                this._fluidSim,
+                "densityReference",
+            ]);
 
-            menuFluidSim
-                .add(params, "pressureConstant", 0, 100, 1)
-                .name("Pressure constant")
-                .onChange((value: any) => {
-                    this._fluidSim!.pressureConstant = value;
-                });
+            this._fluidSimGUIElements.push([
+                menuFluidSim
+                    .add(params, "pressureConstant", 0, 100, 1)
+                    .name("Pressure constant")
+                    .onChange((value: any) => {
+                        this._fluidSim!.pressureConstant = value;
+                    }),
+                this._fluidSim,
+                "pressureConstant",
+            ]);
 
-            menuFluidSim
-                .add(params, "viscosity", 0, 0.1, 0.001)
-                .name("Viscosity")
-                .onChange((value: any) => {
-                    this._fluidSim!.viscosity = value;
-                });
+            this._fluidSimGUIElements.push([
+                menuFluidSim
+                    .add(params, "viscosity", 0, 0.1, 0.001)
+                    .name("Viscosity")
+                    .onChange((value: any) => {
+                        this._fluidSim!.viscosity = value;
+                    }),
+                this._fluidSim,
+                "viscosity",
+            ]);
 
-            menuFluidSim
-                .add(params, "maxVelocity", 0, 20, 1)
-                .name("Max velocity")
-                .onChange((value: any) => {
-                    this._fluidSim!.maxVelocity = value;
-                });
+            this._fluidSimGUIElements.push([
+                menuFluidSim
+                    .add(params, "maxVelocity", 0, 20, 1)
+                    .name("Max velocity")
+                    .onChange((value: any) => {
+                        this._fluidSim!.maxVelocity = value;
+                    }),
+                this._fluidSim,
+                "maxVelocity",
+            ]);
 
-            menuFluidSim
-                .add(params, "maxAcceleration", 0, 100000, 10)
-                .name("Max acceleration")
-                .onChange((value: any) => {
-                    this._fluidSim!.maxAcceleration = value;
-                });
+            this._fluidSimGUIElements.push([
+                menuFluidSim
+                    .add(params, "maxAcceleration", 0, 100000, 10)
+                    .name("Max acceleration")
+                    .onChange((value: any) => {
+                        this._fluidSim!.maxAcceleration = value;
+                    }),
+                this._fluidSim,
+                "maxAcceleration",
+            ]);
 
-            menuFluidSim
-                .add(params, "minTimeStep", 0, 0.1, 0.00001)
-                .name("Min time step")
-                .onChange((value: any) => {
-                    this._fluidSim!.minTimeStep = value;
-                });
+            this._fluidSimGUIElements.push([
+                menuFluidSim
+                    .add(params, "minTimeStep", 0, 0.01, 0.00001)
+                    .name("Min time step")
+                    .onChange((value: any) => {
+                        this._fluidSim!.minTimeStep = value;
+                    }),
+                this._fluidSim,
+                "minTimeStep",
+            ]);
 
-            menuFluidSim
-                .add(params, "shapeCollisionRestitution", 0, 1, 0.001)
-                .name("Collision restitution")
-                .onChange((value: any) => {
-                    this._shapeCollisionRestitution = value;
-                });
+            this._fluidSimGUIElements.push([
+                menuFluidSim
+                    .add(params, "shapeCollisionRestitution", 0, 1, 0.001)
+                    .name("Collision restitution")
+                    .onChange((value: any) => {
+                        this._shapeCollisionRestitution = value;
+                    }),
+                this,
+                "_shapeCollisionRestitution",
+            ]);
 
             menuFluidSim
                 .add(params, "paused")

@@ -25,6 +25,7 @@ export class FluidRendering implements CreateSceneClass {
 
     public async createScene(
         engine: BABYLON.Engine,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         canvas: HTMLCanvasElement
     ): Promise<BABYLON.Scene> {
 
