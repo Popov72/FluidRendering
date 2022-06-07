@@ -3,7 +3,6 @@ import * as BABYLON from "@babylonjs/core";
 import { FluidRenderingObject } from "./fluidRenderingObject";
 
 export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
-
     private _numParticles: number;
     private _disposeVBOffset: boolean;
     private _diffuseEffectWrapper: BABYLON.Nullable<BABYLON.EffectWrapper>;
@@ -12,7 +11,11 @@ export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
         return "FluidRenderingObjectVertexBuffer";
     }
 
-    constructor(scene: BABYLON.Scene, vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number) {
+    constructor(
+        scene: BABYLON.Scene,
+        vertexBuffers: { [key: string]: BABYLON.VertexBuffer },
+        numParticles: number
+    ) {
         super(scene, vertexBuffers, null);
 
         this._numParticles = numParticles;
@@ -20,7 +23,14 @@ export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
         this._diffuseEffectWrapper = null;
 
         if (!vertexBuffers["offset"]) {
-            vertexBuffers["offset"] = new BABYLON.VertexBuffer(this._engine, [0, 0, 1, 0, 0, 1, 1, 1], "offset", false, false, 2);
+            vertexBuffers["offset"] = new BABYLON.VertexBuffer(
+                this._engine,
+                [0, 0, 1, 0, 0, 1, 1, 1],
+                "offset",
+                false,
+                false,
+                2
+            );
             this._disposeVBOffset = true;
         }
     }
@@ -43,7 +53,10 @@ export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
     }
 
     public isReady(): boolean {
-        return super.isReady() && (this._diffuseEffectWrapper?.effect!.isReady() ?? false);
+        return (
+            super.isReady() &&
+            (this._diffuseEffectWrapper?.effect!.isReady() ?? false)
+        );
     }
 
     public numParticles(): number {
@@ -65,18 +78,38 @@ export class FluidRenderingObjectVertexBuffer extends FluidRenderingObject {
         const diffuseEffect = diffuseDrawWrapper.effect!;
 
         this._engine.enableEffect(diffuseDrawWrapper);
-        this._engine.bindBuffers(this.vertexBuffers, this.indexBuffer, diffuseEffect);
+        this._engine.bindBuffers(
+            this.vertexBuffers,
+            this.indexBuffer,
+            diffuseEffect
+        );
 
         diffuseEffect.setMatrix("view", this._scene.getViewMatrix());
-        diffuseEffect.setMatrix("projection", this._scene.getProjectionMatrix());
+        diffuseEffect.setMatrix(
+            "projection",
+            this._scene.getProjectionMatrix()
+        );
         if (this._particleSize !== null) {
-            diffuseEffect.setFloat2("size", this._particleSize, this._particleSize);
+            diffuseEffect.setFloat2(
+                "size",
+                this._particleSize,
+                this._particleSize
+            );
         }
 
         if (this.useInstancing) {
-            this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);
+            this._engine.drawArraysType(
+                BABYLON.Constants.MATERIAL_TriangleStripDrawMode,
+                0,
+                4,
+                numParticles
+            );
         } else {
-            this._engine.drawElementsType(BABYLON.Constants.MATERIAL_TriangleFillMode, 0, numParticles);
+            this._engine.drawElementsType(
+                BABYLON.Constants.MATERIAL_TriangleFillMode,
+                0,
+                numParticles
+            );
         }
     }
 

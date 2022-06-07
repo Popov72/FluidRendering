@@ -3,11 +3,12 @@ import * as BABYLON from "@babylonjs/core";
 import { FluidRenderingObject } from "./fluidRenderingObject";
 
 export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
-
     private _particleSystem: BABYLON.ParticleSystem;
     private _renderCallback: () => number;
     private _blendMode: number;
-    private _onBeforeDrawParticleObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Nullable<BABYLON.Effect>>>;
+    private _onBeforeDrawParticleObserver: BABYLON.Nullable<
+        BABYLON.Observer<BABYLON.Nullable<BABYLON.Effect>>
+    >;
 
     public get particleSystem() {
         return this._particleSystem;
@@ -32,18 +33,25 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
 
         if (use) {
             this._particleSystem.blendMode = this._blendMode;
-            this._particleSystem.onBeforeDrawParticlesObservable.remove(this._onBeforeDrawParticleObserver);
+            this._particleSystem.onBeforeDrawParticlesObservable.remove(
+                this._onBeforeDrawParticleObserver
+            );
             this._onBeforeDrawParticleObserver = null;
         } else {
             this._particleSystem.blendMode = -1;
-            this._onBeforeDrawParticleObserver = this._particleSystem.onBeforeDrawParticlesObservable.add(() => {
-                this._engine.setAlphaMode(BABYLON.Constants.ALPHA_COMBINE);
-            });
+            this._onBeforeDrawParticleObserver =
+                this._particleSystem.onBeforeDrawParticlesObservable.add(() => {
+                    this._engine.setAlphaMode(BABYLON.Constants.ALPHA_COMBINE);
+                });
         }
     }
 
     constructor(scene: BABYLON.Scene, ps: BABYLON.ParticleSystem) {
-        super(scene, ps.vertexBuffers as { [key: string]: BABYLON.VertexBuffer }, ps.indexBuffer);
+        super(
+            scene,
+            ps.vertexBuffers as { [key: string]: BABYLON.VertexBuffer },
+            ps.indexBuffer
+        );
 
         this._particleSystem = ps;
 
@@ -73,7 +81,9 @@ export class FluidRenderingObjectParticleSystem extends FluidRenderingObject {
     public dispose() {
         super.dispose();
 
-        this._particleSystem.onBeforeDrawParticlesObservable.remove(this._onBeforeDrawParticleObserver);
+        this._particleSystem.onBeforeDrawParticlesObservable.remove(
+            this._onBeforeDrawParticleObserver
+        );
         this._onBeforeDrawParticleObserver = null;
         this._particleSystem.render = this._renderCallback;
         this._particleSystem.blendMode = this._blendMode;

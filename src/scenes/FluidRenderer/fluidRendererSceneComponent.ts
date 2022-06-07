@@ -33,22 +33,26 @@ Object.defineProperty(BABYLON.Scene.prototype, "fluidRenderer", {
     get: function (this: BABYLON.Scene) {
         return this._fluidRenderer;
     },
-    set: function (this: BABYLON.Scene, value: BABYLON.Nullable<FluidRenderer>) {
+    set: function (
+        this: BABYLON.Scene,
+        value: BABYLON.Nullable<FluidRenderer>
+    ) {
         this._fluidRenderer = value;
     },
     enumerable: true,
-    configurable: true
+    configurable: true,
 });
 
-BABYLON.Scene.prototype.enableFluidRenderer = function (): BABYLON.Nullable<FluidRenderer> {
-    if (this._fluidRenderer) {
+BABYLON.Scene.prototype.enableFluidRenderer =
+    function (): BABYLON.Nullable<FluidRenderer> {
+        if (this._fluidRenderer) {
+            return this._fluidRenderer;
+        }
+
+        this._fluidRenderer = new FluidRenderer(this);
+
         return this._fluidRenderer;
-    }
-
-    this._fluidRenderer = new FluidRenderer(this);
-
-    return this._fluidRenderer;
-};
+    };
 
 BABYLON.Scene.prototype.disableFluidRenderer = function (): void {
     this._fluidRenderer?.dispose();
@@ -82,8 +86,16 @@ export class FluidRendererSceneComponent implements BABYLON.ISceneComponent {
      * Registers the component in a given scene
      */
     public register(): void {
-        this.scene._gatherActiveCameraRenderTargetsStage.registerStep(STEP_GATHERACTIVECAMERARENDERTARGET_FLUIDRENDERER, this, this._gatherActiveCameraRenderTargets);
-        this.scene._afterCameraDrawStage.registerStep(STEP_AFTERCAMERADRAW_FLUIDRENDERER, this, this._afterCameraDraw);
+        this.scene._gatherActiveCameraRenderTargetsStage.registerStep(
+            STEP_GATHERACTIVECAMERARENDERTARGET_FLUIDRENDERER,
+            this,
+            this._gatherActiveCameraRenderTargets
+        );
+        this.scene._afterCameraDrawStage.registerStep(
+            STEP_AFTERCAMERADRAW_FLUIDRENDERER,
+            this,
+            this._afterCameraDraw
+        );
     }
 
     private _gatherActiveCameraRenderTargets(/*renderTargets: BABYLON.SmartArrayNoDuplicate<BABYLON.RenderTargetTexture>*/): void {
@@ -114,11 +126,12 @@ export class FluidRendererSceneComponent implements BABYLON.ISceneComponent {
     public dispose(): void {
         this.scene.disableFluidRenderer();
     }
-
 }
 
 FluidRenderer._SceneComponentInitialization = (scene: BABYLON.Scene) => {
-    let component = scene._getComponent(NAME_FLUIDRENDERER) as FluidRendererSceneComponent;
+    let component = scene._getComponent(
+        NAME_FLUIDRENDERER
+    ) as FluidRendererSceneComponent;
     if (!component) {
         component = new FluidRendererSceneComponent(scene);
         scene._addComponent(component);

@@ -107,8 +107,16 @@ export class SDFHelper {
     ) {
         thickness = thickness / radius;
 
-        const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: radius * 2, segments}, scene);
-        const plane = BABYLON.MeshBuilder.CreatePlane("plane", { size: radius * 2 }, scene);
+        const sphere = BABYLON.MeshBuilder.CreateSphere(
+            "sphere",
+            { diameter: radius * 2, segments },
+            scene
+        );
+        const plane = BABYLON.MeshBuilder.CreatePlane(
+            "plane",
+            { size: radius * 2 },
+            scene
+        );
 
         plane.rotation.y = Math.PI / 2;
         plane.position.x = planeDist;
@@ -127,7 +135,8 @@ export class SDFHelper {
         mesh.refreshBoundingInfo();
 
         mesh.scaling.setAll(1 - thickness);
-        mesh.position.x = mesh.getBoundingInfo().boundingBox.maximumWorld.x * thickness;
+        mesh.position.x =
+            mesh.getBoundingInfo().boundingBox.maximumWorld.x * thickness;
 
         const csg2 = BABYLON.CSG.FromMesh(mesh);
 
@@ -232,7 +241,12 @@ export class SDFHelper {
         return BABYLON.Vector3.Dot(p, n) + h;
     }
 
-    public static SDCutHollowSphere(p: BABYLON.Vector3, r: number, h: number, t: number) {
+    public static SDCutHollowSphere(
+        p: BABYLON.Vector3,
+        r: number,
+        h: number,
+        t: number
+    ) {
         // sampling independent computations (only depend on shape)
         const w = Math.sqrt(r * r - h * h);
 
@@ -253,7 +267,9 @@ export class SDFHelper {
         const dx2 = Math.max(dx, 0);
         const dy2 = Math.max(dy, 0);
 
-        return Math.min(Math.max(dx, dy), 0.0) + Math.sqrt(dx2 * dx2 + dy2 * dy2);
+        return (
+            Math.min(Math.max(dx, dy), 0.0) + Math.sqrt(dx2 * dx2 + dy2 * dy2)
+        );
     }
 
     public static SDTerrain(

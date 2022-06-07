@@ -8,7 +8,10 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
     private _particleGeneratorName: string;
     private _sphere: BABYLON.Mesh;
     private _box: BABYLON.Mesh;
-    private _heightMap: [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>];
+    private _heightMap: [
+        BABYLON.Nullable<BABYLON.Mesh>,
+        BABYLON.Nullable<ICollisionShape>
+    ];
     private _ground: BABYLON.Mesh;
     private _groundCollision: ICollisionShape;
     private _time: number;
@@ -41,10 +44,17 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
         this.addCollisionPlane(new BABYLON.Vector3(0, 0, 1), terrainSize / 2);
         this.addCollisionPlane(new BABYLON.Vector3(1, 0, 0), terrainSize / 2);
         this.addCollisionPlane(new BABYLON.Vector3(-1, 0, 0), terrainSize / 2);
-        this._groundCollision = this.addCollisionPlane(new BABYLON.Vector3(0, 1, 0), 0)[1]!;
+        this._groundCollision = this.addCollisionPlane(
+            new BABYLON.Vector3(0, 1, 0),
+            0
+        )[1]!;
         this._groundCollision.disabled = true;
 
-        this._ground = BABYLON.MeshBuilder.CreateGround("ground", { width: terrainSize, height: terrainSize }, this._scene);
+        this._ground = BABYLON.MeshBuilder.CreateGround(
+            "ground",
+            { width: terrainSize, height: terrainSize },
+            this._scene
+        );
         this._ground.material = this._heightMap[0]!.material;
         this._ground.setEnabled(false);
     }
@@ -123,7 +133,11 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
             this._scene,
             particleSize === ""
                 ? undefined
-                : this._particleGeneratorName.substring(0, this._particleGeneratorName.indexOf(" ")).toLocaleLowerCase() + "_" + particleSize
+                : this._particleGeneratorName
+                      .substring(0, this._particleGeneratorName.indexOf(" "))
+                      .toLocaleLowerCase() +
+                  "_" +
+                  particleSize
         );
 
         this._particleGenerator!.position.y = 2;
@@ -173,7 +187,7 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
                 this._syncFluidSimGUI();
             });
 
-            mainMenu
+        mainMenu
             .add(params, "showHeightmap")
             .name("Show height map")
             .onChange((value: boolean) => {

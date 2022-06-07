@@ -1,7 +1,6 @@
 import * as BABYLON from "@babylonjs/core";
 
 export abstract class FluidRenderingObject {
-
     protected _scene: BABYLON.Scene;
     protected _engine: BABYLON.Engine;
     protected _effectsAreDirty: boolean;
@@ -12,7 +11,8 @@ export abstract class FluidRenderingObject {
 
     protected _particleSize = 0.1;
 
-    public onParticleSizeChanged = new BABYLON.Observable<FluidRenderingObject>();
+    public onParticleSizeChanged =
+        new BABYLON.Observable<FluidRenderingObject>();
 
     public get particleSize() {
         return this._particleSize;
@@ -56,7 +56,11 @@ export abstract class FluidRenderingObject {
         return "FluidRenderingObject";
     }
 
-    constructor(scene: BABYLON.Scene, public readonly vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, public readonly indexBuffer: BABYLON.Nullable<BABYLON.DataBuffer>) {
+    constructor(
+        scene: BABYLON.Scene,
+        public readonly vertexBuffers: { [key: string]: BABYLON.VertexBuffer },
+        public readonly indexBuffer: BABYLON.Nullable<BABYLON.DataBuffer>
+    ) {
         this._scene = scene;
         this._engine = scene.getEngine();
         this._effectsAreDirty = true;
@@ -110,7 +114,8 @@ export abstract class FluidRenderingObject {
         }
 
         const depthEffect = this._depthEffectWrapper._drawWrapper.effect!;
-        const thicknessEffect = this._thicknessEffectWrapper._drawWrapper.effect!;
+        const thicknessEffect =
+            this._thicknessEffectWrapper._drawWrapper.effect!;
 
         return depthEffect.isReady() && thicknessEffect.isReady();
     }
@@ -130,7 +135,11 @@ export abstract class FluidRenderingObject {
         const depthEffect = depthDrawWrapper.effect!;
 
         this._engine.enableEffect(depthDrawWrapper);
-        this._engine.bindBuffers(this.vertexBuffers, this.indexBuffer, depthEffect);
+        this._engine.bindBuffers(
+            this.vertexBuffers,
+            this.indexBuffer,
+            depthEffect
+        );
 
         depthEffect.setMatrix("view", this._scene.getViewMatrix());
         depthEffect.setMatrix("projection", this._scene.getProjectionMatrix());
@@ -138,9 +147,18 @@ export abstract class FluidRenderingObject {
         depthEffect.setFloat("particleRadius", this._particleSize / 2);
 
         if (this.useInstancing) {
-            this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);
+            this._engine.drawArraysType(
+                BABYLON.Constants.MATERIAL_TriangleStripDrawMode,
+                0,
+                4,
+                numParticles
+            );
         } else {
-            this._engine.drawElementsType(BABYLON.Constants.MATERIAL_TriangleFillMode, 0, numParticles);
+            this._engine.drawElementsType(
+                BABYLON.Constants.MATERIAL_TriangleFillMode,
+                0,
+                numParticles
+            );
         }
     }
 
@@ -158,17 +176,37 @@ export abstract class FluidRenderingObject {
         this._engine.setDepthWrite(false);
 
         this._engine.enableEffect(thicknessDrawWrapper);
-        this._engine.bindBuffers(this.vertexBuffers, this.indexBuffer, thicknessEffect);
+        this._engine.bindBuffers(
+            this.vertexBuffers,
+            this.indexBuffer,
+            thicknessEffect
+        );
 
         thicknessEffect.setMatrix("view", this._scene.getViewMatrix());
-        thicknessEffect.setMatrix("projection", this._scene.getProjectionMatrix());
+        thicknessEffect.setMatrix(
+            "projection",
+            this._scene.getProjectionMatrix()
+        );
         thicknessEffect.setFloat("particleAlpha", this.particleThicknessAlpha);
-        thicknessEffect.setFloat2("size", this._particleSize, this._particleSize);
+        thicknessEffect.setFloat2(
+            "size",
+            this._particleSize,
+            this._particleSize
+        );
 
         if (this.useInstancing) {
-            this._engine.drawArraysType(BABYLON.Constants.MATERIAL_TriangleStripDrawMode, 0, 4, numParticles);
+            this._engine.drawArraysType(
+                BABYLON.Constants.MATERIAL_TriangleStripDrawMode,
+                0,
+                4,
+                numParticles
+            );
         } else {
-            this._engine.drawElementsType(BABYLON.Constants.MATERIAL_TriangleFillMode, 0, numParticles);
+            this._engine.drawElementsType(
+                BABYLON.Constants.MATERIAL_TriangleFillMode,
+                0,
+                numParticles
+            );
         }
 
         this._engine.setDepthWrite(true);

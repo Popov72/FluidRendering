@@ -15,7 +15,9 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
     private _boxMeshFront: BABYLON.Nullable<BABYLON.Mesh>;
     private _boxMaterialFront: BABYLON.Nullable<BABYLON.PBRMaterial>;
     private _origCollisionPlanes: Array<BABYLON.Plane>;
-    private _collisionPlanes: Array<[BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]>;
+    private _collisionPlanes: Array<
+        [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]
+    >;
     private _angleX: number;
     private _angleY: number;
     private _prevTransfo: BABYLON.Matrix;
@@ -58,9 +60,14 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         this._collisionPlanes = [];
         for (let i = 0; i < this._origCollisionPlanes.length; ++i) {
             const plane = this._origCollisionPlanes[i];
-            this._collisionPlanes[i] = this.addCollisionPlane(plane.normal, plane.d, i === this._origCollisionPlanes.length - 1 ? 0.98 : undefined);
+            this._collisionPlanes[i] = this.addCollisionPlane(
+                plane.normal,
+                plane.d,
+                i === this._origCollisionPlanes.length - 1 ? 0.98 : undefined
+            );
         }
-        this._collisionPlanes[this._collisionPlanes.length - 1][1].disabled = true;
+        this._collisionPlanes[this._collisionPlanes.length - 1][1].disabled =
+            true;
 
         this._angleX = 0;
         this._angleY = 0;
@@ -89,7 +96,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
                 this._boxMin.y + sphereRadius,
                 (this._boxMin.z + this._boxMax.z) / 2 - 0.1
             ),
-            sphereRadius,
+            sphereRadius
         )[0]!;
 
         this._wallMesh = this.addCollisionBox(
@@ -319,7 +326,9 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
                 this._boxMesh?.setEnabled(value);
                 this._boxMeshFront?.setEnabled(value);
                 for (let i = 0; i < this._collisionPlanes.length; ++i) {
-                    this._collisionPlanes[i][1].disabled = !value && i < this._collisionPlanes.length - 1 || value && i === this._collisionPlanes.length - 1;
+                    this._collisionPlanes[i][1].disabled =
+                        (!value && i < this._collisionPlanes.length - 1) ||
+                        (value && i === this._collisionPlanes.length - 1);
                 }
                 if (!value) {
                     this._autoRotateBox = false;
@@ -378,7 +387,9 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
             ymin = Math.min(ymin, v.y);
         }
 
-        this._collisionPlanes[this._origCollisionPlanes.length - 1][1].params[1] = Math.abs(ymin) + 0.02;
+        this._collisionPlanes[
+            this._origCollisionPlanes.length - 1
+        ][1].params[1] = Math.abs(ymin) + 0.02;
 
         for (let i = 0; i < this._origCollisionPlanes.length - 1; ++i) {
             const plane = this._origCollisionPlanes[i].transform(transfo);

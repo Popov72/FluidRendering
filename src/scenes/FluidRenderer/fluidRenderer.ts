@@ -55,7 +55,7 @@ Object.defineProperty(BABYLON.ParticleSystem.prototype, "renderAsFluid", {
         this._scene?.fluidRenderer?.collectParticleSystems();
     },
     enumerable: true,
-    configurable: true
+    configurable: true,
 });
 
 export interface IFluidRenderingRenderObject {
@@ -65,16 +65,25 @@ export interface IFluidRenderingRenderObject {
 
 export class FluidRenderer {
     /** @hidden */
-    public static _SceneComponentInitialization: (scene: Scene) => void = (/*_*/) => {
-        throw `FluidRendererSceneComponent needs to be imported before as it contains a side-effect required by your code.`;        
-    };
+    public static _SceneComponentInitialization: (scene: Scene) => void =
+        (/*_*/) => {
+            throw `FluidRendererSceneComponent needs to be imported before as it contains a side-effect required by your code.`;
+        };
 
     private _scene: BABYLON.Scene;
     private _engine: BABYLON.Engine;
-    private _onEngineResizeObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Engine>>;
+    private _onEngineResizeObserver: BABYLON.Nullable<
+        BABYLON.Observer<BABYLON.Engine>
+    >;
     private _renderObjects: Array<IFluidRenderingRenderObject>;
     private _targetRenderers: FluidRenderingTargetRenderer[];
-    private _cameras: Map<BABYLON.Camera, [Array<FluidRenderingTargetRenderer>, { [key: string]: CopyDepthTexture }]>;
+    private _cameras: Map<
+        BABYLON.Camera,
+        [
+            Array<FluidRenderingTargetRenderer>,
+            { [key: string]: CopyDepthTexture }
+        ]
+    >;
 
     public get renderObjects() {
         return this._renderObjects;
@@ -94,9 +103,11 @@ export class FluidRenderer {
 
         FluidRenderer._SceneComponentInitialization(this._scene);
 
-        this._onEngineResizeObserver = this._engine.onResizeObservable.add(() => {
-            this._initialize();
-        });
+        this._onEngineResizeObserver = this._engine.onResizeObservable.add(
+            () => {
+                this._initialize();
+            }
+        );
 
         this.collectParticleSystems();
     }
@@ -106,28 +117,44 @@ export class FluidRenderer {
         this._initialize();
     }
 
-    public getRenderObjectFromParticleSystem(ps: BABYLON.ParticleSystem): BABYLON.Nullable<IFluidRenderingRenderObject> {
+    public getRenderObjectFromParticleSystem(
+        ps: BABYLON.ParticleSystem
+    ): BABYLON.Nullable<IFluidRenderingRenderObject> {
         const index = this._getParticleSystemIndex(ps);
         return index !== -1 ? this._renderObjects[index] : null;
     }
 
-    public getRenderObjectFromVertexBuffer(vb: BABYLON.VertexBuffer): BABYLON.Nullable<IFluidRenderingRenderObject> {
+    public getRenderObjectFromVertexBuffer(
+        vb: BABYLON.VertexBuffer
+    ): BABYLON.Nullable<IFluidRenderingRenderObject> {
         const index = this._getVertexBufferIndex(vb);
         return index !== -1 ? this._renderObjects[index] : null;
     }
 
-    public addParticleSystem(ps: BABYLON.ParticleSystem, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer, camera?: BABYLON.Camera): IFluidRenderingRenderObject {
+    public addParticleSystem(
+        ps: BABYLON.ParticleSystem,
+        generateDiffuseTexture?: boolean,
+        targetRenderer?: FluidRenderingTargetRenderer,
+        camera?: BABYLON.Camera
+    ): IFluidRenderingRenderObject {
         const object = new FluidRenderingObjectParticleSystem(this._scene, ps);
 
-        object.onParticleSizeChanged.add(this._setParticleSizeForRenderTargets.bind(this));
+        object.onParticleSizeChanged.add(
+            this._setParticleSizeForRenderTargets.bind(this)
+        );
 
         if (!targetRenderer) {
-            targetRenderer = new FluidRenderingTargetRenderer(this._scene, camera);
+            targetRenderer = new FluidRenderingTargetRenderer(
+                this._scene,
+                camera
+            );
             this._targetRenderers.push(targetRenderer);
         }
 
         if (!targetRenderer.onUseVelocityChanged.hasObservers()) {
-            targetRenderer.onUseVelocityChanged.add(this._setUseVelocityForRenderObject.bind(this));
+            targetRenderer.onUseVelocityChanged.add(
+                this._setUseVelocityForRenderObject.bind(this)
+            );
         }
 
         if (generateDiffuseTexture !== undefined) {
@@ -145,18 +172,35 @@ export class FluidRenderer {
         return renderObject;
     }
 
-    public addVertexBuffer(vertexBuffers: { [key: string]: BABYLON.VertexBuffer }, numParticles: number, generateDiffuseTexture?: boolean, targetRenderer?: FluidRenderingTargetRenderer, camera?: BABYLON.Camera): IFluidRenderingRenderObject {
-        const object = new FluidRenderingObjectVertexBuffer(this._scene, vertexBuffers, numParticles);
+    public addVertexBuffer(
+        vertexBuffers: { [key: string]: BABYLON.VertexBuffer },
+        numParticles: number,
+        generateDiffuseTexture?: boolean,
+        targetRenderer?: FluidRenderingTargetRenderer,
+        camera?: BABYLON.Camera
+    ): IFluidRenderingRenderObject {
+        const object = new FluidRenderingObjectVertexBuffer(
+            this._scene,
+            vertexBuffers,
+            numParticles
+        );
 
-        object.onParticleSizeChanged.add(this._setParticleSizeForRenderTargets.bind(this));
+        object.onParticleSizeChanged.add(
+            this._setParticleSizeForRenderTargets.bind(this)
+        );
 
         if (!targetRenderer) {
-            targetRenderer = new FluidRenderingTargetRenderer(this._scene, camera);
+            targetRenderer = new FluidRenderingTargetRenderer(
+                this._scene,
+                camera
+            );
             this._targetRenderers.push(targetRenderer);
         }
 
         if (!targetRenderer.onUseVelocityChanged.hasObservers()) {
-            targetRenderer.onUseVelocityChanged.add(this._setUseVelocityForRenderObject.bind(this));
+            targetRenderer.onUseVelocityChanged.add(
+                this._setUseVelocityForRenderObject.bind(this)
+            );
         }
 
         if (generateDiffuseTexture !== undefined) {
@@ -174,7 +218,10 @@ export class FluidRenderer {
         return renderObject;
     }
 
-    public removeRenderObject(renderObject: IFluidRenderingRenderObject, removeUnusedTargetRenderer = true): boolean {
+    public removeRenderObject(
+        renderObject: IFluidRenderingRenderObject,
+        removeUnusedTargetRenderer = true
+    ): boolean {
         const index = this._renderObjects.indexOf(renderObject);
         if (index === -1) {
             return false;
@@ -195,7 +242,11 @@ export class FluidRenderer {
 
     private _sortRenderingObjects(): void {
         this._renderObjects.sort((a, b) => {
-            return a.object.priority < b.object.priority ? -1 : a.object.priority > b.object.priority ? 1 : 0;
+            return a.object.priority < b.object.priority
+                ? -1
+                : a.object.priority > b.object.priority
+                ? 1
+                : 0;
         });
     }
 
@@ -204,7 +255,10 @@ export class FluidRenderer {
             const ps = this._scene.particleSystems[i];
             const index = this._getParticleSystemIndex(ps);
             if (index === -1) {
-                if (ps.renderAsFluid && ps.getClassName() === "ParticleSystem") {
+                if (
+                    ps.renderAsFluid &&
+                    ps.getClassName() === "ParticleSystem"
+                ) {
                     this.addParticleSystem(ps as BABYLON.ParticleSystem, true);
                 }
             } else if (!ps.renderAsFluid) {
@@ -243,18 +297,28 @@ export class FluidRenderer {
         return removed;
     }
 
-    private static _IsParticleSystemObject(obj: FluidRenderingObject): obj is FluidRenderingObjectParticleSystem {
+    private static _IsParticleSystemObject(
+        obj: FluidRenderingObject
+    ): obj is FluidRenderingObjectParticleSystem {
         return !!(obj as FluidRenderingObjectParticleSystem).particleSystem;
     }
 
-    private static _IsVertexBufferObject(obj: FluidRenderingObject): obj is FluidRenderingObjectVertexBuffer {
-        return (obj as FluidRenderingObjectVertexBuffer).getClassName() === "FluidRenderingObjectVertexBuffer";
+    private static _IsVertexBufferObject(
+        obj: FluidRenderingObject
+    ): obj is FluidRenderingObjectVertexBuffer {
+        return (
+            (obj as FluidRenderingObjectVertexBuffer).getClassName() ===
+            "FluidRenderingObjectVertexBuffer"
+        );
     }
 
     private _getParticleSystemIndex(ps: BABYLON.IParticleSystem): number {
         for (let i = 0; i < this._renderObjects.length; ++i) {
             const obj = this._renderObjects[i].object;
-            if (FluidRenderer._IsParticleSystemObject(obj) && obj.particleSystem === ps) {
+            if (
+                FluidRenderer._IsParticleSystemObject(obj) &&
+                obj.particleSystem === ps
+            ) {
                 return i;
             }
         }
@@ -265,7 +329,10 @@ export class FluidRenderer {
     private _getVertexBufferIndex(vb: BABYLON.VertexBuffer): number {
         for (let i = 0; i < this._renderObjects.length; ++i) {
             const obj = this._renderObjects[i].object;
-            if (FluidRenderer._IsVertexBufferObject(obj) && obj.vertexBuffers[BABYLON.VertexBuffer.PositionKind] === vb) {
+            if (
+                FluidRenderer._IsVertexBufferObject(obj) &&
+                obj.vertexBuffers[BABYLON.VertexBuffer.PositionKind] === vb
+            ) {
                 return i;
             }
         }
@@ -278,7 +345,13 @@ export class FluidRenderer {
             this._targetRenderers[i].dispose();
         }
 
-        const cameras: Map<BABYLON.Camera, [Array<FluidRenderingTargetRenderer>, { [key: string]: CopyDepthTexture }]> = new Map();
+        const cameras: Map<
+            BABYLON.Camera,
+            [
+                Array<FluidRenderingTargetRenderer>,
+                { [key: string]: CopyDepthTexture }
+            ]
+        > = new Map();
 
         for (let i = 0; i < this._targetRenderers.length; ++i) {
             const targetRenderer = this._targetRenderers[i];
@@ -292,7 +365,10 @@ export class FluidRenderer {
                     cameras.set(targetRenderer.camera, list);
                 }
                 list[0].push(targetRenderer);
-                targetRenderer.camera.attachPostProcess(targetRenderer.renderPostProcess, i);
+                targetRenderer.camera.attachPostProcess(
+                    targetRenderer.renderPostProcess,
+                    i
+                );
             }
         }
 
@@ -306,18 +382,34 @@ export class FluidRenderer {
 
             firstPostProcess.onSizeChangedObservable.add(() => {
                 if (!firstPostProcess.inputTexture.depthStencilTexture) {
-                    firstPostProcess.inputTexture.createDepthStencilTexture(0, true, this._engine.isStencilEnable, targetRenderers[0].samples);
+                    firstPostProcess.inputTexture.createDepthStencilTexture(
+                        0,
+                        true,
+                        this._engine.isStencilEnable,
+                        targetRenderers[0].samples
+                    );
                 }
                 for (const targetRenderer of targetRenderers) {
-                    const thicknessRT = targetRenderer.thicknessRenderTarget?.renderTarget;
+                    const thicknessRT =
+                        targetRenderer.thicknessRenderTarget?.renderTarget;
                     const thicknessTexture = thicknessRT?.texture;
                     if (thicknessRT && thicknessTexture) {
-                        const key = thicknessTexture.width + "_" + thicknessTexture.height;
+                        const key =
+                            thicknessTexture.width +
+                            "_" +
+                            thicknessTexture.height;
                         let copyDepthTexture = copyDepthTextures[key];
                         if (!copyDepthTexture) {
-                            copyDepthTexture = copyDepthTextures[key] = new CopyDepthTexture(this._engine, thicknessTexture.width, thicknessTexture.height);
+                            copyDepthTexture = copyDepthTextures[key] =
+                                new CopyDepthTexture(
+                                    this._engine,
+                                    thicknessTexture.width,
+                                    thicknessTexture.height
+                                );
                         }
-                        copyDepthTexture.depthRTWrapper._shareDepth(thicknessRT);
+                        copyDepthTexture.depthRTWrapper._shareDepth(
+                            thicknessRT
+                        );
                     }
                 }
             });
@@ -356,7 +448,10 @@ export class FluidRenderer {
             if (curSize === undefined) {
                 curSize = 0;
             }
-            particleSizes.set(renderingObject.targetRenderer, Math.max(curSize, renderingObject.object.particleSize));
+            particleSizes.set(
+                renderingObject.targetRenderer,
+                Math.max(curSize, renderingObject.object.particleSize)
+            );
         }
 
         for (const [targetRenderer, particleSize] of particleSizes) {
@@ -369,7 +464,8 @@ export class FluidRenderer {
     private _setUseVelocityForRenderObject(): void {
         for (let i = 0; i < this._renderObjects.length; ++i) {
             const renderingObject = this._renderObjects[i];
-            renderingObject.object.useVelocity = renderingObject.targetRenderer.useVelocity;
+            renderingObject.object.useVelocity =
+                renderingObject.targetRenderer.useVelocity;
         }
     }
 
@@ -377,7 +473,9 @@ export class FluidRenderer {
     public _prepareRendering(): void {
         let needInitialization = false;
         for (let i = 0; i < this._targetRenderers.length; ++i) {
-            needInitialization = needInitialization || this._targetRenderers[i].needInitialization;
+            needInitialization =
+                needInitialization ||
+                this._targetRenderers[i].needInitialization;
         }
         if (needInitialization) {
             this._initialize();
@@ -402,7 +500,8 @@ export class FluidRenderer {
                 continue;
             }
 
-            const sourceCopyDepth = firstPostProcess.inputTexture?.depthStencilTexture;
+            const sourceCopyDepth =
+                firstPostProcess.inputTexture?.depthStencilTexture;
             if (sourceCopyDepth) {
                 const [targetRenderers, copyDepthTextures] = list;
                 for (const targetRenderer of targetRenderers) {
@@ -416,7 +515,10 @@ export class FluidRenderer {
 
         for (let i = 0; i < this._renderObjects.length; ++i) {
             const renderingObject = this._renderObjects[i];
-            if (!forCamera || renderingObject.targetRenderer.camera === forCamera) {
+            if (
+                !forCamera ||
+                renderingObject.targetRenderer.camera === forCamera
+            ) {
                 renderingObject.targetRenderer.render(renderingObject.object);
             }
         }
@@ -447,26 +549,39 @@ export class FluidRenderer {
     }
 }
 
-BABYLON.ShaderStore.ShadersStore["fluidParticleDepthVertexShader"] = particleDepthVertex;
-BABYLON.ShaderStore.ShadersStore["fluidParticleDepthFragmentShader"] = particleDepthFragment;
+BABYLON.ShaderStore.ShadersStore["fluidParticleDepthVertexShader"] =
+    particleDepthVertex;
+BABYLON.ShaderStore.ShadersStore["fluidParticleDepthFragmentShader"] =
+    particleDepthFragment;
 
-BABYLON.ShaderStore.ShadersStore["fluidParticleThicknessVertexShader"] = particleThicknessVertex;
-BABYLON.ShaderStore.ShadersStore["fluidParticleThicknessFragmentShader"] = particleThicknessFragment;
+BABYLON.ShaderStore.ShadersStore["fluidParticleThicknessVertexShader"] =
+    particleThicknessVertex;
+BABYLON.ShaderStore.ShadersStore["fluidParticleThicknessFragmentShader"] =
+    particleThicknessFragment;
 
-BABYLON.ShaderStore.ShadersStore["fluidParticleDiffuseVertexShader"] = particleDiffuseVertex;
-BABYLON.ShaderStore.ShadersStore["fluidParticleDiffuseFragmentShader"] = particleDiffuseFragment;
+BABYLON.ShaderStore.ShadersStore["fluidParticleDiffuseVertexShader"] =
+    particleDiffuseVertex;
+BABYLON.ShaderStore.ShadersStore["fluidParticleDiffuseFragmentShader"] =
+    particleDiffuseFragment;
 
-BABYLON.ShaderStore.ShadersStore["bilateralBlurFragmentShader"] = bilateralBlurFragment;
+BABYLON.ShaderStore.ShadersStore["bilateralBlurFragmentShader"] =
+    bilateralBlurFragment;
 
-BABYLON.ShaderStore.ShadersStore["standardBlurFragmentShader"] = standardBlurFragment;
+BABYLON.ShaderStore.ShadersStore["standardBlurFragmentShader"] =
+    standardBlurFragment;
 
-BABYLON.ShaderStore.ShadersStore["renderFluidFragmentShader"] = renderFluidFragment;
-BABYLON.ShaderStore.ShadersStoreWGSL["renderFluidFragmentShader"] = renderFluidWGSLFragment;
+BABYLON.ShaderStore.ShadersStore["renderFluidFragmentShader"] =
+    renderFluidFragment;
+BABYLON.ShaderStore.ShadersStoreWGSL["renderFluidFragmentShader"] =
+    renderFluidWGSLFragment;
 
 BABYLON.ShaderStore.ShadersStore["passDepthVertexShader"] = passDepthVertex;
 BABYLON.ShaderStore.ShadersStore["passDepthFragmentShader"] = passDepthFragment;
 
-BABYLON.ShaderStore.ShadersStoreWGSL["passDepthVertexShader"] = passDepthWGSLVertex;
-BABYLON.ShaderStore.ShadersStoreWGSL["passDepthFragmentShader"] = passDepthWGSLFragment;
+BABYLON.ShaderStore.ShadersStoreWGSL["passDepthVertexShader"] =
+    passDepthWGSLVertex;
+BABYLON.ShaderStore.ShadersStoreWGSL["passDepthFragmentShader"] =
+    passDepthWGSLFragment;
 
-BABYLON.ShaderStore.ShadersStoreWGSL["postprocessVertexShader"] = postprocessWGSLVertex;
+BABYLON.ShaderStore.ShadersStoreWGSL["postprocessVertexShader"] =
+    postprocessWGSLVertex;

@@ -5,21 +5,22 @@ import { getSceneModuleWithName } from "./createScene";
 import "@babylonjs/inspector";
 
 let seed = 1;
-Math.random = function() {
+Math.random = function () {
     const x = Math.sin(seed++) * 10000;
     return x - Math.floor(x);
-}
+};
 
-const getModuleToLoad = (): string | undefined => location.search.split('scene=')[1];
+const getModuleToLoad = (): string | undefined =>
+    location.search.split("scene=")[1];
 
-export const babylonInit = async (): Promise<void>  => {
+export const babylonInit = async (): Promise<void> => {
     // get the module to load
     const moduleName = getModuleToLoad();
     const createSceneModule = await getSceneModuleWithName(moduleName);
     // Execute the pretasks, if defined
     await Promise.all(createSceneModule.preTasks || []);
     // Get the canvas element
-    const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement; 
+    const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
     let engine: Engine;
     const webgpuSupported = await WebGPUEngine.IsSupportedAsync;
@@ -61,7 +62,7 @@ export const babylonInit = async (): Promise<void>  => {
     window.addEventListener("resize", function () {
         engine.resize();
     });
-}
+};
 
 babylonInit().then(() => {
     // scene started rendering, everything is initialized

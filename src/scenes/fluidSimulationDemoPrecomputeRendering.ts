@@ -5,7 +5,6 @@ import { FluidSimulationDemoBase } from "./fluidSimulationDemoBase";
 
 // Pre-computed frames come from https://github.com/ttnghia/RealTimeFluidRendering/releases/tag/Datasets
 export class FluidSimulationDemoPrecomputeRendering extends FluidSimulationDemoBase {
-
     private _animSpeed: number;
 
     constructor(scene: BABYLON.Scene) {
@@ -15,23 +14,30 @@ export class FluidSimulationDemoPrecomputeRendering extends FluidSimulationDemoB
     }
 
     public async run() {
-        const camera = this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
+        const camera =
+            this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
 
         if (camera) {
-            (camera as BABYLON.ArcRotateCamera).alpha = -0.600;
+            (camera as BABYLON.ArcRotateCamera).alpha = -0.6;
             (camera as BABYLON.ArcRotateCamera).beta = 1.254;
             (camera as BABYLON.ArcRotateCamera).radius = 2.347;
         }
 
         const numFrames = 160;
         const positionBuffers: Array<Float32Array> = [];
-        
+
         let numParticles = 0;
         //let particleRadius = 0;
 
         for (let i = 0; i < numFrames; ++i) {
             const num = "000" + (i + 1);
-            const buffer = await (await fetch("assets/particles/SphereDropGround/frame." + num.substring(num.length - 4) + ".pos")).arrayBuffer();
+            const buffer = await (
+                await fetch(
+                    "assets/particles/SphereDropGround/frame." +
+                        num.substring(num.length - 4) +
+                        ".pos"
+                )
+            ).arrayBuffer();
             const buffer32 = new Uint32Array(buffer);
             const bufferFloat = new Float32Array(buffer);
 
@@ -53,9 +59,20 @@ export class FluidSimulationDemoPrecomputeRendering extends FluidSimulationDemoB
             positionBuffers.push(positions);
         }
 
-        this._fluidRenderObject.object.vertexBuffers["position"] = new BABYLON.VertexBuffer(this._engine, positionBuffers[0], BABYLON.VertexBuffer.PositionKind, true, false, 3, true);
+        this._fluidRenderObject.object.vertexBuffers["position"] =
+            new BABYLON.VertexBuffer(
+                this._engine,
+                positionBuffers[0],
+                BABYLON.VertexBuffer.PositionKind,
+                true,
+                false,
+                3,
+                true
+            );
 
-        (this._fluidRenderObject.object as FluidRenderingObjectVertexBuffer).setNumParticles(numParticles);
+        (
+            this._fluidRenderObject.object as FluidRenderingObjectVertexBuffer
+        ).setNumParticles(numParticles);
 
         this._fluidRenderObject.object.particleSize = 0.03;
         this._fluidRenderObject.object.particleThicknessAlpha = 0.007;
@@ -72,7 +89,9 @@ export class FluidSimulationDemoPrecomputeRendering extends FluidSimulationDemoB
         let t = 0;
 
         this._sceneObserver = this._scene.onBeforeRenderObservable.add(() => {
-            this._fluidRenderObject.object.vertexBuffers["position"].updateDirectly(positionBuffers[Math.floor(t)], 0);
+            this._fluidRenderObject.object.vertexBuffers[
+                "position"
+            ].updateDirectly(positionBuffers[Math.floor(t)], 0);
             t += this._animSpeed;
             if (t >= numFrames) {
                 t = 0;
@@ -89,7 +108,8 @@ export class FluidSimulationDemoPrecomputeRendering extends FluidSimulationDemoB
 
         const mainMenu = this._gui!;
 
-        mainMenu.add(params, "animSpeed", 0, 1, 0.1)
+        mainMenu
+            .add(params, "animSpeed", 0, 1, 0.1)
             .name("Animation speed")
             .onChange((value: any) => {
                 this._animSpeed = value;

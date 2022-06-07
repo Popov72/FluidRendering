@@ -1,12 +1,13 @@
 import * as BABYLON from "@babylonjs/core";
 
 export class CopyDepthTexture {
-
     private _engine: BABYLON.Engine;
     private _width: number;
     private _height: number;
     private _indexBuffer: BABYLON.Nullable<BABYLON.DataBuffer>;
-    private _vertexBuffers: { [key: string]: BABYLON.Nullable<BABYLON.VertexBuffer> } = {};
+    private _vertexBuffers: {
+        [key: string]: BABYLON.Nullable<BABYLON.VertexBuffer>;
+    } = {};
     private _depthRTWrapper: BABYLON.RenderTargetWrapper;
     private _copyEffectWrapper: BABYLON.EffectWrapper;
 
@@ -19,16 +20,19 @@ export class CopyDepthTexture {
         this._width = width;
         this._height = height;
 
-        this._depthRTWrapper = this._engine.createRenderTargetTexture({ width, height }, {
-            generateMipMaps: false,
-            type: BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE,
-            format: BABYLON.Constants.TEXTUREFORMAT_R,
-            samplingMode: BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
-            generateDepthBuffer: true,
-            generateStencilBuffer: false,
-            samples: 1,
-            noColorTarget: true,
-        });
+        this._depthRTWrapper = this._engine.createRenderTargetTexture(
+            { width, height },
+            {
+                generateMipMaps: false,
+                type: BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE,
+                format: BABYLON.Constants.TEXTUREFORMAT_R,
+                samplingMode: BABYLON.Constants.TEXTURE_NEAREST_SAMPLINGMODE,
+                generateDepthBuffer: true,
+                generateStencilBuffer: false,
+                samples: 1,
+                noColorTarget: true,
+            }
+        );
         this._depthRTWrapper.createDepthStencilTexture(0, false, false, 1);
 
         this._copyEffectWrapper = new BABYLON.EffectWrapper({
@@ -39,7 +43,9 @@ export class CopyDepthTexture {
             attributeNames: ["position"],
             uniformNames: [],
             samplerNames: ["textureDepth"],
-            shaderLanguage: engine.isWebGPU ? BABYLON.ShaderLanguage.WGSL : BABYLON.ShaderLanguage.GLSL,
+            shaderLanguage: engine.isWebGPU
+                ? BABYLON.ShaderLanguage.WGSL
+                : BABYLON.ShaderLanguage.GLSL,
         });
 
         // VBO
@@ -49,7 +55,15 @@ export class CopyDepthTexture {
         vertices.push(-1, -1);
         vertices.push(1, -1);
 
-        this._vertexBuffers[BABYLON.VertexBuffer.PositionKind] = new BABYLON.VertexBuffer(this._engine, vertices, BABYLON.VertexBuffer.PositionKind, false, false, 2);
+        this._vertexBuffers[BABYLON.VertexBuffer.PositionKind] =
+            new BABYLON.VertexBuffer(
+                this._engine,
+                vertices,
+                BABYLON.VertexBuffer.PositionKind,
+                false,
+                false,
+                2
+            );
 
         // Indices
         const indices = [];
@@ -83,11 +97,19 @@ export class CopyDepthTexture {
         this._engine.setDepthFunction(BABYLON.Constants.ALWAYS);
         this._engine.setColorWrite(false);
 
-        this._engine.bindBuffers(this._vertexBuffers, this._indexBuffer, effect);
+        this._engine.bindBuffers(
+            this._vertexBuffers,
+            this._indexBuffer,
+            effect
+        );
 
         effect._bindTexture("textureDepth", source);
 
-        this._engine.drawElementsType(BABYLON.Constants.MATERIAL_TriangleFillMode, 0, 6);
+        this._engine.drawElementsType(
+            BABYLON.Constants.MATERIAL_TriangleFillMode,
+            0,
+            6
+        );
 
         this._engine.setDepthFunction(engineDepthFunc!);
         this._engine.setColorWrite(true);

@@ -11,9 +11,9 @@ export interface CreateSceneModule {
 }
 
 export const getSceneModuleWithName = (
-    name = 'fluidSimulation2'
+    name = "fluidSimulation2"
 ): Promise<CreateSceneClass> => {
-    return import('./scenes/' + name).then((module: CreateSceneModule)=> {
+    return import("./scenes/" + name).then((module: CreateSceneModule) => {
         return module.default;
     });
 };

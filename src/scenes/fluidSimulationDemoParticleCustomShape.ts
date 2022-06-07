@@ -5,7 +5,6 @@ import { FluidSimulationDemoBase } from "./fluidSimulationDemoBase";
 import { FluidRenderingObjectVertexBuffer } from "./FluidRenderer/fluidRenderingObjectVertexBuffer";
 
 export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoBase {
-
     private _initParticles: boolean;
     private _started: boolean;
     private _meshPCS: BABYLON.Nullable<BABYLON.Mesh>;
@@ -21,7 +20,8 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
     }
 
     public async run() {
-        const camera = this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
+        const camera =
+            this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
 
         if (camera) {
             (camera as BABYLON.ArcRotateCamera).alpha = 1.559;
@@ -29,7 +29,11 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
             (camera as BABYLON.ArcRotateCamera).radius = 17.557;
         }
 
-        await BABYLON.SceneLoader.AppendAsync("https://assets.babylonjs.com/meshes/Dude/", "dude.babylon", this._scene);
+        await BABYLON.SceneLoader.AppendAsync(
+            "https://assets.babylonjs.com/meshes/Dude/",
+            "dude.babylon",
+            this._scene
+        );
 
         this._scene.getCameraByName("Default camera")?.dispose();
 
@@ -41,15 +45,25 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
 
         this._pcs = new BABYLON.PointsCloudSystem("pcs", 3, this._scene);
 
-        this._scene.getMeshByName("him")!.getChildMeshes().forEach((m) => {
-            m.setEnabled(false);
-            m.scaling.setAll(0.1);
-            //m.rotation.y = Math.PI;
-            //(m as BABYLON.Mesh).bakeCurrentTransformIntoVertices();
-            (m.material as any).disableLighting = true;
-            (m.material as any).emissiveTexture = (m.material as any).diffuseTexture;
-            this._pcs!.addSurfacePoints(m as BABYLON.Mesh, 5000, BABYLON.PointColor.Color, 0);
-        });
+        this._scene
+            .getMeshByName("him")!
+            .getChildMeshes()
+            .forEach((m) => {
+                m.setEnabled(false);
+                m.scaling.setAll(0.1);
+                //m.rotation.y = Math.PI;
+                //(m as BABYLON.Mesh).bakeCurrentTransformIntoVertices();
+                (m.material as any).disableLighting = true;
+                (m.material as any).emissiveTexture = (
+                    m.material as any
+                ).diffuseTexture;
+                this._pcs!.addSurfacePoints(
+                    m as BABYLON.Mesh,
+                    5000,
+                    BABYLON.PointColor.Color,
+                    0
+                );
+            });
 
         /*this._scene.useRightHandedSystem = true;
         console.log(BABYLONSER.OBJExport.OBJ(this._scene.getMeshByName("him")!.getChildMeshes()));
@@ -63,10 +77,30 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
         const origPositions = positions.slice(0);
         const numParticles = positions.length / 3;
 
-        this._fluidRenderObject.object.vertexBuffers["position"] = new BABYLON.VertexBuffer(this._engine, positions, BABYLON.VertexBuffer.PositionKind, true, false, 3, true);
-        this._fluidRenderObject.object.vertexBuffers["color"] = new BABYLON.VertexBuffer(this._engine, (this._pcs as any)._colors32, "color", false, false, 4, true);
+        this._fluidRenderObject.object.vertexBuffers["position"] =
+            new BABYLON.VertexBuffer(
+                this._engine,
+                positions,
+                BABYLON.VertexBuffer.PositionKind,
+                true,
+                false,
+                3,
+                true
+            );
+        this._fluidRenderObject.object.vertexBuffers["color"] =
+            new BABYLON.VertexBuffer(
+                this._engine,
+                (this._pcs as any)._colors32,
+                "color",
+                false,
+                false,
+                4,
+                true
+            );
 
-        (this._fluidRenderObject.object as FluidRenderingObjectVertexBuffer).setNumParticles(numParticles);
+        (
+            this._fluidRenderObject.object as FluidRenderingObjectVertexBuffer
+        ).setNumParticles(numParticles);
 
         this._fluidRenderObject.object.particleSize = 0.15;
         this._fluidRenderObject.object.particleThicknessAlpha = 0.1;
@@ -84,7 +118,8 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
         const stopped: number[] = [];
 
         const initParticles = () => {
-            const min = new BABYLON.Vector3(1e10, 1e10, 1e10), max = new BABYLON.Vector3(-1e10, -1e10, -1e10);
+            const min = new BABYLON.Vector3(1e10, 1e10, 1e10),
+                max = new BABYLON.Vector3(-1e10, -1e10, -1e10);
             for (let i = 0; i < numParticles; ++i) {
                 min.x = Math.min(positions[i * 3 + 0], min.x);
                 min.y = Math.min(positions[i * 3 + 1], min.y);
@@ -124,7 +159,9 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
             if (this._initParticles) {
                 positions.set(origPositions);
                 initParticles();
-                this._fluidRenderObject.object.vertexBuffers["position"].updateDirectly(positions, 0);
+                this._fluidRenderObject.object.vertexBuffers[
+                    "position"
+                ].updateDirectly(positions, 0);
             }
 
             if (this._paused) {
@@ -157,7 +194,9 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
 
             this._started == numStopped < numParticles;
 
-            this._fluidRenderObject.object.vertexBuffers["position"].updateDirectly(positions, 0);
+            this._fluidRenderObject.object.vertexBuffers[
+                "position"
+            ].updateDirectly(positions, 0);
         });
 
         super.run();
@@ -187,7 +226,8 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
 
         mainMenu.add(params, "start").name("Start");
 
-        mainMenu.add(params, "paused")
+        mainMenu
+            .add(params, "paused")
             .name("Pause")
             .onChange((value: boolean) => {
                 this._paused = value;

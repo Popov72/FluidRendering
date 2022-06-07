@@ -11,7 +11,6 @@ export interface IFluidParticle {
 }
 
 export class FluidSimulator {
-
     protected _particles: IFluidParticle[];
     protected _numMaxParticles: number;
     protected _positions: Float32Array;
@@ -22,7 +21,7 @@ export class FluidSimulator {
     protected _poly6Constant: number;
     protected _spikyConstant: number;
     protected _viscConstant: number;
-    
+
     protected _smoothingRadius = 0.2;
 
     public get smoothingRadius() {
@@ -64,9 +63,12 @@ export class FluidSimulator {
 
     private _computeConstants(): void {
         this._smoothingRadius2 = this._smoothingRadius * this._smoothingRadius;
-        this._poly6Constant = 315 / (64 * Math.PI * Math.pow(this._smoothingRadius, 9));
-        this._spikyConstant = -45 / (Math.PI * Math.pow(this._smoothingRadius, 6));
-        this._viscConstant = 45 / (Math.PI * Math.pow(this._smoothingRadius, 6));
+        this._poly6Constant =
+            315 / (64 * Math.PI * Math.pow(this._smoothingRadius, 9));
+        this._spikyConstant =
+            -45 / (Math.PI * Math.pow(this._smoothingRadius, 6));
+        this._viscConstant =
+            45 / (Math.PI * Math.pow(this._smoothingRadius, 6));
         this._hash = new Hash(this._smoothingRadius, this._numMaxParticles);
     }
 
@@ -82,7 +84,10 @@ export class FluidSimulator {
         return this._numMaxParticles;
     }
 
-    public setParticleData(positions?: Float32Array, velocities?: Float32Array): void {
+    public setParticleData(
+        positions?: Float32Array,
+        velocities?: Float32Array
+    ): void {
         this._positions = positions ?? new Float32Array();
         this._velocities = velocities ?? new Float32Array();
         this._numMaxParticles = this._positions.length / 3;
@@ -96,7 +101,7 @@ export class FluidSimulator {
                 accelX: 0,
                 accelY: 0,
                 accelZ: 0,
-            })
+            });
         }
     }
 
@@ -166,13 +171,16 @@ export class FluidSimulator {
                 const r2 = diffX * diffX + diffY * diffY + diffZ * diffZ;
 
                 if (r2 < this._smoothingRadius2) {
-                    const w = this._poly6Constant * Math.pow(this._smoothingRadius2 - r2, 3);
+                    const w =
+                        this._poly6Constant *
+                        Math.pow(this._smoothingRadius2 - r2, 3);
                     pA.density += w;
                 }
             }
 
             pA.density = Math.max(this.densityReference, pA.density);
-            pA.pressure = this.pressureConstant * (pA.density - this.densityReference);
+            pA.pressure =
+                this.pressureConstant * (pA.density - this.densityReference);
         }
     }
 
@@ -213,16 +221,24 @@ export class FluidSimulator {
                     diffY /= r;
                     diffZ /= r;
 
-                    const w = this._spikyConstant * (this._smoothingRadius - r) * (this._smoothingRadius - r);
+                    const w =
+                        this._spikyConstant *
+                        (this._smoothingRadius - r) *
+                        (this._smoothingRadius - r);
                     const massRatio = pB.mass / pA.mass;
-                    const fp = w * ((pA.pressure + pB.pressure) / (2 * pA.density * pB.density)) * massRatio;
+                    const fp =
+                        w *
+                        ((pA.pressure + pB.pressure) /
+                            (2 * pA.density * pB.density)) *
+                        massRatio;
 
                     pressureAccelX -= fp * diffX;
                     pressureAccelY -= fp * diffY;
                     pressureAccelZ -= fp * diffZ;
 
                     const w2 = this._viscConstant * (this._smoothingRadius - r);
-                    const fv = w2 * (1 / pB.density) * massRatio * this.viscosity;
+                    const fv =
+                        w2 * (1 / pB.density) * massRatio * this.viscosity;
 
                     viscosityAccelX += fv * (this._velocities[b * 3 + 0] - vaX);
                     viscosityAccelY += fv * (this._velocities[b * 3 + 1] - vaY);
@@ -238,12 +254,16 @@ export class FluidSimulator {
             pA.accelY += this.gravity.y;
             pA.accelZ += this.gravity.z;
 
-            const mag = Math.sqrt(pA.accelX * pA.accelX + pA.accelY * pA.accelY + pA.accelZ * pA.accelZ);
+            const mag = Math.sqrt(
+                pA.accelX * pA.accelX +
+                    pA.accelY * pA.accelY +
+                    pA.accelZ * pA.accelZ
+            );
 
             if (mag > this.maxAcceleration) {
-                pA.accelX = pA.accelX / mag * this.maxAcceleration;
-                pA.accelY = pA.accelY / mag * this.maxAcceleration;
-                pA.accelZ = pA.accelZ / mag * this.maxAcceleration;
+                pA.accelX = (pA.accelX / mag) * this.maxAcceleration;
+                pA.accelY = (pA.accelY / mag) * this.maxAcceleration;
+                pA.accelZ = (pA.accelZ / mag) * this.maxAcceleration;
             }
         }
     }
@@ -256,8 +276,14 @@ export class FluidSimulator {
         for (let a = 0; a < this.currentNumParticles; ++a) {
             const pA = this._particles[a];
 
-            const velSq = this._velocities[a * 3 + 0] * this._velocities[a * 3 + 0] + this._velocities[a * 3 + 1] * this._velocities[a * 3 + 1] + this._velocities[a * 3 + 2] * this._velocities[a * 3 + 2];
-            const accSq = pA.accelX * pA.accelX + pA.accelY * pA.accelY + pA.accelZ * pA.accelZ;
+            const velSq =
+                this._velocities[a * 3 + 0] * this._velocities[a * 3 + 0] +
+                this._velocities[a * 3 + 1] * this._velocities[a * 3 + 1] +
+                this._velocities[a * 3 + 2] * this._velocities[a * 3 + 2];
+            const accSq =
+                pA.accelX * pA.accelX +
+                pA.accelY * pA.accelY +
+                pA.accelZ * pA.accelZ;
             const spsSq = pA.density < 0.00001 ? 0 : pA.pressure / pA.density;
 
             if (velSq > maxVelocity) {
@@ -275,7 +301,7 @@ export class FluidSimulator {
         maxAcceleration = Math.sqrt(maxAcceleration);
         maxSpeedOfSound = Math.sqrt(maxSpeedOfSound);
 
-        const velStep = 0.4 * this.smoothingRadius / Math.max(1, maxVelocity);
+        const velStep = (0.4 * this.smoothingRadius) / Math.max(1, maxVelocity);
         const accStep = 0.4 * Math.sqrt(this.smoothingRadius / maxAcceleration);
         const spsStep = this.smoothingRadius / maxSpeedOfSound;
 
@@ -289,18 +315,28 @@ export class FluidSimulator {
             this._velocities[a * 3 + 0] += pA.accelX * deltaTime;
             this._velocities[a * 3 + 1] += pA.accelY * deltaTime;
             this._velocities[a * 3 + 2] += pA.accelZ * deltaTime;
-            
-            const mag = Math.sqrt(this._velocities[a * 3 + 0] * this._velocities[a * 3 + 0] + this._velocities[a * 3 + 1] * this._velocities[a * 3 + 1] + this._velocities[a * 3 + 2] * this._velocities[a * 3 + 2]);
+
+            const mag = Math.sqrt(
+                this._velocities[a * 3 + 0] * this._velocities[a * 3 + 0] +
+                    this._velocities[a * 3 + 1] * this._velocities[a * 3 + 1] +
+                    this._velocities[a * 3 + 2] * this._velocities[a * 3 + 2]
+            );
 
             if (mag > this.maxVelocity) {
-                this._velocities[a * 3 + 0] = this._velocities[a * 3 + 0] / mag * this.maxVelocity;
-                this._velocities[a * 3 + 1] = this._velocities[a * 3 + 1] / mag * this.maxVelocity;
-                this._velocities[a * 3 + 2] = this._velocities[a * 3 + 2] / mag * this.maxVelocity;
+                this._velocities[a * 3 + 0] =
+                    (this._velocities[a * 3 + 0] / mag) * this.maxVelocity;
+                this._velocities[a * 3 + 1] =
+                    (this._velocities[a * 3 + 1] / mag) * this.maxVelocity;
+                this._velocities[a * 3 + 2] =
+                    (this._velocities[a * 3 + 2] / mag) * this.maxVelocity;
             }
 
-            this._positions[a * 3 + 0] += deltaTime * this._velocities[a * 3 + 0];
-            this._positions[a * 3 + 1] += deltaTime * this._velocities[a * 3 + 1];
-            this._positions[a * 3 + 2] += deltaTime * this._velocities[a * 3 + 2];
+            this._positions[a * 3 + 0] +=
+                deltaTime * this._velocities[a * 3 + 0];
+            this._positions[a * 3 + 1] +=
+                deltaTime * this._velocities[a * 3 + 1];
+            this._positions[a * 3 + 2] +=
+                deltaTime * this._velocities[a * 3 + 2];
         }
     }
 }

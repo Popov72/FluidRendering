@@ -655,7 +655,9 @@ export class FluidRenderingTargetRenderer {
                 onCompiled,
                 onError,
                 indexParameters || (this as any)._indexParameters,
-                engine.isWebGPU ? BABYLON.ShaderLanguage.WGSL : BABYLON.ShaderLanguage.GLSL,
+                engine.isWebGPU
+                    ? BABYLON.ShaderLanguage.WGSL
+                    : BABYLON.ShaderLanguage.GLSL
             );
         };
         this._renderPostProcess.updateEffect(defines.join("\n"));
@@ -668,7 +670,10 @@ export class FluidRenderingTargetRenderer {
             this._invProjectionMatrix.invert();
 
             if (engine.isWebGPU) {
-                effect.setTextureSampler("textureSamplerSampler", this._renderPostProcess!.inputTexture.texture);
+                effect.setTextureSampler(
+                    "textureSamplerSampler",
+                    this._renderPostProcess!.inputTexture.texture
+                );
             }
 
             if (!this._depthRenderTarget!.enableBlur) {
@@ -677,7 +682,11 @@ export class FluidRenderingTargetRenderer {
                     this._depthRenderTarget!.texture
                 );
                 if (engine.isWebGPU) {
-                    effect.setTextureSampler("depthSamplerSampler", this._depthRenderTarget!.texture?.getInternalTexture() ?? null);
+                    effect.setTextureSampler(
+                        "depthSamplerSampler",
+                        this._depthRenderTarget!.texture?.getInternalTexture() ??
+                            null
+                    );
                 }
             } else {
                 effect.setTexture(
@@ -685,7 +694,11 @@ export class FluidRenderingTargetRenderer {
                     this._depthRenderTarget!.textureBlur
                 );
                 if (engine.isWebGPU) {
-                    effect.setTextureSampler("depthSamplerSampler", this._depthRenderTarget!.textureBlur?.getInternalTexture() ?? null);
+                    effect.setTextureSampler(
+                        "depthSamplerSampler",
+                        this._depthRenderTarget!.textureBlur?.getInternalTexture() ??
+                            null
+                    );
                 }
             }
             if (this._diffuseRenderTarget) {
@@ -695,7 +708,11 @@ export class FluidRenderingTargetRenderer {
                         this._diffuseRenderTarget.texture
                     );
                     if (engine.isWebGPU) {
-                        effect.setTextureSampler("diffuseSamplerSampler", this._diffuseRenderTarget.texture?.getInternalTexture() ?? null);
+                        effect.setTextureSampler(
+                            "diffuseSamplerSampler",
+                            this._diffuseRenderTarget.texture?.getInternalTexture() ??
+                                null
+                        );
                     }
                 } else {
                     effect.setTexture(
@@ -703,7 +720,11 @@ export class FluidRenderingTargetRenderer {
                         this._diffuseRenderTarget.textureBlur
                     );
                     if (engine.isWebGPU) {
-                        effect.setTextureSampler("diffuseSamplerSampler", this._diffuseRenderTarget.textureBlur?.getInternalTexture() ?? null);
+                        effect.setTextureSampler(
+                            "diffuseSamplerSampler",
+                            this._diffuseRenderTarget.textureBlur?.getInternalTexture() ??
+                                null
+                        );
                     }
                 }
             } else {
@@ -713,7 +734,10 @@ export class FluidRenderingTargetRenderer {
                 effect.setFloat("thickness", this.minimumThickness);
                 effect._bindTexture("bgDepthSampler", this._bgDepthTexture);
                 if (engine.isWebGPU) {
-                    effect.setTextureSampler("bgDepthSamplerSampler", this._bgDepthTexture ?? null);
+                    effect.setTextureSampler(
+                        "bgDepthSamplerSampler",
+                        this._bgDepthTexture ?? null
+                    );
                 }
             } else {
                 if (!this._thicknessRenderTarget!.enableBlur) {
@@ -722,7 +746,11 @@ export class FluidRenderingTargetRenderer {
                         this._thicknessRenderTarget!.texture
                     );
                     if (engine.isWebGPU) {
-                        effect.setTextureSampler("thicknessSamplerSampler", this._thicknessRenderTarget!.texture?.getInternalTexture() ?? null);
+                        effect.setTextureSampler(
+                            "thicknessSamplerSampler",
+                            this._thicknessRenderTarget!.texture?.getInternalTexture() ??
+                                null
+                        );
                     }
                 } else {
                     effect.setTexture(
@@ -730,7 +758,11 @@ export class FluidRenderingTargetRenderer {
                         this._thicknessRenderTarget!.textureBlur
                     );
                     if (engine.isWebGPU) {
-                        effect.setTextureSampler("thicknessSamplerSampler", this._thicknessRenderTarget!.textureBlur?.getInternalTexture() ?? null);
+                        effect.setTextureSampler(
+                            "thicknessSamplerSampler",
+                            this._thicknessRenderTarget!.textureBlur?.getInternalTexture() ??
+                                null
+                        );
                     }
                 }
                 effect.setFloat("minimumThickness", this.minimumThickness);
@@ -741,7 +773,10 @@ export class FluidRenderingTargetRenderer {
                 this._scene.environmentTexture
             );
             if (engine.isWebGPU) {
-                effect.setTextureSampler("reflectionSamplerSampler", this._scene.environmentTexture?.getInternalTexture() ?? null);
+                effect.setTextureSampler(
+                    "reflectionSamplerSampler",
+                    this._scene.environmentTexture?.getInternalTexture() ?? null
+                );
             }
 
             effect.setMatrix("viewMatrix", this._scene.getViewMatrix());
@@ -788,7 +823,10 @@ export class FluidRenderingTargetRenderer {
                 if (this._debugFeature !== FluidRenderingDebug.Normals) {
                     effect.setTexture("debugSampler", texture);
                     if (engine.isWebGPU) {
-                        effect.setTextureSampler("debugSamplerSampler", texture?.getInternalTexture() ?? null);
+                        effect.setTextureSampler(
+                            "debugSamplerSampler",
+                            texture?.getInternalTexture() ?? null
+                        );
                     }
                 }
             }
