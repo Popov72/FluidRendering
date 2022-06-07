@@ -3,6 +3,7 @@ import { FluidRenderingObjectVertexBuffer } from "./FluidRenderer/fluidRendering
 
 import { FluidSimulationDemoBase } from "./fluidSimulationDemoBase";
 
+// Pre-computed frames come from https://github.com/ttnghia/RealTimeFluidRendering/releases/tag/Datasets
 export class FluidSimulationDemoPrecomputeRendering extends FluidSimulationDemoBase {
 
     private _animSpeed: number;

@@ -15,7 +15,13 @@ uniform sampler2D depthSampler;
 #else
     uniform vec3 diffuseColor;
 #endif
-uniform sampler2D thicknessSampler;
+#ifdef FLUIDRENDERING_FIXED_THICKNESS
+    uniform float thickness;
+    uniform sampler2D bgDepthSampler;
+#else
+    uniform float minimumThickness;
+    uniform sampler2D thicknessSampler;
+#endif
 uniform samplerCube reflectionSampler;
 #if defined(FLUIDRENDERING_DEBUG) && defined(FLUIDRENDERING_DEBUG_TEXTURE)
     uniform sampler2D debugSampler;
@@ -31,7 +37,6 @@ uniform float density;
 uniform float refractionStrength;
 uniform float fresnelClamp;
 uniform float specularPower;
-uniform float minimumThickness;
 
 varying vec2 vUV;
 
@@ -68,9 +73,19 @@ void main(void) {
 
     vec2 depthVel = texture2D(depthSampler, texCoord).rg;
     float depth = depthVel.r;
+#ifndef FLUIDRENDERING_FIXED_THICKNESS
     float thickness = texture2D(thicknessSampler, texCoord).x;
+#else
+    float bgDepth = texture2D(bgDepthSampler, texCoord).x;
+    float depthNonLinear = projectionMatrix[2].z + projectionMatrix[3].z / depth;
+    depthNonLinear = depthNonLinear * 0.5 + 0.5;
+#endif
 
+#ifndef FLUIDRENDERING_FIXED_THICKNESS
     if (depth >= cameraFar || depth <= 0. || thickness <= minimumThickness) {
+#else
+    if (depth >= cameraFar || depth <= 0. || bgDepth <= depthNonLinear) {
+#endif
         vec3 backColor = texture2D(textureSampler, texCoord).rgb;
         glFragColor = vec4(backColor, 1.);
         return;
@@ -94,12 +109,10 @@ void main(void) {
     }
 
     vec3 normal = normalize(cross(ddy, ddx));
-#ifndef WEBGPU
     if(isnan(normal.x) || isnan(normal.y) || isnan(normal.z) ||
     isinf(normal.x) || isinf(normal.y) || isinf(normal.z)) {
         normal = vec3(0., 0., -1.);
     }
-#endif
 
 #if defined(FLUIDRENDERING_DEBUG) && defined(FLUIDRENDERING_DEBUG_SHOWNORMAL)
     glFragColor = vec4(normal * 0.5 + 0.5, 1.0);

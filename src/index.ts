@@ -40,6 +40,7 @@ export const babylonInit = async (): Promise<void>  => {
             },
             stencil: false,
         });
+        (engine as WebGPUEngine).dbgShowShaderCode = false;
         await (engine as WebGPUEngine).initAsync();
     } else {
         engine = new Engine(canvas, true);

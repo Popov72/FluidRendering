@@ -168,6 +168,7 @@ export class FluidRendererGUI {
             targets_thicknessMapSize: this._parameterRead("targets_thicknessMapSize"),
             targets_diffuseMapSize: this._parameterRead("targets_diffuseMapSize"),
             targets_useVelocity: this._parameterRead("targets_useVelocity"),
+            targets_useFixedThickness: this._parameterRead("targets_useFixedThickness"),
         };
         
         const targetRenderers = this._gui.addFolder("Target renderers");
@@ -184,7 +185,8 @@ export class FluidRendererGUI {
         this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_depthMapSize", "Depth map size", ["Screen size", 256, 512, 1024, 2048, 4096]));
         this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_thicknessMapSize", "Thickness map size", ["Screen size", 64, 128, 256, 512, 1024, 2048]));
         this._targetRenderersGUIElements.push(this._addList(targetRenderers, params, "targets_diffuseMapSize", "Diffuse map size", ["Screen size", 256, 512, 1024, 2048, 4096]));
-        this._targetRenderersGUIElements.push(this._addSlider(targetRenderers, params, "targets_minimumThickness", "Minimum thickness", 0, 1, 0.001));
+        this._targetRenderersGUIElements.push(this._addSlider(targetRenderers, params, "targets_minimumThickness", "Minimum thickness", 0, 3, 0.001));
+        this._targetRenderersGUIElements.push(this._addCheckbox(targetRenderers, params, "targets_useFixedThickness", "Use fixed thickness"));
         this._targetRenderersGUIElements.push(this._addCheckbox(targetRenderers, params, "targets_useVelocity", "Use velocity"));
 
         const menuColor = targetRenderers.addFolder("Color");

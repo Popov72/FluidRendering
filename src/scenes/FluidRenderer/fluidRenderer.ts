@@ -16,12 +16,15 @@ import bilateralBlurFragment from "../../assets/shaders/bilateralBlur.fragment.g
 import standardBlurFragment from "../../assets/shaders/standardBlur.fragment.glsl";
 
 import renderFluidFragment from "../../assets/shaders/renderFluid.fragment.glsl";
+import renderFluidWGSLFragment from "../../assets/shaders/renderFluid.fragment.wgsl";
 
 import passDepthVertex from "../../assets/shaders/passDepth.vertex.glsl";
 import passDepthFragment from "../../assets/shaders/passDepth.fragment.glsl";
 
 import passDepthWGSLVertex from "../../assets/shaders/passDepth.vertex.wgsl";
 import passDepthWGSLFragment from "../../assets/shaders/passDepth.fragment.wgsl";
+
+import postprocessWGSLVertex from "../../assets/shaders/postprocess.vertex.wgsl";
 
 import { FluidRenderingObjectParticleSystem } from "./fluidRenderingObjectParticleSystem";
 import { FluidRenderingTargetRenderer } from "./fluidRenderingTargetRenderer";
@@ -401,7 +404,10 @@ export class FluidRenderer {
 
             const sourceCopyDepth = firstPostProcess.inputTexture?.depthStencilTexture;
             if (sourceCopyDepth) {
-                const copyDepthTextures = list[1];
+                const [targetRenderers, copyDepthTextures] = list;
+                for (const targetRenderer of targetRenderers) {
+                    targetRenderer._bgDepthTexture = sourceCopyDepth;
+                }
                 for (const key in copyDepthTextures) {
                     copyDepthTextures[key].copy(sourceCopyDepth);
                 }
@@ -455,9 +461,12 @@ BABYLON.ShaderStore.ShadersStore["bilateralBlurFragmentShader"] = bilateralBlurF
 BABYLON.ShaderStore.ShadersStore["standardBlurFragmentShader"] = standardBlurFragment;
 
 BABYLON.ShaderStore.ShadersStore["renderFluidFragmentShader"] = renderFluidFragment;
+BABYLON.ShaderStore.ShadersStoreWGSL["renderFluidFragmentShader"] = renderFluidWGSLFragment;
 
 BABYLON.ShaderStore.ShadersStore["passDepthVertexShader"] = passDepthVertex;
 BABYLON.ShaderStore.ShadersStore["passDepthFragmentShader"] = passDepthFragment;
 
 BABYLON.ShaderStore.ShadersStoreWGSL["passDepthVertexShader"] = passDepthWGSLVertex;
 BABYLON.ShaderStore.ShadersStoreWGSL["passDepthFragmentShader"] = passDepthWGSLFragment;
+
+BABYLON.ShaderStore.ShadersStoreWGSL["postprocessVertexShader"] = postprocessWGSLVertex;
