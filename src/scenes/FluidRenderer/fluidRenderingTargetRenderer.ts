@@ -464,24 +464,26 @@ export class FluidRenderingTargetRenderer {
                   )
                 : this._engine.getRenderHeight();
 
-        this._thicknessRenderTarget = new FluidRenderingRenderTarget(
-            "Thickness",
-            this._scene,
-            thicknessWidth,
-            thicknessHeight,
-            thicknessWidth,
-            thicknessHeight,
-            BABYLON.Constants.TEXTURETYPE_HALF_FLOAT,
-            BABYLON.Constants.TEXTUREFORMAT_R,
-            BABYLON.Constants.TEXTURETYPE_HALF_FLOAT,
-            BABYLON.Constants.TEXTUREFORMAT_R,
-            true,
-            this._camera,
-            false,
-            this._samples
-        );
+        if (!this._useFixedThickness) {
+            this._thicknessRenderTarget = new FluidRenderingRenderTarget(
+                "Thickness",
+                this._scene,
+                thicknessWidth,
+                thicknessHeight,
+                thicknessWidth,
+                thicknessHeight,
+                BABYLON.Constants.TEXTURETYPE_HALF_FLOAT,
+                BABYLON.Constants.TEXTUREFORMAT_R,
+                BABYLON.Constants.TEXTURETYPE_HALF_FLOAT,
+                BABYLON.Constants.TEXTUREFORMAT_R,
+                true,
+                this._camera,
+                false,
+                this._samples
+            );
 
-        this._initializeRenderTarget(this._thicknessRenderTarget);
+            this._initializeRenderTarget(this._thicknessRenderTarget);
+        }
 
         this._createLiquidRenderingPostProcess();
     }
@@ -807,12 +809,12 @@ export class FluidRenderingTargetRenderer {
                             : this._depthRenderTarget!.texture;
                         break;
                     case FluidRenderingDebug.ThicknessTexture:
-                        texture = this._thicknessRenderTarget!.texture;
+                        texture = this._thicknessRenderTarget?.texture ?? null;
                         break;
                     case FluidRenderingDebug.ThicknessBlurredTexture:
-                        texture = this._thicknessRenderTarget!.enableBlur
-                            ? this._thicknessRenderTarget!.textureBlur
-                            : this._thicknessRenderTarget!.texture;
+                        texture = this._thicknessRenderTarget?.enableBlur
+                            ? this._thicknessRenderTarget?.textureBlur ?? null
+                            : this._thicknessRenderTarget?.texture ?? null;
                         break;
                     case FluidRenderingDebug.DiffuseTexture:
                         if (this._diffuseRenderTarget) {
