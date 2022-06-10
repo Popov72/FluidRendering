@@ -19,6 +19,15 @@ const dir2 = new BABYLON.Vector3(-1, -1, 1);
 const dir3 = new BABYLON.Vector3(-1, 1, -1);
 const dir4 = new BABYLON.Vector3(1, 1, 1);
 
+export interface SDFArray {
+    origin: BABYLON.Vector3;
+    dimX: number;
+    dimY: number;
+    dimZ: number;
+    step: number;
+    data: number[];
+}
+
 export interface ICollisionShape {
     params: Array<any>;
     sdEvaluate: (p: BABYLON.Vector3, ...args: any[]) => number;
@@ -31,9 +40,10 @@ export interface ICollisionShape {
         scene: BABYLON.Scene,
         shape: ICollisionShape,
         ...args: any[]
-    ) => BABYLON.Mesh;
+    ) => Promise<BABYLON.Mesh>;
     transf: BABYLON.Matrix;
     invTransf: BABYLON.Matrix;
+    scale: number;
     position?: BABYLON.Vector3;
     rotation?: BABYLON.Vector3;
     rotationQuaternion?: BABYLON.Quaternion;
@@ -71,7 +81,7 @@ export class SDFHelper {
 
         box.material = material;
 
-        return box;
+        return Promise.resolve(box);
     }
 
     public static CreateSphere(
@@ -94,7 +104,7 @@ export class SDFHelper {
 
         sphere.material = material;
 
-        return sphere;
+        return Promise.resolve(sphere);
     }
 
     public static CreateCutHollowSphere(
@@ -158,7 +168,7 @@ export class SDFHelper {
 
         meshFinal.material = material;
 
-        return meshFinal;
+        return Promise.resolve(meshFinal);
     }
 
     public static CreateVerticalCylinder(
@@ -183,7 +193,7 @@ export class SDFHelper {
 
         cylinder.material = material;
 
-        return cylinder;
+        return Promise.resolve(cylinder);
     }
 
     public static CreateTerrain(
@@ -217,7 +227,96 @@ export class SDFHelper {
 
         shape.params.push(ground);
 
-        return ground;
+        return Promise.resolve(ground);
+    }
+
+    protected static _ParseSDFData(textData: string): SDFArray {
+        const lines = textData.replace("\r", "").split("\n");
+
+        const dimLine = lines[0].split(" ");
+
+        const dimX = parseFloat(dimLine[0]);
+        const dimY = parseFloat(dimLine[1]);
+        const dimZ = parseFloat(dimLine[2]);
+
+        const originLine = lines[1].split(" ");
+
+        const origin = new BABYLON.Vector3(
+            parseFloat(originLine[0]),
+            parseFloat(originLine[1]),
+            parseFloat(originLine[2])
+        );
+
+        const step = parseFloat(lines[2]);
+
+        const data: number[] = [];
+
+        for (let i = 3; i < lines.length; ++i) {
+            const val = lines[i];
+            if (val.length === 0) {
+                continue;
+            }
+            data.push(parseFloat(val));
+        }
+
+        return {
+            dimX,
+            dimY,
+            dimZ,
+            origin,
+            step,
+            data,
+        };
+    }
+
+    public static CreateMesh(
+        scene: BABYLON.Scene,
+        shape: ICollisionShape,
+        meshFilename: string,
+        sdfFilename: string
+    ): Promise<BABYLON.Mesh> {
+        return new Promise((resolve) => {
+            const promises = [
+                BABYLON.SceneLoader.ImportMeshAsync(
+                    "",
+                    "assets/scenes/",
+                    meshFilename,
+                    scene
+                ),
+                new Promise((resolve) => {
+                    fetch("assets/sdf/" + sdfFilename).then((response) => {
+                        response.text().then((text) => {
+                            shape.params.push(SDFHelper._ParseSDFData(text));
+                            resolve(void 0);
+                        });
+                    });
+                }),
+            ];
+
+            Promise.all(promises).then((results) => {
+                const meshes = results[0] as BABYLON.ISceneLoaderAsyncResult;
+                const mesh = meshes.meshes[0] as BABYLON.Mesh;
+                if (!mesh.material) {
+                    const material = new BABYLON.PBRMaterial(
+                        "sphereMat",
+                        scene
+                    );
+
+                    material.metallic = 1;
+                    material.roughness = 0.05;
+                    material.albedoTexture = new BABYLON.Texture(
+                        rockBaseColor,
+                        scene
+                    );
+                    material.cullBackFaces = true;
+
+                    mesh.material = material;
+                    mesh.createNormals(false);
+                    mesh.scaling.setAll(shape.scale);
+                }
+                resolve(mesh);
+            });
+        });
     }
 
     // SD functions from https://iquilezles.org/articles/distfunctions/
@@ -278,6 +377,61 @@ export class SDFHelper {
         terrain: BABYLON.GroundMesh
     ) {
         return p.y - terrain.getHeightAtCoordinates(p.x, p.z);
+    }
+
+    public static SDMesh(
+        p: BABYLON.Vector3,
+        meshFilename: string,
+        sdfFilename: string,
+        sdf: SDFArray
+    ) {
+        const x = (p.x - sdf.origin.x) / sdf.step;
+        const y = (p.y - sdf.origin.y) / sdf.step;
+        const z = (p.z - sdf.origin.z) / sdf.step;
+
+        let gx = Math.floor(x);
+        let gy = Math.floor(y);
+        let gz = Math.floor(z);
+
+        gx = Math.max(Math.min(gx, sdf.dimX - 2), 0);
+        gy = Math.max(Math.min(gy, sdf.dimY - 2), 0);
+        gz = Math.max(Math.min(gz, sdf.dimZ - 2), 0);
+
+        // trilinear filtering
+        const fx = x - gx;
+        const fy = y - gy;
+        const fz = z - gz;
+
+        const a00 = sdf.data[gz * sdf.dimY * sdf.dimX + gy * sdf.dimX + gx];
+        const a10 = sdf.data[gz * sdf.dimY * sdf.dimX + gy * sdf.dimX + gx + 1];
+        const a11 =
+            sdf.data[gz * sdf.dimY * sdf.dimX + (gy + 1) * sdf.dimX + gx + 1];
+        const a01 =
+            sdf.data[gz * sdf.dimY * sdf.dimX + (gy + 1) * sdf.dimX + gx];
+
+        const a0 = a00 * (1 - fx) + a10 * fx;
+        const a1 = a01 * (1 - fx) + a11 * fx;
+        const a = a0 * (1 - fy) + a1 * fy;
+
+        const b00 =
+            sdf.data[(gz + 1) * sdf.dimY * sdf.dimX + gy * sdf.dimX + gx];
+        const b10 =
+            sdf.data[(gz + 1) * sdf.dimY * sdf.dimX + gy * sdf.dimX + gx + 1];
+        const b11 =
+            sdf.data[
+                (gz + 1) * sdf.dimY * sdf.dimX + (gy + 1) * sdf.dimX + gx + 1
+            ];
+        const b01 =
+            sdf.data[(gz + 1) * sdf.dimY * sdf.dimX + (gy + 1) * sdf.dimX + gx];
+
+        const b0 = b00 * (1 - fx) + b10 * fx;
+        const b1 = b01 * (1 - fx) + b11 * fx;
+        const b = b0 * (1 - fy) + b1 * fy;
+
+        const d = a * (1 - fz) + b * fz;
+        //const d = sdf.data[gz * sdf.dimY * sdf.dimX + gy * sdf.dimX + gx];
+
+        return d;
     }
 
     // normal computed with the Tetrahedron technique, see https://iquilezles.org/articles/normalsSDF/

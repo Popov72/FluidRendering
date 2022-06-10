@@ -14,7 +14,7 @@ export class FluidSimulationDemoParticleSystem extends FluidSimulationDemoBase {
         this._particleSystem = null;
     }
 
-    public async run() {
+    protected async _run() {
         const camera =
             this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
 
@@ -102,7 +102,7 @@ export class FluidSimulationDemoParticleSystem extends FluidSimulationDemoBase {
         );
         this._fluidRenderObject.targetRenderer.generateDiffuseTexture = false;
 
-        super.run();
+        super._run();
     }
 
     public dispose() {

@@ -34,6 +34,7 @@ export class FluidSimulationDemoBase {
     protected _engine: BABYLON.Engine;
     protected _gui: BABYLON.Nullable<LiLGUI.GUI>;
     protected _environmentFile: string;
+    protected _noFluidSimulation: boolean;
 
     protected _fluidRenderer: FluidRenderer;
     protected _fluidRenderObject: IFluidRenderingRenderObject;
@@ -45,7 +46,12 @@ export class FluidSimulationDemoBase {
     protected _sceneObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>>;
     protected _loadParticlesFromFile: boolean;
     protected _shapeCollisionRestitution: number;
-    protected _collisionShapes: Array<ICollisionShape>;
+    protected _collisionObjectPromises: Array<
+        Promise<[BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]>
+    >;
+    protected _collisionObjects: Array<
+        [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]
+    >;
 
     protected _fluidSimGUIElements: Array<[LiLGUI.Controller, any, string]>;
 
@@ -88,9 +94,11 @@ export class FluidSimulationDemoBase {
         this._particleGenerator = null;
         this._loadParticlesFromFile = particleFileName !== undefined;
         this._shapeCollisionRestitution = 0.999;
-        this._collisionShapes = [];
+        this._collisionObjectPromises = [];
+        this._collisionObjects = [];
         this._environmentFile = "Environment";
         this._fluidSimGUIElements = [];
+        this._noFluidSimulation = noFluidSimulation;
 
         const particleRadius = 0.02;
         const camera = scene.activeCameras?.[0] ?? scene.activeCamera!;
@@ -151,36 +159,6 @@ export class FluidSimulationDemoBase {
             this._particleGenerator.particleRadius =
                 this._fluidSim.smoothingRadius / 2;
             this._particleGenerator.position.y = 0.5;
-
-            this._sceneObserver = scene.onBeforeRenderObservable.add(() => {
-                this._fluidSim!.currentNumParticles = Math.min(
-                    this._numParticles,
-                    this._particleGenerator!.currNumParticles
-                );
-                (
-                    this._fluidRenderObject
-                        .object as FluidRenderingObjectVertexBuffer
-                ).setNumParticles(this._fluidSim!.currentNumParticles);
-
-                if (!this._paused) {
-                    this._fluidSim!.update(1 / 100);
-                    this._checkCollisions(
-                        this._fluidRenderObject.object.particleSize / 2
-                    );
-                }
-
-                if (
-                    this._fluidRenderObject &&
-                    this._fluidRenderObject.object.vertexBuffers["position"]
-                ) {
-                    this._fluidRenderObject.object.vertexBuffers[
-                        "position"
-                    ].updateDirectly(this._fluidSim!.positions, 0);
-                    this._fluidRenderObject.object.vertexBuffers[
-                        "velocity"
-                    ].updateDirectly(this._fluidSim!.velocities, 0);
-                }
-            });
         }
     }
 
@@ -197,6 +175,14 @@ export class FluidSimulationDemoBase {
     public async run() {
         this._setEnvironment();
 
+        this._collisionObjects = await Promise.all(
+            this._collisionObjectPromises
+        );
+
+        this._run();
+    }
+
+    protected async _run() {
         await this._generateParticles();
 
         if (this._particleGenerator && this._loadParticlesFromFile) {
@@ -206,14 +192,48 @@ export class FluidSimulationDemoBase {
         this._fluidRendererGUI = new FluidRendererGUI(this._scene, false);
 
         this._makeGUI();
+
+        if (!this._noFluidSimulation) {
+            this._sceneObserver = this._scene.onBeforeRenderObservable.add(
+                () => {
+                    this._fluidSim!.currentNumParticles = Math.min(
+                        this._numParticles,
+                        this._particleGenerator!.currNumParticles
+                    );
+                    (
+                        this._fluidRenderObject
+                            .object as FluidRenderingObjectVertexBuffer
+                    ).setNumParticles(this._fluidSim!.currentNumParticles);
+
+                    if (!this._paused) {
+                        this._fluidSim!.update(1 / 100);
+                        this._checkCollisions(
+                            this._fluidRenderObject.object.particleSize / 2
+                        );
+                    }
+
+                    if (
+                        this._fluidRenderObject &&
+                        this._fluidRenderObject.object.vertexBuffers["position"]
+                    ) {
+                        this._fluidRenderObject.object.vertexBuffers[
+                            "position"
+                        ].updateDirectly(this._fluidSim!.positions, 0);
+                        this._fluidRenderObject.object.vertexBuffers[
+                            "velocity"
+                        ].updateDirectly(this._fluidSim!.velocities, 0);
+                    }
+                }
+            );
+        }
     }
 
     public dispose(): void {
-        for (let i = 0; i < this._collisionShapes.length; ++i) {
-            const shape = this._collisionShapes[i];
+        for (let i = 0; i < this._collisionObjects.length; ++i) {
+            const shape = this._collisionObjects[i][1];
 
-            shape.mesh?.material?.dispose();
-            shape.mesh?.dispose();
+            shape?.mesh?.material?.dispose();
+            shape?.mesh?.dispose();
         }
 
         this._scene.onBeforeRenderObservable.remove(this._sceneObserver);
@@ -239,8 +259,8 @@ export class FluidSimulationDemoBase {
         ),
         collisionRestitution?: number,
         dontCreateMesh?: boolean
-    ): [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>] {
-        this._collisionShapes.push({
+    ): Promise<[BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]> {
+        const collisionShape = {
             params: [radius],
             createMesh: SDFHelper.CreateSphere,
             sdEvaluate: SDFHelper.SDSphere,
@@ -248,16 +268,21 @@ export class FluidSimulationDemoBase {
             position: position.clone(),
             mesh: null as any,
             transf: new BABYLON.Matrix(),
+            scale: 1,
             invTransf: new BABYLON.Matrix(),
             dragPlane,
             collisionRestitution,
-        });
+        };
 
-        return dontCreateMesh
-            ? [null, this._collisionShapes[this._collisionShapes.length - 1]]
-            : this._createMeshForCollision(
-                  this._collisionShapes[this._collisionShapes.length - 1]
-              );
+        const promise: Promise<
+            [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]
+        > = dontCreateMesh
+            ? Promise.resolve([null, collisionShape])
+            : this._createMeshForCollision(collisionShape);
+
+        this._collisionObjectPromises.push(promise);
+
+        return promise;
     }
 
     public addCollisionBox(
@@ -271,8 +296,8 @@ export class FluidSimulationDemoBase {
         ),
         collisionRestitution?: number,
         dontCreateMesh?: boolean
-    ): [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>] {
-        this._collisionShapes.push({
+    ): Promise<[BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]> {
+        const collisionShape = {
             params: [extents.clone()],
             createMesh: SDFHelper.CreateBox,
             sdEvaluate: SDFHelper.SDBox,
@@ -281,24 +306,29 @@ export class FluidSimulationDemoBase {
             position: position.clone(),
             mesh: null as any,
             transf: new BABYLON.Matrix(),
+            scale: 1,
             invTransf: new BABYLON.Matrix(),
             dragPlane,
             collisionRestitution,
-        });
+        };
 
-        return dontCreateMesh
-            ? [null, this._collisionShapes[this._collisionShapes.length - 1]]
-            : this._createMeshForCollision(
-                  this._collisionShapes[this._collisionShapes.length - 1]
-              );
+        const promise: Promise<
+            [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]
+        > = dontCreateMesh
+            ? Promise.resolve([null, collisionShape])
+            : this._createMeshForCollision(collisionShape);
+
+        this._collisionObjectPromises.push(promise);
+
+        return promise;
     }
 
     public addCollisionPlane(
         normal: BABYLON.Vector3,
         d: number,
         collisionRestitution?: number
-    ): [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape] {
-        this._collisionShapes.push({
+    ): Promise<[BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]> {
+        const collisionShape = {
             params: [normal.clone(), d],
             sdEvaluate: SDFHelper.SDPlane,
             computeNormal: SDFHelper.ComputeSDFNormal,
@@ -306,12 +336,19 @@ export class FluidSimulationDemoBase {
             position: new BABYLON.Vector3(0, 0, 0),
             rotation: new BABYLON.Vector3(0, 0, 0),
             transf: BABYLON.Matrix.Identity(),
+            scale: 1,
             invTransf: BABYLON.Matrix.Identity(),
             dragPlane: null,
             collisionRestitution,
-        });
+        };
 
-        return [null, this._collisionShapes[this._collisionShapes.length - 1]];
+        const promise: Promise<
+            [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]
+        > = Promise.resolve([null, collisionShape]);
+
+        this._collisionObjectPromises.push(promise);
+
+        return promise;
     }
 
     public addCollisionCutHollowSphere(
@@ -328,8 +365,8 @@ export class FluidSimulationDemoBase {
         ),
         collisionRestitution?: number,
         dontCreateMesh?: boolean
-    ): [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>] {
-        this._collisionShapes.push({
+    ): Promise<[BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]> {
+        const collisionShape = {
             params: [radius, planeDist, thickness, segments],
             createMesh: SDFHelper.CreateCutHollowSphere,
             sdEvaluate: SDFHelper.SDCutHollowSphere,
@@ -338,16 +375,21 @@ export class FluidSimulationDemoBase {
             position: position.clone(),
             mesh: null as any,
             transf: new BABYLON.Matrix(),
+            scale: 1,
             invTransf: new BABYLON.Matrix(),
             dragPlane,
             collisionRestitution,
-        });
+        };
 
-        return dontCreateMesh
-            ? [null, this._collisionShapes[this._collisionShapes.length - 1]]
-            : this._createMeshForCollision(
-                  this._collisionShapes[this._collisionShapes.length - 1]
-              );
+        const promise: Promise<
+            [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]
+        > = dontCreateMesh
+            ? Promise.resolve([null, collisionShape])
+            : this._createMeshForCollision(collisionShape);
+
+        this._collisionObjectPromises.push(promise);
+
+        return promise;
     }
 
     public addCollisionVerticalCylinder(
@@ -363,8 +405,8 @@ export class FluidSimulationDemoBase {
         ),
         collisionRestitution?: number,
         dontCreateMesh?: boolean
-    ): [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>] {
-        this._collisionShapes.push({
+    ): Promise<[BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]> {
+        const collisionShape = {
             params: [radius, height, segments],
             createMesh: SDFHelper.CreateVerticalCylinder,
             sdEvaluate: SDFHelper.SDVerticalCylinder,
@@ -373,39 +415,95 @@ export class FluidSimulationDemoBase {
             position: position.clone(),
             mesh: null as any,
             transf: new BABYLON.Matrix(),
+            scale: 1,
             invTransf: new BABYLON.Matrix(),
             dragPlane,
             collisionRestitution,
-        });
+        };
 
-        return dontCreateMesh
-            ? [null, this._collisionShapes[this._collisionShapes.length - 1]]
-            : this._createMeshForCollision(
-                  this._collisionShapes[this._collisionShapes.length - 1]
-              );
+        const promise: Promise<
+            [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]
+        > = dontCreateMesh
+            ? Promise.resolve([null, collisionShape])
+            : this._createMeshForCollision(collisionShape);
+
+        this._collisionObjectPromises.push(promise);
+
+        return promise;
     }
 
-    public addCollisionTerrain(size: number) {
-        this._collisionShapes.push({
+    public addCollisionMesh(
+        position: BABYLON.Vector3,
+        rotation: BABYLON.Vector3,
+        meshFilename: string,
+        sdfFilename: string,
+        scale = 1,
+        dragPlane: BABYLON.Nullable<BABYLON.Vector3> = new BABYLON.Vector3(
+            0,
+            1,
+            0
+        ),
+        collisionRestitution?: number,
+        dontCreateMesh?: boolean
+    ): Promise<[BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]> {
+        const collisionShape = {
+            params: [meshFilename, sdfFilename],
+            createMesh: SDFHelper.CreateMesh,
+            sdEvaluate: SDFHelper.SDMesh,
+            computeNormal: SDFHelper.ComputeSDFNormal,
+            rotation: rotation.clone(),
+            position: position.clone(),
+            mesh: null as any,
+            transf: new BABYLON.Matrix(),
+            scale,
+            invTransf: new BABYLON.Matrix(),
+            dragPlane,
+            collisionRestitution,
+        };
+
+        const promise: Promise<
+            [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]
+        > = dontCreateMesh
+            ? Promise.resolve([null, collisionShape])
+            : this._createMeshForCollision(collisionShape);
+
+        this._collisionObjectPromises.push(promise);
+
+        return promise;
+    }
+
+    public addCollisionTerrain(
+        size: number
+    ): Promise<[BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]> {
+        const collisionShape = {
             params: [size],
             createMesh: SDFHelper.CreateTerrain,
             sdEvaluate: SDFHelper.SDTerrain,
             computeNormal: SDFHelper.ComputeTerrainNormal,
             mesh: null as any,
             transf: new BABYLON.Matrix(),
+            scale: 1,
             invTransf: new BABYLON.Matrix(),
             dragPlane: null,
-        });
+        };
 
-        return this._createMeshForCollision(
-            this._collisionShapes[this._collisionShapes.length - 1]
-        );
+        const promise: Promise<
+            [BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]
+        > = this._createMeshForCollision(collisionShape);
+
+        this._collisionObjectPromises.push(promise);
+
+        return promise;
     }
 
-    protected _createMeshForCollision(
+    protected async _createMeshForCollision(
         shape: ICollisionShape
-    ): [BABYLON.Nullable<BABYLON.Mesh>, BABYLON.Nullable<ICollisionShape>] {
-        const mesh = shape.createMesh?.(this._scene, shape, ...shape.params);
+    ): Promise<[BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]> {
+        const mesh = await shape.createMesh?.(
+            this._scene,
+            shape,
+            ...shape.params
+        );
 
         shape.position = shape.position ?? new BABYLON.Vector3(0, 0, 0);
         if (!shape.rotation && !shape.rotationQuaternion) {
@@ -413,7 +511,7 @@ export class FluidSimulationDemoBase {
         }
 
         if (!mesh) {
-            return [null, null];
+            return [null, shape];
         }
 
         mesh.position = shape.position;
@@ -678,7 +776,7 @@ export class FluidSimulationDemoBase {
     }
 
     protected _checkCollisions(particleRadius: number): void {
-        if (this._collisionShapes.length === 0) {
+        if (this._collisionObjects.length === 0) {
             return;
         }
 
@@ -690,8 +788,8 @@ export class FluidSimulationDemoBase {
 
         tmpScale.copyFromFloats(1, 1, 1);
 
-        for (let i = 0; i < this._collisionShapes.length; ++i) {
-            const shape = this._collisionShapes[i];
+        for (let i = 0; i < this._collisionObjects.length; ++i) {
+            const shape = this._collisionObjects[i][1];
 
             const quat =
                 shape.mesh?.rotationQuaternion ??
@@ -720,8 +818,8 @@ export class FluidSimulationDemoBase {
             const py = positions[a * 3 + 1];
             const pz = positions[a * 3 + 2];
 
-            for (let i = 0; i < this._collisionShapes.length; ++i) {
-                const shape = this._collisionShapes[i];
+            for (let i = 0; i < this._collisionObjects.length; ++i) {
+                const shape = this._collisionObjects[i][1];
                 if (shape.disabled) {
                     continue;
                 }
@@ -732,8 +830,10 @@ export class FluidSimulationDemoBase {
                     shape.invTransf,
                     pos
                 );
+                pos.scaleInPlace(1 / shape.scale);
                 const dist =
-                    shape.sdEvaluate(pos, ...shape.params) - particleRadius;
+                    shape.scale * shape.sdEvaluate(pos, ...shape.params) -
+                    particleRadius;
                 if (dist < 0) {
                     shape.computeNormal(pos, shape, normal);
 

@@ -19,7 +19,7 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
         this._pcs = null;
     }
 
-    public async run() {
+    protected async _run() {
         const camera =
             this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
 
@@ -199,7 +199,7 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
             ].updateDirectly(positions, 0);
         });
 
-        super.run();
+        super._run();
     }
 
     public dispose() {

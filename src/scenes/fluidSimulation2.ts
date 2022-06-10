@@ -11,6 +11,7 @@ import { FluidSimulationDemoPrecomputeRendering } from "./fluidSimulationDemoPre
 import { FluidSimulationDemoParticleSystem } from "./fluidSimulationDemoParticleSystem";
 import { FluidSimulationDemoParticleCustomShape } from "./fluidSimulationDemoParticleCustomShape";
 import { FluidSimulationDemoGlass } from "./fluidSimulationDemoGlass";
+import { FluidSimulationDemoMeshSDF } from "./fluidSimulationDemoMeshSDF";
 
 const cameraMin = 0.1;
 const cameraMax = 1000;
@@ -79,6 +80,10 @@ export class FluidRendering implements CreateSceneClass {
         FluidSimulationDemoBase.AddDemo(
             "Glass",
             () => new FluidSimulationDemoGlass(scene)
+        );
+        FluidSimulationDemoBase.AddDemo(
+            "Mesh SDF",
+            () => new FluidSimulationDemoMeshSDF(scene)
         );
 
         FluidSimulationDemoBase.StartDemo(3);

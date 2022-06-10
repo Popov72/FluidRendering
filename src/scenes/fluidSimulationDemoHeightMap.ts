@@ -6,8 +6,8 @@ import { ICollisionShape } from "./Utils/sdfHelper";
 
 export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
     private _particleGeneratorName: string;
-    private _sphere: BABYLON.Mesh;
-    private _box: BABYLON.Mesh;
+    private _sphere: BABYLON.Nullable<BABYLON.Mesh>;
+    private _box: BABYLON.Nullable<BABYLON.Mesh>;
     private _heightMap: [
         BABYLON.Nullable<BABYLON.Mesh>,
         BABYLON.Nullable<ICollisionShape>
@@ -24,42 +24,46 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
         this._particleGeneratorName = "Water jet";
         this._time = 0;
         this._showHeightmap = true;
+        this._sphere = null;
+        this._box = null;
+        this._heightMap = [null, null];
+        this._groundCollision = null as any;
 
         const terrainSize = 2.85;
 
-        this._sphere = this.addCollisionSphere(
-            new BABYLON.Vector3(0, 0.2, 0),
-            0.2,
-            null
-        )[0]!;
-        this._box = this.addCollisionBox(
+        this.addCollisionSphere(new BABYLON.Vector3(0, 0.2, 0), 0.2, null);
+        this.addCollisionBox(
             new BABYLON.Vector3(-0.7, 0.249, -0.7),
             new BABYLON.Vector3(0, 0, (90 * Math.PI) / 180),
             new BABYLON.Vector3(0.2, 0.05, 0.5)
-        )[0]!;
+        );
 
-        this._heightMap = this.addCollisionTerrain(terrainSize);
+        this.addCollisionTerrain(terrainSize);
 
         this.addCollisionPlane(new BABYLON.Vector3(0, 0, -1), terrainSize / 2);
         this.addCollisionPlane(new BABYLON.Vector3(0, 0, 1), terrainSize / 2);
         this.addCollisionPlane(new BABYLON.Vector3(1, 0, 0), terrainSize / 2);
         this.addCollisionPlane(new BABYLON.Vector3(-1, 0, 0), terrainSize / 2);
-        this._groundCollision = this.addCollisionPlane(
-            new BABYLON.Vector3(0, 1, 0),
-            0
-        )[1]!;
-        this._groundCollision.disabled = true;
+        this.addCollisionPlane(new BABYLON.Vector3(0, 1, 0), 0);
 
         this._ground = BABYLON.MeshBuilder.CreateGround(
             "ground",
             { width: terrainSize, height: terrainSize },
             this._scene
         );
-        this._ground.material = this._heightMap[0]!.material;
         this._ground.setEnabled(false);
     }
 
-    public async run() {
+    public async _run() {
+        // Get collision meshes
+        this._sphere = this._collisionObjects[0][0];
+        this._box = this._collisionObjects[1][0];
+        this._heightMap = this._collisionObjects[2];
+        this._groundCollision = this._collisionObjects[7][1];
+
+        this._groundCollision.disabled = true;
+        this._ground.material = this._heightMap[0]!.material;
+
         const camera =
             this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
 
@@ -77,7 +81,7 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
 
         this._createParticleGenerator();
 
-        super.run();
+        super._run();
     }
 
     private _createParticleGenerator(): void {
@@ -200,10 +204,10 @@ export class FluidSimulationDemoHeightMap extends FluidSimulationDemoBase {
     }
 
     protected _checkCollisions(particleRadius: number): void {
-        this._sphere.position.x = Math.cos((2 * this._time) / 3.3) * 1.1;
-        this._sphere.position.z = Math.sin((5 * this._time) / 3.3) * 1.1;
+        this._sphere!.position.x = Math.cos((2 * this._time) / 3.3) * 1.1;
+        this._sphere!.position.z = Math.sin((5 * this._time) / 3.3) * 1.1;
 
-        this._box.rotation.y = this._time * 2;
+        this._box!.rotation.y = this._time * 2;
 
         this._time += 0.02;
 

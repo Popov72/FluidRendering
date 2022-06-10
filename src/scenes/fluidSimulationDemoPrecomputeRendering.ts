@@ -13,7 +13,7 @@ export class FluidSimulationDemoPrecomputeRendering extends FluidSimulationDemoB
         this._animSpeed = 0.5;
     }
 
-    public async run() {
+    protected async _run() {
         const camera =
             this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
 
@@ -98,7 +98,7 @@ export class FluidSimulationDemoPrecomputeRendering extends FluidSimulationDemoB
             }
         });
 
-        super.run();
+        super._run();
     }
 
     protected _makeGUIMainMenu(): void {

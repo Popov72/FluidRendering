@@ -23,6 +23,8 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
         this._sceneRenderObserver = null;
         this._boxMesh = null;
         this._boxMaterial = null;
+        this._cylMesh = null;
+        this._footMesh = null;
 
         this.addCollisionVerticalCylinder(
             new BABYLON.Vector3(0.0, -(1.9 + 0.04 - 0.2 + 0.15), 0.0),
@@ -37,7 +39,7 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
 
         this.addCollisionPlane(new BABYLON.Vector3(0, 1, 0), 6, 0.3);
 
-        this._boxMesh = this.addCollisionCutHollowSphere(
+        this.addCollisionCutHollowSphere(
             new BABYLON.Vector3(0.0, 0.2, 0.0),
             new BABYLON.Vector3(0, 0, 0),
             0.5,
@@ -45,10 +47,10 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
             0.02,
             16,
             new BABYLON.Vector3(0, 1, 0)
-        )[0]!;
+        );
 
         this._footMeshOfst = new BABYLON.Vector3(0, -1.9, 0);
-        this._footMesh = this.addCollisionVerticalCylinder(
+        this.addCollisionVerticalCylinder(
             new BABYLON.Vector3(0.0, -1.7 - 0.04 / 2, 0.0),
             new BABYLON.Vector3(0, 0, 0),
             0.4,
@@ -56,10 +58,10 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
             16,
             null,
             0.6
-        )[0]!;
+        );
 
         this._cylMeshOfst = new BABYLON.Vector3(0, -1.2, 0);
-        this._cylMesh = this.addCollisionVerticalCylinder(
+        this.addCollisionVerticalCylinder(
             new BABYLON.Vector3(0.0, -1.0, 0.0),
             new BABYLON.Vector3(0, 0, 0),
             0.05,
@@ -67,10 +69,15 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
             16,
             null,
             0.6
-        )[0]!;
+        );
     }
 
-    public async run() {
+    public async _run() {
+        // Get collision meshes
+        this._boxMesh = this._collisionObjects[2][0];
+        this._footMesh = this._collisionObjects[3][0];
+        this._cylMesh = this._collisionObjects[4][0];
+
         // Reset camera
         const camera =
             this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
@@ -123,7 +130,7 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
             }
         );
 
-        super.run();
+        super._run();
 
         await BABYLON.SceneLoader.AppendAsync("", tableScene, this._scene);
 
@@ -161,7 +168,7 @@ export class FluidSimulationDemoGlass extends FluidSimulationDemoBase {
 
         mainMenu
             .add(params, "boxOpacity", 0, 1, 0.01)
-            .name("Box opacity")
+            .name("Glass opacity")
             .onChange((value: any) => {
                 this._boxMaterial!.alpha = value;
             });

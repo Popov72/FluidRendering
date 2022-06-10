@@ -22,7 +22,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
     private _angleY: number;
     private _prevTransfo: BABYLON.Matrix;
     private _autoRotateBox: boolean;
-    private _wallMesh: BABYLON.Mesh;
+    private _wallMesh: BABYLON.Nullable<BABYLON.Mesh>;
     private _passPP: BABYLON.PostProcess;
     private _sceneRenderObserver: BABYLON.Nullable<
         BABYLON.Observer<BABYLON.Scene>
@@ -60,14 +60,12 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
         this._collisionPlanes = [];
         for (let i = 0; i < this._origCollisionPlanes.length; ++i) {
             const plane = this._origCollisionPlanes[i];
-            this._collisionPlanes[i] = this.addCollisionPlane(
+            this.addCollisionPlane(
                 plane.normal,
                 plane.d,
                 i === this._origCollisionPlanes.length - 1 ? 0.98 : undefined
             );
         }
-        this._collisionPlanes[this._collisionPlanes.length - 1][1].disabled =
-            true;
 
         this._angleX = 0;
         this._angleY = 0;
@@ -90,24 +88,39 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
 
         const sphereRadius = 0.16;
 
-        this._sphereMesh = this.addCollisionSphere(
+        this._sphereMesh = null;
+        this.addCollisionSphere(
             new BABYLON.Vector3(
                 (this._boxMin.x + this._boxMax.x) / 2,
                 this._boxMin.y + sphereRadius,
                 (this._boxMin.z + this._boxMax.z) / 2 - 0.1
             ),
             sphereRadius
-        )[0]!;
+        );
 
-        this._wallMesh = this.addCollisionBox(
+        this._wallMesh = null;
+        this.addCollisionBox(
             new BABYLON.Vector3(0.0, 0.0, 0.3),
             new BABYLON.Vector3((90 * Math.PI) / 180, 0, 0),
             new BABYLON.Vector3(0.32, 0.05, 0.3),
             new BABYLON.Vector3(1, 0, 0)
-        )[0]!;
+        );
     }
 
-    public async run() {
+    protected async _run() {
+        // Get collision meshes
+        for (let i = 0; i < this._origCollisionPlanes.length; ++i) {
+            this._collisionPlanes.push(this._collisionObjects[i]);
+        }
+
+        this._collisionPlanes[this._collisionPlanes.length - 1][1].disabled =
+            true;
+
+        this._sphereMesh =
+            this._collisionObjects[this._origCollisionPlanes.length][0];
+        this._wallMesh =
+            this._collisionObjects[this._origCollisionPlanes.length + 1][0];
+
         // Reset camera
         const camera =
             this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
@@ -271,7 +284,7 @@ export class FluidSimulationDemoBoxSphere extends FluidSimulationDemoBase {
             }
         );
 
-        super.run();
+        super._run();
     }
 
     public dispose(): void {
