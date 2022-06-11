@@ -228,12 +228,19 @@ export class FluidSimulationDemoBase {
         }
     }
 
-    public dispose(): void {
-        for (let i = 0; i < this._collisionObjects.length; ++i) {
-            const shape = this._collisionObjects[i][1];
+    public disposeCollisionObject(index: number): void {
+        const shape = this._collisionObjects[index][1];
 
-            shape?.mesh?.material?.dispose();
-            shape?.mesh?.dispose();
+        shape?.mesh?.material?.dispose();
+        shape?.mesh?.dispose();
+
+        this._collisionObjects.splice(index, 1);
+        this._collisionObjectPromises.splice(index, 1);
+    }
+
+    public dispose(): void {
+        while (this._collisionObjects.length > 0) {
+            this.disposeCollisionObject(0);
         }
 
         this._scene.onBeforeRenderObservable.remove(this._sceneObserver);
@@ -437,6 +444,7 @@ export class FluidSimulationDemoBase {
         rotation: BABYLON.Vector3,
         meshFilename: string,
         sdfFilename: string,
+        createNormals = false,
         scale = 1,
         dragPlane: BABYLON.Nullable<BABYLON.Vector3> = new BABYLON.Vector3(
             0,
@@ -447,7 +455,7 @@ export class FluidSimulationDemoBase {
         dontCreateMesh?: boolean
     ): Promise<[BABYLON.Nullable<BABYLON.Mesh>, ICollisionShape]> {
         const collisionShape = {
-            params: [meshFilename, sdfFilename],
+            params: [meshFilename, sdfFilename, createNormals],
             createMesh: SDFHelper.CreateMesh,
             sdEvaluate: SDFHelper.SDMesh,
             computeNormal: SDFHelper.ComputeSDFNormal,

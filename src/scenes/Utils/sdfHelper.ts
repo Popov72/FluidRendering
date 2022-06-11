@@ -273,7 +273,8 @@ export class SDFHelper {
         scene: BABYLON.Scene,
         shape: ICollisionShape,
         meshFilename: string,
-        sdfFilename: string
+        sdfFilename: string,
+        createNormals: boolean
     ): Promise<BABYLON.Mesh> {
         return new Promise((resolve) => {
             const promises = [
@@ -297,10 +298,7 @@ export class SDFHelper {
                 const meshes = results[0] as BABYLON.ISceneLoaderAsyncResult;
                 const mesh = meshes.meshes[0] as BABYLON.Mesh;
                 if (!mesh.material) {
-                    const material = new BABYLON.PBRMaterial(
-                        "sphereMat",
-                        scene
-                    );
+                    const material = new BABYLON.PBRMaterial("meshMat", scene);
 
                     material.metallic = 1;
                     material.roughness = 0.05;
@@ -311,9 +309,11 @@ export class SDFHelper {
                     material.cullBackFaces = true;
 
                     mesh.material = material;
-                    mesh.createNormals(false);
-                    mesh.scaling.setAll(shape.scale);
                 }
+                if (createNormals) {
+                    mesh.createNormals(false);
+                }
+                mesh.scaling.setAll(shape.scale);
                 resolve(mesh);
             });
         });
@@ -383,6 +383,7 @@ export class SDFHelper {
         p: BABYLON.Vector3,
         meshFilename: string,
         sdfFilename: string,
+        createNormals: boolean,
         sdf: SDFArray
     ) {
         const x = (p.x - sdf.origin.x) / sdf.step;
