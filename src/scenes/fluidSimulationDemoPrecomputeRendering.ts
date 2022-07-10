@@ -18,9 +18,9 @@ export class FluidSimulationDemoPrecomputeRendering extends FluidSimulationDemoB
             this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
 
         if (camera) {
-            (camera as BABYLON.ArcRotateCamera).alpha = -0.6;
-            (camera as BABYLON.ArcRotateCamera).beta = 1.254;
-            (camera as BABYLON.ArcRotateCamera).radius = 2.347;
+            (camera as BABYLON.ArcRotateCamera).alpha = -0.631;
+            (camera as BABYLON.ArcRotateCamera).beta = 1.318;
+            (camera as BABYLON.ArcRotateCamera).radius = 1.866;
         }
 
         const numFrames = 160;

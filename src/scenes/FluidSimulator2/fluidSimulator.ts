@@ -1,6 +1,8 @@
 import * as BABYLON from "@babylonjs/core";
 import { Hash } from "./hash";
 
+// Based on https://github.com/rlguy/SPHFluidSim/blob/master/src/sphfluidsimulation.cpp
+
 export interface IFluidParticle {
     mass: number;
     density: number;
@@ -133,8 +135,8 @@ export class FluidSimulator {
 
         while (timeLeft > 0) {
             this._hash.create(this._positions, this.currentNumParticles);
-            this._computeDensity();
-            this._computeForces();
+            this._computeDensityAndPressure();
+            this._computeAcceleration();
 
             let timeStep = this._calculateTimeStep();
 
@@ -152,7 +154,7 @@ export class FluidSimulator {
         // nothing to do
     }
 
-    protected _computeDensity(): void {
+    protected _computeDensityAndPressure(): void {
         for (let a = 0; a < this.currentNumParticles; ++a) {
             const pA = this._particles[a];
             const paX = this._positions[a * 3 + 0];
@@ -184,8 +186,8 @@ export class FluidSimulator {
         }
     }
 
-    protected _computeForces(): void {
-        // Pressurce-based force + viscosity-based force computation
+    protected _computeAcceleration(): void {
+        // Pressurce-based acceleration + viscosity-based acceleration computation
         for (let a = 0; a < this.currentNumParticles; ++a) {
             const pA = this._particles[a];
             const paX = this._positions[a * 3 + 0];

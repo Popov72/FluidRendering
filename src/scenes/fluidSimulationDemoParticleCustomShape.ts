@@ -24,9 +24,15 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
             this._scene.activeCameras?.[0] ?? this._scene.activeCamera;
 
         if (camera) {
-            (camera as BABYLON.ArcRotateCamera).alpha = 1.559;
-            (camera as BABYLON.ArcRotateCamera).beta = 1.344;
-            (camera as BABYLON.ArcRotateCamera).radius = 17.557;
+            (camera as BABYLON.ArcRotateCamera).alpha = 1.593 - Math.PI / 8;
+            (camera as BABYLON.ArcRotateCamera).beta = 1.3;
+            (camera as BABYLON.ArcRotateCamera).radius = 9.633;
+            (camera as BABYLON.ArcRotateCamera).computeWorldMatrix();
+            (camera as BABYLON.ArcRotateCamera).setTarget(
+                new BABYLON.Vector3(0, 3, 0)
+            );
+            (camera as BABYLON.ArcRotateCamera).beta = 1.3;
+            (camera as BABYLON.ArcRotateCamera).computeWorldMatrix();
         }
 
         await BABYLON.SceneLoader.AppendAsync(
@@ -51,6 +57,7 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
             .forEach((m) => {
                 m.setEnabled(false);
                 m.scaling.setAll(0.1);
+                m.rotation.y = Math.PI / 8;
                 //m.rotation.y = Math.PI;
                 //(m as BABYLON.Mesh).bakeCurrentTransformIntoVertices();
                 (m.material as any).disableLighting = true;
@@ -73,7 +80,7 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
 
         this._meshPCS.setEnabled(false);
 
-        const positions: Float32Array = (this._pcs as any)._positions32;
+        const positions: Float32Array = this._pcs.positions;
         const origPositions = positions.slice(0);
         const numParticles = positions.length / 3;
 
@@ -90,7 +97,7 @@ export class FluidSimulationDemoParticleCustomShape extends FluidSimulationDemoB
         this._fluidRenderObject.object.vertexBuffers["color"] =
             new BABYLON.VertexBuffer(
                 this._engine,
-                (this._pcs as any)._colors32,
+                this._pcs.colors,
                 "color",
                 false,
                 false,

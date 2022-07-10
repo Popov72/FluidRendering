@@ -420,8 +420,8 @@ export class FluidRenderingRenderTarget {
     private _getProjectedParticleConstant() {
         return (
             (this.blurFilterSize *
-                (this.particleSize / 2) *
-                0.1 *
+                this.particleSize *
+                0.05 *
                 (this._height / 2)) /
             Math.tan((this._camera?.fov ?? (45 * Math.PI) / 180) / 2)
         );
