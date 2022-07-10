@@ -65,8 +65,14 @@ void main(void) {
     vec4 color = texture2D(debugSampler, texCoord);
     #ifdef FLUIDRENDERING_DEBUG_DEPTH
         glFragColor = vec4(color.rgb / vec3(2.0), 1.);
+        if (color.r > 0.999 && color.g > 0.999) {
+            glFragColor = texture2D(textureSampler, texCoord);
+        }
     #else
         glFragColor = vec4(color.rgb, 1.);
+        if (color.r < 0.001 && color.g < 0.001 && color.b < 0.001) {
+            glFragColor = texture2D(textureSampler, texCoord);
+        }
     #endif
     return;
 #endif

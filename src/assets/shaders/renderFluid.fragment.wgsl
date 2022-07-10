@@ -69,9 +69,15 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
         let dim2 = textureDimensions(debugSampler);
         let color = textureLoad(debugSampler, vec2<i32>(texCoord * vec2<f32>(dim2)), 0);
         gl_FragColor = vec4(color.rgb / 2.0, 1.);
+        if (color.r > 0.999 && color.g > 0.999) {
+            gl_FragColor = textureSample(textureSampler, textureSamplerSampler, texCoord);
+        }
     #else
         let color = textureSample(debugSampler, debugSamplerSampler, texCoord);
         gl_FragColor = vec4(color.rgb, 1.);
+        if (color.r < 0.001 && color.g < 0.001 && color.b < 0.001) {
+            gl_FragColor = textureSample(textureSampler, textureSamplerSampler, texCoord);
+        }
     #endif
     output.color = gl_FragColor;
     return output;
@@ -129,7 +135,7 @@ fn main(input: FragmentInputs) -> FragmentOutputs {
     let rayDir = normalize(viewPos); // direction from camera position to view position
 
 #ifdef FLUIDRENDERING_DIFFUSETEXTURE
-    let diffuseColor_ = texture2D(diffuseSampler, texCoord).rgb;
+    let diffuseColor_ = textureSample(diffuseSampler, diffuseSamplerSampler, texCoord).rgb;
 #else
     let diffuseColor_ = uniforms.diffuseColor;
 #endif
