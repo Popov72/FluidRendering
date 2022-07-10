@@ -4,6 +4,8 @@ This is an implementation of this paper from Simon Green (NVIDIA): https://devel
 
 It also features a basic fluid simulator in some of the demos.
 
+![Video](https://www.evpopov.com/temp/precomputed.mp4)
+
 Link to the demo: https://popov72.github.io/FluidRendering/dist/index.html
 
 Link to the demo doc page: https://github.com/Popov72/FluidRendering/wiki/The-demo
