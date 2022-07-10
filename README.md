@@ -1,12 +1,10 @@
 # Fluid Rendering
 
+![image](https://user-images.githubusercontent.com/4152247/174438836-b7b5949a-b2fe-4297-ba20-d0742f7cd45a.png)
+
 This is an implementation of this paper from Simon Green (NVIDIA): https://developer.download.nvidia.com/presentations/2010/gdc/Direct3D_Effects.pdf
 
 It also features a basic fluid simulator in some of the demos.
-
-<video width="320" height="240" controls>
-  <source src="https://www.evpopov.com/temp/precomputed.mp4" type="video/mp4">
-</video>
 
 Link to the demo: https://popov72.github.io/FluidRendering/dist/index.html
 
