@@ -280,12 +280,12 @@ export class SDFHelper {
             const promises = [
                 BABYLON.SceneLoader.ImportMeshAsync(
                     "",
-                    "assets/scenes/",
+                    "/assets/scenes/",
                     meshFilename,
                     scene
                 ),
                 new Promise((resolve) => {
-                    fetch("assets/sdf/" + sdfFilename).then((response) => {
+                    fetch("/assets/sdf/" + sdfFilename).then((response) => {
                         response.text().then((text) => {
                             shape.params.push(SDFHelper._ParseSDFData(text));
                             resolve(void 0);

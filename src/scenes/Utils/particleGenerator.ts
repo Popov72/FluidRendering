@@ -95,7 +95,7 @@ export class ParticleGenerator {
 
     private async _generateParticlesFromFile(fileName: string) {
         const data = await (
-            await fetch(`assets/particles/${fileName}.txt`)
+            await fetch(`/assets/particles/${fileName}.txt`)
         ).text();
 
         const lines = data.replace("\r", "").split("\n");
