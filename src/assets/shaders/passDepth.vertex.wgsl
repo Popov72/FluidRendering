@@ -2,9 +2,9 @@ attribute position: vec2<f32>;
 
 varying vUV: vec2<f32>;
 
-let madd = vec2(0.5, 0.5);
+const madd = vec2(0.5, 0.5);
 
-@stage(vertex)
+@vertex
 fn main(input : VertexInputs) -> FragmentInputs
 {
 	vUV = position * madd + madd;

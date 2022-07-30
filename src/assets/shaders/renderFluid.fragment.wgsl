@@ -1,12 +1,12 @@
 // Index of refraction for water
-let IOR = 1.333;
+const IOR = 1.333;
 
 // Ratios of air and water IOR for refraction
 // Air to water
-let ETA = 0.7501875468867217; // 1.0 / IOR;
+const ETA = 0.7501875468867217; // 1.0 / IOR;
 
 // Fresnel at 0°
-let F0 = 0.02;
+const F0 = 0.02;
 
 var textureSampler : texture_2d<f32>;
 var textureSamplerSampler : sampler;
@@ -60,7 +60,7 @@ fn getViewPosFromTexCoord(texCoord : vec2<f32>) -> vec3<f32> {
     return computeViewPosFromUVDepth(texCoord, depth);
 }
 
-@stage(fragment)
+@fragment
 fn main(input: FragmentInputs) -> FragmentOutputs {
     let texCoord = vUV;
 

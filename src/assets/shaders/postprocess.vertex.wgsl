@@ -5,11 +5,11 @@ uniform scale : vec2<f32>;
 // Output
 varying vUV : vec2<f32>;
 
-let madd = vec2(0.5, 0.5);
+const madd = vec2(0.5, 0.5);
 
 #define CUSTOM_VERTEX_DEFINITIONS
 
-@stage(vertex)
+@vertex
 fn main(input : VertexInputs) -> FragmentInputs
 {
 #define CUSTOM_VERTEX_MAIN_BEGIN
