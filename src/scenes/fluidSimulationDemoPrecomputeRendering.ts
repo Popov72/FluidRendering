@@ -33,7 +33,7 @@ export class FluidSimulationDemoPrecomputeRendering extends FluidSimulationDemoB
             const num = "000" + (i + 1);
             const buffer = await (
                 await fetch(
-                    "/assets/particles/SphereDropGround/frame." +
+                    "../src/assets/particles/SphereDropGround/frame." +
                         num.substring(num.length - 4) +
                         ".pos"
                 )
