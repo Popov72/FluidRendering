@@ -218,6 +218,36 @@ export class FluidRenderingRenderTarget {
         texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
         texture.anisotropicFilteringLevel = 1;
 
+        const updateEffectFunc = function (this: any,
+                                           defines: BABYLON.Nullable<string> = null,
+                                           uniforms: BABYLON.Nullable<string[]> = null,
+                                           samplers: BABYLON.Nullable<string[]> = null,
+                                           indexParameters?: any,
+                                           onCompiled?: (effect: BABYLON.Effect) => void,
+                                           onError?: (effect: BABYLON.Effect, errors: string) => void,
+                                           vertexUrl?: string,
+                                           fragmentUrl?: string
+        ) {
+            this._postProcessDefines = defines;
+            this._drawWrapper.effect = this._engine.createEffect(
+                {
+                    vertex: vertexUrl ?? (this as any)._vertexUrl,
+                    fragment: fragmentUrl ?? (this as any)._fragmentUrl,
+                },
+                ["position"],
+                uniforms || this._parameters,
+                samplers || this._samplers,
+                defines !== null ? defines : "",
+                undefined,
+                onCompiled,
+                onError,
+                indexParameters || this._indexParameters,
+                engine.isWebGPU
+                    ? BABYLON.ShaderLanguage.WGSL
+                    : BABYLON.ShaderLanguage.GLSL
+            );
+        };
+
         if (useStandardBlur) {
             const kernelBlurXPostprocess = new BABYLON.PostProcess(
                 "BilateralBlurX",
@@ -233,9 +263,12 @@ export class FluidRenderingRenderTarget {
                 textureType,
                 undefined,
                 undefined,
-                undefined,
+                true,
                 textureFormat
             );
+            kernelBlurXPostprocess.updateEffect = updateEffectFunc;
+            kernelBlurXPostprocess.updateEffect();
+
             kernelBlurXPostprocess.samples = this._samples;
             kernelBlurXPostprocess.externalTextureSamplerBinding = true;
             kernelBlurXPostprocess.onApplyObservable.add((effect) => {
@@ -273,9 +306,12 @@ export class FluidRenderingRenderTarget {
                 textureType,
                 undefined,
                 undefined,
-                undefined,
+                true,
                 textureFormat
             );
+            kernelBlurYPostprocess.updateEffect = updateEffectFunc;
+            kernelBlurYPostprocess.updateEffect();
+
             kernelBlurYPostprocess.samples = this._samples;
             kernelBlurYPostprocess.onApplyObservable.add((effect) => {
                 effect.setInt("filterSize", this.blurFilterSize);
@@ -322,9 +358,12 @@ export class FluidRenderingRenderTarget {
                 textureType,
                 undefined,
                 undefined,
-                undefined,
+                true,
                 textureFormat
             );
+            kernelBlurXPostprocess.updateEffect = updateEffectFunc;
+            kernelBlurXPostprocess.updateEffect();
+
             kernelBlurXPostprocess.samples = this._samples;
             kernelBlurXPostprocess.externalTextureSamplerBinding = true;
             kernelBlurXPostprocess.onApplyObservable.add((effect) => {
@@ -367,9 +406,12 @@ export class FluidRenderingRenderTarget {
                 textureType,
                 undefined,
                 undefined,
-                undefined,
+                true,
                 textureFormat
             );
+            kernelBlurYPostprocess.updateEffect = updateEffectFunc;
+            kernelBlurYPostprocess.updateEffect()
+
             kernelBlurYPostprocess.samples = this._samples;
             kernelBlurYPostprocess.onApplyObservable.add((effect) => {
                 effect.setInt("maxFilterSize", this.blurMaxFilterSize);

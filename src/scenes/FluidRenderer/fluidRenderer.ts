@@ -13,7 +13,10 @@ import particleDiffuseVertex from "../../assets/shaders/particleDiffuse.vertex.g
 import particleDiffuseFragment from "../../assets/shaders/particleDiffuse.fragment.glsl";
 
 import bilateralBlurFragment from "../../assets/shaders/bilateralBlur.fragment.glsl";
+import bilateralBlurWGSLFragment from "../../assets/shaders/bilateralBlur.fragment.wgsl";
+
 import standardBlurFragment from "../../assets/shaders/standardBlur.fragment.glsl";
+import standardBlurWGSLFragment from "../../assets/shaders/standardBlur.fragment.wgsl";
 
 import renderFluidFragment from "../../assets/shaders/renderFluid.fragment.glsl";
 import renderFluidWGSLFragment from "../../assets/shaders/renderFluid.fragment.wgsl";
@@ -74,7 +77,7 @@ export class FluidRenderer {
     private _engine: BABYLON.Engine;
     private _onEngineResizeObserver: BABYLON.Nullable<
         BABYLON.Observer<BABYLON.Engine>
-    >;
+        >;
     private _renderObjects: Array<IFluidRenderingRenderObject>;
     private _targetRenderers: FluidRenderingTargetRenderer[];
     private _cameras: Map<
@@ -83,7 +86,7 @@ export class FluidRenderer {
             Array<FluidRenderingTargetRenderer>,
             { [key: string]: CopyDepthTexture }
         ]
-    >;
+        >;
 
     public get renderObjects() {
         return this._renderObjects;
@@ -245,8 +248,8 @@ export class FluidRenderer {
             return a.object.priority < b.object.priority
                 ? -1
                 : a.object.priority > b.object.priority
-                ? 1
-                : 0;
+                    ? 1
+                    : 0;
         });
     }
 
@@ -351,7 +354,7 @@ export class FluidRenderer {
                 Array<FluidRenderingTargetRenderer>,
                 { [key: string]: CopyDepthTexture }
             ]
-        > = new Map();
+            > = new Map();
 
         for (let i = 0; i < this._targetRenderers.length; ++i) {
             const targetRenderer = this._targetRenderers[i];
@@ -566,9 +569,13 @@ BABYLON.ShaderStore.ShadersStore["fluidParticleDiffuseFragmentShader"] =
 
 BABYLON.ShaderStore.ShadersStore["bilateralBlurFragmentShader"] =
     bilateralBlurFragment;
+BABYLON.ShaderStore.ShadersStoreWGSL["bilateralBlurFragmentShader"] =
+    bilateralBlurWGSLFragment;
 
 BABYLON.ShaderStore.ShadersStore["standardBlurFragmentShader"] =
     standardBlurFragment;
+BABYLON.ShaderStore.ShadersStoreWGSL["standardBlurFragmentShader"] =
+    standardBlurWGSLFragment;
 
 BABYLON.ShaderStore.ShadersStore["renderFluidFragmentShader"] =
     renderFluidFragment;
