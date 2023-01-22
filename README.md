@@ -2,6 +2,8 @@
 
 ![image](https://user-images.githubusercontent.com/4152247/174438836-b7b5949a-b2fe-4297-ba20-d0742f7cd45a.png)
 
+**Note: this repo is now in read-only mode, as the fluid renderer has been added to Babylon.js since v5.36.0**
+
 This is an implementation of this paper from Simon Green (NVIDIA): https://developer.download.nvidia.com/presentations/2010/gdc/Direct3D_Effects.pdf
 
 It also features a basic fluid simulator in some of the demos.
